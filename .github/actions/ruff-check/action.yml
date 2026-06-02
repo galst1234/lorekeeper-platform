@@ -1,0 +1,14 @@
+name: Ruff
+description: Lint and format check with Ruff
+
+inputs:
+  project-dir:
+    description: Service directory
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - run: uv run ruff check . && uv run ruff format --check .
+      shell: bash
+      working-directory: ${{ inputs.project-dir }}

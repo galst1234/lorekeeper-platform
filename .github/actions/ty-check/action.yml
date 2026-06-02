@@ -1,0 +1,14 @@
+name: Ty
+description: Type check with ty
+
+inputs:
+  project-dir:
+    description: Service directory
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - run: uv run ty check .
+      shell: bash
+      working-directory: ${{ inputs.project-dir }}

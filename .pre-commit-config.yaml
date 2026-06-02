@@ -1,0 +1,37 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.16
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^(api|agent)/
+      - id: ruff-format
+        files: ^(api|agent)/
+
+  - repo: local
+    hooks:
+      - id: biome-check
+        name: biome check (frontend)
+        entry: cmd /c "cd frontend && npx biome check --write"
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+        exclude: ^frontend/src/routeTree\.gen\.ts$
+
+  - repo: local
+    hooks:
+      - id: ty-api
+        name: ty (api)
+        entry: cmd /c "cd api && uv run --frozen ty check ."
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: ^api/
+
+      - id: ty-agent
+        name: ty (agent)
+        entry: cmd /c "cd agent && uv run --frozen ty check ."
+        language: system
+        types: [python]
+        pass_filenames: false
+        files: ^agent/

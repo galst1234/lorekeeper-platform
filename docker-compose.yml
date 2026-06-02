@@ -1,0 +1,50 @@
+x-restart: &restart
+  restart: always
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 5s
+
+services:
+  supertokens:
+    <<: *restart
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:latest
+    env_file: stack.env
+    environment:
+      POSTGRESQL_TABLE_NAMES_PREFIX: "supertokens"
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+
+  api:
+    <<: *restart
+    image: ghcr.io/galst1234/lorekeeper-platform-api:latest
+    env_file: stack.env
+    depends_on:
+      supertokens:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+
+  agent:
+    <<: *restart
+    image: ghcr.io/galst1234/lorekeeper-platform-agent:latest
+    env_file: stack.env
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+
+  frontend:
+    <<: *restart
+    image: ghcr.io/galst1234/lorekeeper-platform-frontend:latest
+    ports: ["80:80"]
+    env_file: stack.env
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-defaults
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
