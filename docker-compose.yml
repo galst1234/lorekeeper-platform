@@ -40,11 +40,11 @@ services:
   frontend:
     <<: *restart
     image: ghcr.io/galst1234/lorekeeper-platform-frontend:latest
-    ports: ["80:80"]
+    ports: ["8008:80"]
     env_file: stack.env
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
       <<: *healthcheck-defaults
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "curl", "-sf", "http://localhost/"]

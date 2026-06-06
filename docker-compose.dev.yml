@@ -1,3 +1,5 @@
+name: lorekeeper-platform-dev
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
