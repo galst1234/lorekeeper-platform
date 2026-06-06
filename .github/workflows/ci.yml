@@ -86,7 +86,7 @@ jobs:
         with:
           project-dir: api
       - name: Create test DB
-        run: PGPASSWORD=lorekeeper psql -h localhost -U lorekeeper -c "CREATE DATABASE lorekeeper_platform_test;"
+        run: PGPASSWORD=lorekeeper psql -h localhost -U lorekeeper -d lorekeeper_platform -c "CREATE DATABASE lorekeeper_platform_test;"
       - name: Run Pytest
         uses: ./.github/actions/pytest-check
         with:
