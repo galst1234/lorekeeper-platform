@@ -31,6 +31,7 @@ jobs:
           tags: |
             ghcr.io/galst1234/lorekeeper-platform-api:latest
             ghcr.io/galst1234/lorekeeper-platform-api:${{ github.event.workflow_run.head_sha || github.sha }}
+          build-args: SENTRY_RELEASE=${{ github.event.workflow_run.head_sha || github.sha }}
           cache-from: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-api:buildcache
           cache-to: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-api:buildcache,mode=max
 
@@ -57,6 +58,7 @@ jobs:
           tags: |
             ghcr.io/galst1234/lorekeeper-platform-agent:latest
             ghcr.io/galst1234/lorekeeper-platform-agent:${{ github.event.workflow_run.head_sha || github.sha }}
+          build-args: SENTRY_RELEASE=${{ github.event.workflow_run.head_sha || github.sha }}
           cache-from: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-agent:buildcache
           cache-to: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-agent:buildcache,mode=max
 
@@ -83,6 +85,12 @@ jobs:
           tags: |
             ghcr.io/galst1234/lorekeeper-platform-frontend:latest
             ghcr.io/galst1234/lorekeeper-platform-frontend:${{ github.event.workflow_run.head_sha || github.sha }}
+          build-args: SENTRY_RELEASE=${{ github.event.workflow_run.head_sha || github.sha }}
+          secrets: |
+            SENTRY_URL=${{ secrets.SENTRY_URL }}
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_ORG=${{ secrets.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ secrets.SENTRY_FRONTEND_PROJECT }}
           cache-from: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-frontend:buildcache
           cache-to: type=registry,ref=ghcr.io/galst1234/lorekeeper-platform-frontend:buildcache,mode=max
 

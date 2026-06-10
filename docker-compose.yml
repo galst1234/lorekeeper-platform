@@ -22,6 +22,9 @@ services:
     <<: *restart
     image: ghcr.io/galst1234/lorekeeper-platform-api:latest
     env_file: stack.env
+    environment:
+      SENTRY_DSN: ${SENTRY_API_DSN}
+      ENABLE_TRACING: "true"
     depends_on:
       supertokens:
         condition: service_healthy
@@ -33,6 +36,9 @@ services:
     <<: *restart
     image: ghcr.io/galst1234/lorekeeper-platform-agent:latest
     env_file: stack.env
+    environment:
+      SENTRY_DSN: ${SENTRY_AGENT_DSN}
+      ENABLE_TRACING: "true"
     healthcheck:
       <<: *healthcheck-defaults
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

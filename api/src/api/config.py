@@ -14,5 +14,10 @@ class Settings(BaseSettings):
     discord_client_id: str = ""
     discord_client_secret: str = ""
 
+    open_observe_url: str = ""
+    open_observe_api_key: str = ""
+    enable_tracing: bool = False
+    sentry_dsn: str = ""
+
 
 settings = Settings()  # ty: ignore[missing-argument]

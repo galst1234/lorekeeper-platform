@@ -4,6 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi[standard]~=0.136",
+    "opentelemetry-exporter-otlp~=1.42",
+    "opentelemetry-instrumentation-fastapi>=0.63b0",
+    "opentelemetry-sdk~=1.42",
+    "pydantic-settings~=2.14",
+    "sentry-sdk~=2.61",
 ]
 
 [dependency-groups]
@@ -11,6 +16,7 @@ dev = [
     "ruff~=0.15",
     "ipython~=9.14",
     "ty>=0.0.44",
+    "pytest~=9.0",
 ]
 
 [build-system]

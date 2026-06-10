@@ -9,6 +9,10 @@ dependencies = [
     "asyncpg~=0.31",
     "alembic~=1.18",
     "pydantic-settings~=2.14",
+    "sentry-sdk~=2.61",
+    "opentelemetry-sdk~=1.42",
+    "opentelemetry-exporter-otlp~=1.42",
+    "opentelemetry-instrumentation-fastapi>=0.63b0",
 ]
 
 [dependency-groups]
