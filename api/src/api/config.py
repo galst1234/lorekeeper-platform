@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     open_observe_url: str = ""
     open_observe_api_key: str = ""
     enable_tracing: bool = False
-    sentry_dsn: str = ""
+    sentry_api_dsn: str = ""
 
 
 settings = Settings()  # ty: ignore[missing-argument]

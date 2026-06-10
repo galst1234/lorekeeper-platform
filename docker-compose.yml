@@ -23,7 +23,6 @@ services:
     image: ghcr.io/galst1234/lorekeeper-platform-api:latest
     env_file: stack.env
     environment:
-      SENTRY_DSN: ${SENTRY_API_DSN}
       ENABLE_TRACING: "true"
     depends_on:
       supertokens:
@@ -37,7 +36,6 @@ services:
     image: ghcr.io/galst1234/lorekeeper-platform-agent:latest
     env_file: stack.env
     environment:
-      SENTRY_DSN: ${SENTRY_AGENT_DSN}
       ENABLE_TRACING: "true"
     healthcheck:
       <<: *healthcheck-defaults

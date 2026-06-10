@@ -24,7 +24,7 @@ def setup_observability() -> tuple[trace.Tracer, metrics.Meter]:
         return trace.get_tracer("lorekeeper-platform-api"), metrics.get_meter("lorekeeper-platform-api")
 
     sentry_sdk.init(
-        dsn=settings.sentry_dsn,
+        dsn=settings.sentry_api_dsn,
         send_default_pii=True,
         enable_logs=True,
         traces_sample_rate=1.0,
