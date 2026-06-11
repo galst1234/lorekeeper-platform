@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as LoginCallbackProviderRouteImport } from './routes/login.callback.$provider'
+import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -30,42 +30,43 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
-  id: '/callback/$provider',
-  path: '/callback/$provider',
-  getParentRoute: () => LoginRoute,
+  id: '/login_/callback/$provider',
+  path: '/login/callback/$provider',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/login': typeof LoginRouteWithChildren
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/login': typeof LoginRouteWithChildren
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/login': typeof LoginRouteWithChildren
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
-  '/login/callback/$provider': typeof LoginCallbackProviderRoute
+  '/login_/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/login' | '/onboarding' | '/login/callback/$provider'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/login' | '/onboarding' | '/login/callback/$provider'
-  id: '__root__' | '/' | '/login' | '/onboarding' | '/login/callback/$provider'
+  id: '__root__' | '/' | '/login' | '/onboarding' | '/login_/callback/$provider'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  LoginRoute: typeof LoginRouteWithChildren
+  LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  LoginCallbackProviderRoute: typeof LoginCallbackProviderRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -91,30 +92,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login/callback/$provider': {
-      id: '/login/callback/$provider'
-      path: '/callback/$provider'
+    '/login_/callback/$provider': {
+      id: '/login_/callback/$provider'
+      path: '/login/callback/$provider'
       fullPath: '/login/callback/$provider'
       preLoaderRoute: typeof LoginCallbackProviderRouteImport
-      parentRoute: typeof LoginRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface LoginRouteChildren {
-  LoginCallbackProviderRoute: typeof LoginCallbackProviderRoute
-}
-
-const LoginRouteChildren: LoginRouteChildren = {
-  LoginCallbackProviderRoute: LoginCallbackProviderRoute,
-}
-
-const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  LoginRoute: LoginRouteWithChildren,
+  LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  LoginCallbackProviderRoute: LoginCallbackProviderRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
