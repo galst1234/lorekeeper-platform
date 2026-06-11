@@ -1,7 +1,13 @@
 from typing import Any
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from supertokens_python import InputAppInfo, SupertokensConfig, init
-from supertokens_python.recipe import emailpassword, session, thirdparty
+from supertokens_python.recipe import accountlinking, emailpassword, session, thirdparty
+from supertokens_python.recipe.accountlinking.types import (
+    AccountInfoWithRecipeIdAndUserId,
+    ShouldAutomaticallyLink,
+    ShouldNotAutomaticallyLink,
+)
 from supertokens_python.recipe.emailpassword.interfaces import (
     APIInterface as EPAPIInterface,
 )
@@ -103,18 +109,30 @@ def _override_thirdparty_apis(original: TPAPIInterface) -> TPAPIInterface:
         )
         if isinstance(result, SignInUpPostOkResult) and result.created_new_recipe_user:
             async with AsyncSessionLocal() as db:
-                db.add(
-                    User(
+                await db.execute(
+                    pg_insert(User)
+                    .values(
                         supertokens_user_id=result.user.id,
                         email=result.user.emails[0],
                         display_name=None,
                     )
+                    .on_conflict_do_nothing()
                 )
                 await db.commit()
         return result
 
     original.sign_in_up_post = sign_in_up_post  # ty: ignore[invalid-assignment]
     return original
+
+
+async def _should_do_automatic_account_linking(
+    _new_account_info: AccountInfoWithRecipeIdAndUserId,
+    _existing_user: Any,
+    _session: Any,
+    _tenant_id: str,
+    _user_context: dict[str, Any],
+) -> ShouldAutomaticallyLink | ShouldNotAutomaticallyLink:
+    return ShouldAutomaticallyLink(should_require_verification=settings.account_linking_require_verification)
 
 
 def init_supertokens() -> None:
@@ -131,6 +149,9 @@ def init_supertokens() -> None:
         ),
         framework="fastapi",
         recipe_list=[
+            accountlinking.init(
+                should_do_automatic_account_linking=_should_do_automatic_account_linking,
+            ),
             emailpassword.init(
                 sign_up_feature=emailpassword.InputSignUpFeature(
                     form_fields=[

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     discord_client_id: str = ""
     discord_client_secret: str = ""
+    account_linking_require_verification: bool = False
 
     open_observe_url: str = ""
     open_observe_api_key: str = ""
