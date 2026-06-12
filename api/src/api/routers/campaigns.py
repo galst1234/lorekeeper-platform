@@ -55,7 +55,7 @@ class CreateCampaignRequest(BaseModel):
     @field_validator("slug_label")
     @classmethod
     def validate_slug_label(cls, v: str) -> str:
-        if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", v):
+        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", v):
             raise ValueError(
                 "slug_label must be lowercase alphanumeric with hyphens, no leading/trailing or consecutive hyphens"
             )
@@ -82,7 +82,7 @@ class PatchCampaignRequest(BaseModel):
     def validate_slug_label(cls, v: str | None) -> str:
         if v is None:
             raise ValueError("slug_label cannot be null")
-        if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", v):
+        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", v):
             raise ValueError(
                 "slug_label must be lowercase alphanumeric with hyphens, no leading/trailing or consecutive hyphens"
             )

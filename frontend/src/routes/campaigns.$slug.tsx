@@ -103,7 +103,15 @@ function CampaignDetailPage() {
             <button type="submit" disabled={patchMutation.isPending}>
               {patchMutation.isPending ? "Saving..." : "Save"}
             </button>
-            <button type="button" onClick={() => setEditing(false)} disabled={patchMutation.isPending}>
+            <button
+              type="button"
+              onClick={() => {
+                setName(campaign.name);
+                setDescription(campaign.description ?? "");
+                setEditing(false);
+              }}
+              disabled={patchMutation.isPending}
+            >
               Cancel
             </button>
           </div>
