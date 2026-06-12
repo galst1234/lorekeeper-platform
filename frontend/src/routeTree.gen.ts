@@ -10,13 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginResetPasswordRouteImport } from './routes/login_.reset-password'
 import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogoutRoute = LogoutRouteImport.update({
+  id: '/logout',
+  path: '/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -29,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginResetPasswordRoute = LoginResetPasswordRouteImport.update({
+  id: '/login_/reset-password',
+  path: '/login/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
   id: '/login_/callback/$provider',
   path: '/login/callback/$provider',
@@ -38,34 +50,61 @@ const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/login_/reset-password': typeof LoginResetPasswordRoute
   '/login_/callback/$provider': typeof LoginCallbackProviderRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/onboarding' | '/login/callback/$provider'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/login/reset-password'
+    | '/login/callback/$provider'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/onboarding' | '/login/callback/$provider'
-  id: '__root__' | '/' | '/login' | '/onboarding' | '/login_/callback/$provider'
+  to:
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/login/reset-password'
+    | '/login/callback/$provider'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/logout'
+    | '/onboarding'
+    | '/login_/reset-password'
+    | '/login_/callback/$provider'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  LogoutRoute: typeof LogoutRoute
   OnboardingRoute: typeof OnboardingRoute
+  LoginResetPasswordRoute: typeof LoginResetPasswordRoute
   LoginCallbackProviderRoute: typeof LoginCallbackProviderRoute
 }
 
@@ -76,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logout': {
+      id: '/logout'
+      path: '/logout'
+      fullPath: '/logout'
+      preLoaderRoute: typeof LogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -92,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login_/reset-password': {
+      id: '/login_/reset-password'
+      path: '/login/reset-password'
+      fullPath: '/login/reset-password'
+      preLoaderRoute: typeof LoginResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login_/callback/$provider': {
       id: '/login_/callback/$provider'
       path: '/login/callback/$provider'
@@ -105,7 +158,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  LogoutRoute: LogoutRoute,
   OnboardingRoute: OnboardingRoute,
+  LoginResetPasswordRoute: LoginResetPasswordRoute,
   LoginCallbackProviderRoute: LoginCallbackProviderRoute,
 }
 export const routeTree = rootRouteImport

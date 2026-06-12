@@ -42,3 +42,7 @@ export function initSuperTokens() {
 export async function doesSessionExist(): Promise<boolean> {
   return Session.doesSessionExist();
 }
+
+export async function signOut(): Promise<void> {
+  await Session.signOut();
+}

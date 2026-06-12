@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { meQueryOptions } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
@@ -23,6 +23,7 @@ function HomePage() {
     <main style={{ padding: "2rem" }}>
       <h1>Welcome, {me.display_name}</h1>
       <p>{me.email}</p>
+      <Link to="/logout">Logout</Link>
     </main>
   );
 }
