@@ -2,12 +2,17 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { type SyntheticEvent, useState } from "react";
 import { campaignQueryOptions, deleteCampaign, patchCampaign } from "../api/campaigns";
+import { meQueryOptions } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
 export const Route = createFileRoute("/campaigns/$slug")({
   beforeLoad: async ({ context, params }) => {
     if (!(await doesSessionExist())) {
       throw redirect({ to: "/login" });
+    }
+    const me = await context.queryClient.ensureQueryData(meQueryOptions);
+    if (me.display_name === null) {
+      throw redirect({ to: "/onboarding" });
     }
     const campaign = await context.queryClient.ensureQueryData(campaignQueryOptions(params.slug));
     if (campaign.slug !== params.slug) {

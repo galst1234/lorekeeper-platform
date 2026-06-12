@@ -2,12 +2,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { createCampaign, toSlugLabel } from "../api/campaigns";
+import { meQueryOptions } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
 export const Route = createFileRoute("/campaigns/new")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
       throw redirect({ to: "/login" });
+    }
+    const me = await context.queryClient.ensureQueryData(meQueryOptions);
+    if (me.display_name === null) {
+      throw redirect({ to: "/onboarding" });
     }
   },
   component: NewCampaignPage,
