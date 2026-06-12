@@ -122,10 +122,12 @@ async def create_campaign(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
+    owner_id = user.id  # capture before retry loop — rollback expires session objects
+
     for _ in range(5):
         slug_id = _generate_slug_id()
         campaign = Campaign(
-            owner_id=user.id,
+            owner_id=owner_id,
             name=body.name,
             description=body.description,
             slug_label=body.slug_label,
