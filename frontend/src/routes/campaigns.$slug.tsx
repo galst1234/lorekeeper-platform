@@ -103,7 +103,7 @@ function CampaignDetailPage() {
             <button type="submit" disabled={patchMutation.isPending}>
               {patchMutation.isPending ? "Saving..." : "Save"}
             </button>
-            <button type="button" onClick={() => setEditing(false)}>
+            <button type="button" onClick={() => setEditing(false)} disabled={patchMutation.isPending}>
               Cancel
             </button>
           </div>
@@ -117,7 +117,7 @@ function CampaignDetailPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <h1 style={{ margin: 0 }}>{campaign.name}</h1>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button type="button" onClick={() => setEditing(true)}>
+          <button type="button" onClick={() => setEditing(true)} disabled={deleteMutation.isPending}>
             Edit
           </button>
           <button type="button" onClick={handleDelete} disabled={deleteMutation.isPending} style={{ color: "red" }}>
