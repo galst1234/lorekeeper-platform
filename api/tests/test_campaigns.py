@@ -192,3 +192,67 @@ async def test_get_campaign_forbidden(
     ac = campaigns_authenticated_client("st-other-403")
     response = await ac.get("/api/v1/campaigns/secret-forbid01")
     assert response.status_code == 403
+
+
+# --- Patch ---
+
+
+async def test_patch_campaign_name(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-patch-name", email="m@test.com")
+    await _make_campaign(db, owner_id=user.id, name="Old Name", slug_label="old-name", slug_id="patch001")
+    ac = campaigns_authenticated_client("st-patch-name")
+    response = await ac.patch("/api/v1/campaigns/old-name-patch001", json={"name": "New Name"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "New Name"
+    assert data["slug"] == "old-name-patch001"  # slug_label unchanged
+
+
+async def test_patch_campaign_slug_label(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-patch-slug", email="n@test.com")
+    await _make_campaign(db, owner_id=user.id, slug_label="original", slug_id="patch002")
+    ac = campaigns_authenticated_client("st-patch-slug")
+    response = await ac.patch("/api/v1/campaigns/original-patch002", json={"slug_label": "renamed"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["slug"] == "renamed-patch002"
+
+
+async def test_patch_campaign_description_cleared(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-patch-desc", email="o@test.com")
+    await _make_campaign(db, owner_id=user.id, slug_id="patch003", description="Old desc")
+    ac = campaigns_authenticated_client("st-patch-desc")
+    response = await ac.patch("/api/v1/campaigns/test-campaign-patch003", json={"description": None})
+    assert response.status_code == 200
+    assert response.json()["description"] is None
+
+
+async def test_patch_campaign_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    await _make_user(db, supertokens_user_id="st-patch-404", email="p@test.com")
+    ac = campaigns_authenticated_client("st-patch-404")
+    response = await ac.patch("/api/v1/campaigns/anything-notexist2", json={"name": "X"})
+    assert response.status_code == 404
+
+
+async def test_patch_campaign_forbidden(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await _make_user(db, supertokens_user_id="st-patchown-403", email="q@test.com")
+    await _make_campaign(db, owner_id=owner.id, slug_id="patch004")
+    await _make_user(db, supertokens_user_id="st-patchoth-403", email="r@test.com")
+    ac = campaigns_authenticated_client("st-patchoth-403")
+    response = await ac.patch("/api/v1/campaigns/test-campaign-patch004", json={"name": "X"})
+    assert response.status_code == 403
