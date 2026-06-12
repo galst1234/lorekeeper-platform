@@ -6,6 +6,7 @@ from supertokens_python.framework.fastapi import get_middleware
 
 from api.config import settings
 from api.observability import setup_observability
+from api.routers import campaigns as campaigns_router
 from api.routers import me as me_router
 from api.supertokens import init_supertokens
 
@@ -23,6 +24,7 @@ app.add_middleware(
     allow_headers=["Content-Type", *get_all_cors_headers()],
 )
 app.include_router(me_router.router, prefix="/api/v1")
+app.include_router(campaigns_router.router, prefix="/api/v1")
 
 
 @app.get("/health")
