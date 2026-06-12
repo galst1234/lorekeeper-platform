@@ -18,6 +18,15 @@ services:
       <<: *healthcheck-defaults
       test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
 
+  migrate:
+    image: ghcr.io/galst1234/lorekeeper-platform-api:latest
+    env_file: stack.env
+    command: ["alembic", "upgrade", "head"]
+    restart: on-failure
+    depends_on:
+      supertokens:
+        condition: service_healthy
+
   api:
     <<: *restart
     image: ghcr.io/galst1234/lorekeeper-platform-api:latest
@@ -27,6 +36,8 @@ services:
     depends_on:
       supertokens:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       <<: *healthcheck-defaults
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
