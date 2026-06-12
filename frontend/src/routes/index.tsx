@@ -13,14 +13,14 @@ export const Route = createFileRoute("/")({
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }
-    await context.queryClient.ensureQueryData(campaignsQueryOptions);
+    await context.queryClient.ensureQueryData(campaignsQueryOptions(me.id));
   },
   component: HomePage,
 });
 
 function HomePage() {
   const { data: me } = useSuspenseQuery(meQueryOptions);
-  const { data: campaigns } = useSuspenseQuery(campaignsQueryOptions);
+  const { data: campaigns } = useSuspenseQuery(campaignsQueryOptions(me.id));
 
   return (
     <main style={{ padding: "2rem" }}>

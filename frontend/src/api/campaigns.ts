@@ -35,11 +35,12 @@ async function fetchCampaign(slug: string): Promise<Campaign> {
   return res.json();
 }
 
-export const campaignsQueryOptions = queryOptions({
-  queryKey: ["campaigns"],
-  queryFn: fetchCampaigns,
-  retry: false,
-});
+export const campaignsQueryOptions = (userId: string) =>
+  queryOptions({
+    queryKey: ["campaigns", userId],
+    queryFn: fetchCampaigns,
+    retry: false,
+  });
 
 export const campaignQueryOptions = (slug: string) =>
   queryOptions({
