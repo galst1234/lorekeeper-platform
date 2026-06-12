@@ -270,6 +270,7 @@ async def test_delete_campaign(
     ac = campaigns_authenticated_client("st-del-ok")
     response = await ac.delete("/api/v1/campaigns/test-campaign-del00001")
     assert response.status_code == 204
+    assert response.content == b""
 
     # Verify gone
     response2 = await ac.get("/api/v1/campaigns/test-campaign-del00001")
@@ -296,3 +297,8 @@ async def test_delete_campaign_forbidden(
     ac = campaigns_authenticated_client("st-deloth-403")
     response = await ac.delete("/api/v1/campaigns/test-campaign-del00002")
     assert response.status_code == 403
+
+    # Verify campaign was NOT deleted
+    owner_ac = campaigns_authenticated_client("st-delown-403")
+    verify = await owner_ac.get("/api/v1/campaigns/test-campaign-del00002")
+    assert verify.status_code == 200
