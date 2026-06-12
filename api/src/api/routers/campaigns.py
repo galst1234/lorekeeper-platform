@@ -69,17 +69,20 @@ class PatchCampaignRequest(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: str | None) -> str | None:
-        if v is not None:
-            v = v.strip()
-            if not v:
-                raise ValueError("name cannot be empty")
+    def validate_name(cls, v: str | None) -> str:
+        if v is None:
+            raise ValueError("name cannot be null")
+        v = v.strip()
+        if not v:
+            raise ValueError("name cannot be empty")
         return v
 
     @field_validator("slug_label")
     @classmethod
-    def validate_slug_label(cls, v: str | None) -> str | None:
-        if v is not None and not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", v):
+    def validate_slug_label(cls, v: str | None) -> str:
+        if v is None:
+            raise ValueError("slug_label cannot be null")
+        if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", v):
             raise ValueError(
                 "slug_label must be lowercase alphanumeric with hyphens, no leading/trailing or consecutive hyphens"
             )
