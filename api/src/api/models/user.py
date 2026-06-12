@@ -1,9 +1,9 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, String, text
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.database import Base
 
@@ -17,7 +17,7 @@ class User(Base):
         server_default=text("gen_random_uuid()"),
         default=uuid.uuid4,
     )
-    supertokens_user_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    auth_methods: Mapped[list[UserAuthMethod]] = relationship("UserAuthMethod", back_populates="user")
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -31,3 +31,24 @@ class User(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class UserAuthMethod(Base):
+    __tablename__ = "user_auth_methods"
+    __table_args__ = (UniqueConstraint("user_id", "provider", name="uq_user_auth_methods_user_provider"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    supertokens_user_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+
+    user: Mapped[User] = relationship("User", back_populates="auth_methods")

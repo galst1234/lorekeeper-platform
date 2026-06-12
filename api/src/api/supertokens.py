@@ -1,13 +1,9 @@
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from supertokens_python import InputAppInfo, SupertokensConfig, init
-from supertokens_python.recipe import accountlinking, emailpassword, session, thirdparty
-from supertokens_python.recipe.accountlinking.types import (
-    AccountInfoWithRecipeIdAndUserId,
-    ShouldAutomaticallyLink,
-    ShouldNotAutomaticallyLink,
-)
+from supertokens_python.recipe import emailpassword, session, thirdparty
 from supertokens_python.recipe.emailpassword.interfaces import (
     APIInterface as EPAPIInterface,
 )
@@ -45,7 +41,7 @@ from supertokens_python.types.response import GeneralErrorResponse
 
 from api.config import settings
 from api.database import AsyncSessionLocal
-from api.models.user import User
+from api.models.user import User, UserAuthMethod
 
 
 def _override_emailpassword_apis(original: EPAPIInterface) -> EPAPIInterface:
@@ -69,14 +65,17 @@ def _override_emailpassword_apis(original: EPAPIInterface) -> EPAPIInterface:
         )
         if isinstance(result, SignUpPostOkResult):
             display_name = next((f.value for f in form_fields if f.id == "display_name"), None)
+            email = result.user.emails[0]
             async with AsyncSessionLocal() as db:
-                db.add(
-                    User(
-                        supertokens_user_id=result.user.id,
-                        email=result.user.emails[0],
-                        display_name=display_name,
-                    )
+                user_stmt = pg_insert(User).values(email=email, display_name=display_name)
+                await db.execute(user_stmt.on_conflict_do_nothing(index_elements=["email"]))
+                user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+                auth_stmt = pg_insert(UserAuthMethod).values(
+                    user_id=user.id,
+                    provider="emailpassword",
+                    supertokens_user_id=result.user.id,
                 )
+                await db.execute(auth_stmt.on_conflict_do_nothing(index_elements=["supertokens_user_id"]))
                 await db.commit()
         return result
 
@@ -108,31 +107,22 @@ def _override_thirdparty_apis(original: TPAPIInterface) -> TPAPIInterface:
             user_context=user_context,
         )
         if isinstance(result, SignInUpPostOkResult) and result.created_new_recipe_user:
+            email = result.user.emails[0]
             async with AsyncSessionLocal() as db:
-                await db.execute(
-                    pg_insert(User)
-                    .values(
-                        supertokens_user_id=result.user.id,
-                        email=result.user.emails[0],
-                        display_name=None,
-                    )
-                    .on_conflict_do_nothing()
+                user_stmt = pg_insert(User).values(email=email, display_name=None)
+                await db.execute(user_stmt.on_conflict_do_nothing(index_elements=["email"]))
+                user = (await db.execute(select(User).where(User.email == email))).scalar_one()
+                auth_stmt = pg_insert(UserAuthMethod).values(
+                    user_id=user.id,
+                    provider=provider.id,
+                    supertokens_user_id=result.user.id,
                 )
+                await db.execute(auth_stmt.on_conflict_do_nothing(index_elements=["supertokens_user_id"]))
                 await db.commit()
         return result
 
     original.sign_in_up_post = sign_in_up_post  # ty: ignore[invalid-assignment]
     return original
-
-
-async def _should_do_automatic_account_linking(
-    _new_account_info: AccountInfoWithRecipeIdAndUserId,
-    _existing_user: Any,
-    _session: Any,
-    _tenant_id: str,
-    _user_context: dict[str, Any],
-) -> ShouldAutomaticallyLink | ShouldNotAutomaticallyLink:
-    return ShouldAutomaticallyLink(should_require_verification=settings.account_linking_require_verification)
 
 
 def init_supertokens() -> None:
@@ -149,9 +139,6 @@ def init_supertokens() -> None:
         ),
         framework="fastapi",
         recipe_list=[
-            accountlinking.init(
-                should_do_automatic_account_linking=_should_do_automatic_account_linking,
-            ),
             emailpassword.init(
                 sign_up_feature=emailpassword.InputSignUpFeature(
                     form_fields=[

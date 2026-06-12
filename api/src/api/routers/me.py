@@ -3,13 +3,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from supertokens_python.recipe.session import SessionContainer
 
-from api.auth import get_session
+from api.auth import get_session, get_user_by_session
 from api.database import get_db
-from api.models.user import User
 
 router = APIRouter()
 
@@ -39,8 +37,7 @@ async def get_me(
     session: Annotated[SessionContainer, Depends(get_session)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> MeResponse:
-    result = await db.execute(select(User).where(User.supertokens_user_id == session.get_user_id()))
-    user = result.scalar_one_or_none()
+    user = await get_user_by_session(session, db)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return MeResponse(id=user.id, email=user.email, display_name=user.display_name)
@@ -52,8 +49,7 @@ async def patch_me(
     session: Annotated[SessionContainer, Depends(get_session)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> MeResponse:
-    result = await db.execute(select(User).where(User.supertokens_user_id == session.get_user_id()))
-    user = result.scalar_one_or_none()
+    user = await get_user_by_session(session, db)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     user.display_name = body.display_name
