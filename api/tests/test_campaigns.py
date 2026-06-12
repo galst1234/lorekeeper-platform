@@ -141,3 +141,54 @@ async def test_create_campaign_invalid_slug_label_rejected(
         json={"name": "Test", "slug_label": "-bad-slug-"},
     )
     assert response.status_code == 422
+
+
+# --- Get single ---
+
+
+async def test_get_campaign_by_slug(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-get-ok", email="h@test.com")
+    await _make_campaign(db, owner_id=user.id, name="Found", slug_label="found", slug_id="getok001")
+    ac = campaigns_authenticated_client("st-get-ok")
+    response = await ac.get("/api/v1/campaigns/found-getok001")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Found"
+    assert data["slug"] == "found-getok001"
+
+
+async def test_get_campaign_stale_label_redirects(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-get-redir", email="i@test.com")
+    await _make_campaign(db, owner_id=user.id, slug_label="new-label", slug_id="redir001")
+    ac = campaigns_authenticated_client("st-get-redir")
+    response = await ac.get("/api/v1/campaigns/old-label-redir001", follow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["location"].endswith("/api/v1/campaigns/new-label-redir001")
+
+
+async def test_get_campaign_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    await _make_user(db, supertokens_user_id="st-get-404", email="j@test.com")
+    ac = campaigns_authenticated_client("st-get-404")
+    response = await ac.get("/api/v1/campaigns/anything-notexist")
+    assert response.status_code == 404
+
+
+async def test_get_campaign_forbidden(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await _make_user(db, supertokens_user_id="st-owner-403", email="k@test.com")
+    await _make_campaign(db, owner_id=owner.id, slug_label="secret", slug_id="forbid01")
+    await _make_user(db, supertokens_user_id="st-other-403", email="l@test.com")
+    ac = campaigns_authenticated_client("st-other-403")
+    response = await ac.get("/api/v1/campaigns/secret-forbid01")
+    assert response.status_code == 403

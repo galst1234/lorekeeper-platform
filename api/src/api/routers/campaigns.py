@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -137,3 +138,26 @@ async def create_campaign(
             await db.rollback()
 
     raise HTTPException(status_code=500, detail="Failed to generate unique slug_id")
+
+
+@router.get("/campaigns/{slug}", response_model=None)
+async def get_campaign(
+    slug: str,
+    session: Annotated[SessionContainer, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CampaignResponse | RedirectResponse:
+    user = await get_user_by_session(session, db)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    slug_id = _parse_slug_id(slug)
+    campaign = await db.scalar(select(Campaign).where(Campaign.slug_id == slug_id))
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if slug != campaign.slug:
+        return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=301)
+
+    return _to_response(campaign)
