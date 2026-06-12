@@ -256,3 +256,43 @@ async def test_patch_campaign_forbidden(
     ac = campaigns_authenticated_client("st-patchoth-403")
     response = await ac.patch("/api/v1/campaigns/test-campaign-patch004", json={"name": "X"})
     assert response.status_code == 403
+
+
+# --- Delete ---
+
+
+async def test_delete_campaign(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await _make_user(db, supertokens_user_id="st-del-ok", email="s@test.com")
+    await _make_campaign(db, owner_id=user.id, slug_id="del00001")
+    ac = campaigns_authenticated_client("st-del-ok")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-del00001")
+    assert response.status_code == 204
+
+    # Verify gone
+    response2 = await ac.get("/api/v1/campaigns/test-campaign-del00001")
+    assert response2.status_code == 404
+
+
+async def test_delete_campaign_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    await _make_user(db, supertokens_user_id="st-del-404", email="t@test.com")
+    ac = campaigns_authenticated_client("st-del-404")
+    response = await ac.delete("/api/v1/campaigns/anything-notexist3")
+    assert response.status_code == 404
+
+
+async def test_delete_campaign_forbidden(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await _make_user(db, supertokens_user_id="st-delown-403", email="u@test.com")
+    await _make_campaign(db, owner_id=owner.id, slug_id="del00002")
+    await _make_user(db, supertokens_user_id="st-deloth-403", email="v@test.com")
+    ac = campaigns_authenticated_client("st-deloth-403")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-del00002")
+    assert response.status_code == 403

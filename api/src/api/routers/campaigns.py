@@ -194,3 +194,24 @@ async def patch_campaign(
     await db.commit()
     await db.refresh(campaign)
     return _to_response(campaign)
+
+
+@router.delete("/campaigns/{slug}", status_code=204)
+async def delete_campaign(
+    slug: str,
+    session: Annotated[SessionContainer, Depends(get_session)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    user = await get_user_by_session(session, db)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    slug_id = _parse_slug_id(slug)
+    campaign = await db.scalar(select(Campaign).where(Campaign.slug_id == slug_id))
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    await db.delete(campaign)
+    await db.commit()
