@@ -14,7 +14,7 @@ export const Route = createFileRoute("/campaigns/$slug")({
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }
-    const campaign = await context.queryClient.ensureQueryData(campaignQueryOptions(params.slug));
+    const campaign = await context.queryClient.ensureQueryData(campaignQueryOptions(me.id, params.slug));
     if (campaign.slug !== params.slug) {
       throw redirect({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     }
@@ -26,7 +26,8 @@ function CampaignDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { slug } = Route.useParams();
-  const { data: campaign } = useSuspenseQuery(campaignQueryOptions(slug));
+  const { data: me } = useSuspenseQuery(meQueryOptions);
+  const { data: campaign } = useSuspenseQuery(campaignQueryOptions(me.id, slug));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(campaign.name);
   const [description, setDescription] = useState(campaign.description ?? "");

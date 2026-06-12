@@ -42,9 +42,9 @@ export const campaignsQueryOptions = (userId: string) =>
     retry: false,
   });
 
-export const campaignQueryOptions = (slug: string) =>
+export const campaignQueryOptions = (userId: string, slug: string) =>
   queryOptions({
-    queryKey: ["campaigns", slug],
+    queryKey: ["campaigns", userId, slug],
     queryFn: () => fetchCampaign(slug),
     retry: false,
   });
