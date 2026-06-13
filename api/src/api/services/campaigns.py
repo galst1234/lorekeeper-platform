@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from asyncpg import UniqueViolationError
 from pydantic_core import MISSING
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
@@ -126,9 +127,10 @@ def _generate_invite_code() -> str:
 
 
 async def generate_invite(db: AsyncSession, campaign: Campaign) -> Campaign:
-    if campaign.invite_code is not None:
-        return campaign
-    campaign.invite_code = _generate_invite_code()
+    new_code = _generate_invite_code()
+    await db.execute(
+        update(Campaign).where(Campaign.id == campaign.id, Campaign.invite_code.is_(None)).values(invite_code=new_code)
+    )
     await db.commit()
     await db.refresh(campaign)
     return campaign
@@ -142,15 +144,15 @@ async def revoke_invite(db: AsyncSession, campaign: Campaign) -> None:
 async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID) -> None:
     if campaign.owner_id == user_id:
         return
-    existing = await db.scalar(
-        select(CampaignMember).where(
-            CampaignMember.campaign_id == campaign.id,
-            CampaignMember.user_id == user_id,
+    stmt = (
+        pg_insert(CampaignMember)
+        .values(
+            campaign_id=campaign.id,
+            user_id=user_id,
         )
+        .on_conflict_do_nothing()
     )
-    if existing is not None:
-        return
-    db.add(CampaignMember(campaign_id=campaign.id, user_id=user_id))
+    await db.execute(stmt)
     await db.commit()
 
 
