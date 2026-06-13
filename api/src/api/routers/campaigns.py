@@ -43,9 +43,9 @@ class CreateCampaignRequest(BaseModel):
 
 
 class PatchCampaignRequest(BaseModel):
-    name: _NonEmptyStr | MISSING = MISSING  # type: ignore[valid-type]
-    description: str | None | MISSING = MISSING  # type: ignore[valid-type]
-    slug_label: _SlugLabelStr | MISSING = MISSING  # type: ignore[valid-type]
+    name: _NonEmptyStr | MISSING = MISSING
+    description: str | None | MISSING = MISSING
+    slug_label: _SlugLabelStr | MISSING = MISSING
 
 
 def _to_response(campaign: Campaign) -> CampaignResponse:
