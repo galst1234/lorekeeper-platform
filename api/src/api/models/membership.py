@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, text
+from sqlalchemy import DateTime, ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,6 +10,7 @@ from api.database import Base
 
 class CampaignMember(Base):
     __tablename__ = "campaign_members"
+    __table_args__ = (Index("ix_campaign_members_user_id", "user_id"),)
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
