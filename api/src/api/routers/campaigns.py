@@ -182,7 +182,7 @@ async def delete_invite(
     await campaign_service.revoke_invite(db, campaign)
 
 
-@router.get("/campaigns/{slug}/join/{invite_code}", response_model=None)
+@router.get("/campaigns/{slug}/join/{invite_code}", response_model=JoinPreviewResponse)
 async def get_join_preview(
     slug: str,
     invite_code: str,
@@ -200,7 +200,7 @@ async def get_join_preview(
     return JoinPreviewResponse(name=campaign.name, slug=campaign.slug)
 
 
-@router.post("/campaigns/{slug}/join/{invite_code}", response_model=None)
+@router.post("/campaigns/{slug}/join/{invite_code}", response_model=CampaignResponse)
 async def join_campaign(
     slug: str,
     invite_code: str,
