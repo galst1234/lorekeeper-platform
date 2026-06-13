@@ -36,7 +36,7 @@ function NewCampaignPage() {
   const mutation = useMutation({
     mutationFn: createCampaign,
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
       await router.navigate({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     },
     onError: () => setError("Something went wrong. Please try again."),

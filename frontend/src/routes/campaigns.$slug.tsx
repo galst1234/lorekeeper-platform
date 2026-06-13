@@ -57,7 +57,7 @@ function CampaignDetailPage() {
     mutationFn: () => deleteCampaign(campaign.slug),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
-      await router.navigate({ to: "/" });
+      await router.navigate({ to: "/", replace: true });
     },
     onError: () => setError("Failed to delete. Please try again."),
   });
