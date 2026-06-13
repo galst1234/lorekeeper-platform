@@ -43,6 +43,7 @@ class Campaign(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+    invite_code: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
 
     @property
     def slug(self) -> str:
