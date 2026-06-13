@@ -6,9 +6,9 @@ import { fetchJoinPreview, joinCampaign } from "../api/membership";
 import { doesSessionExist } from "../lib/auth";
 
 export const Route = createFileRoute("/campaigns_/$slug/join/$inviteCode")({
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
     if (!(await doesSessionExist())) {
-      throw redirect({ to: "/login" });
+      throw redirect({ to: "/login", search: { redirectToPath: location.href } });
     }
     const me = await context.queryClient.fetchQuery(meQueryOptions);
     if (me.display_name === null) {
