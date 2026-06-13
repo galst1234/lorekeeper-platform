@@ -3,7 +3,7 @@ from collections.abc import Callable
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.helpers import make_campaign, make_user
+from tests.helpers import make_campaign, make_member, make_user
 
 # --- List ---
 
@@ -181,3 +181,211 @@ async def test_delete_campaign_forbidden(
     ac = campaigns_authenticated_client("rt-del-other")
     response = await ac.delete("/api/v1/campaigns/test-campaign-del00002")
     assert response.status_code == 403
+
+
+# --- List with role ---
+
+
+async def test_list_campaigns_includes_role_gm(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-lst-role-gm", email="rt-lst-role-gm@test.com")
+    await make_campaign(db, owner_id=user.id, slug_id="rolegd01")
+    ac = campaigns_authenticated_client("rt-lst-role-gm")
+    response = await ac.get("/api/v1/campaigns")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["role"] == "gm"
+
+
+async def test_list_campaigns_includes_role_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-lst-role-own", email="rt-lst-role-own@test.com")
+    player = await make_user(db, supertokens_user_id="rt-lst-role-ply", email="rt-lst-role-ply@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rolpyl01")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    ac = campaigns_authenticated_client("rt-lst-role-ply")
+    response = await ac.get("/api/v1/campaigns")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["role"] == "player"
+
+
+# --- POST /campaigns/{slug}/invite ---
+
+
+async def test_create_invite_returns_200_with_code(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-inv-gen-ok", email="rt-inv-gen-ok@test.com")
+    await make_campaign(db, owner_id=user.id, slug_id="invgen01")
+    ac = campaigns_authenticated_client("rt-inv-gen-ok")
+    response = await ac.post("/api/v1/campaigns/test-campaign-invgen01/invite")
+    assert response.status_code == 200
+    data = response.json()
+    assert "invite_code" in data
+    assert "invite_url" in data
+    assert data["invite_code"] in data["invite_url"]
+
+
+async def test_create_invite_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    await make_user(db, supertokens_user_id="rt-inv-gen-404", email="rt-inv-gen-404@test.com")
+    ac = campaigns_authenticated_client("rt-inv-gen-404")
+    response = await ac.post("/api/v1/campaigns/nothing-notexist/invite")
+    assert response.status_code == 404
+
+
+async def test_create_invite_forbidden(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-inv-gen-own", email="rt-inv-gen-own@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="invfrb01")
+    await make_user(db, supertokens_user_id="rt-inv-gen-oth", email="rt-inv-gen-oth@test.com")
+    ac = campaigns_authenticated_client("rt-inv-gen-oth")
+    response = await ac.post("/api/v1/campaigns/test-campaign-invfrb01/invite")
+    assert response.status_code == 403
+
+
+# --- DELETE /campaigns/{slug}/invite ---
+
+
+async def test_delete_invite_returns_204(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-inv-del-ok", email="rt-inv-del-ok@test.com")
+    await make_campaign(db, owner_id=user.id, slug_id="invdel01", invite_code="torevoke")
+    ac = campaigns_authenticated_client("rt-inv-del-ok")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-invdel01/invite")
+    assert response.status_code == 204
+
+
+async def test_delete_invite_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    await make_user(db, supertokens_user_id="rt-inv-del-404", email="rt-inv-del-404@test.com")
+    ac = campaigns_authenticated_client("rt-inv-del-404")
+    response = await ac.delete("/api/v1/campaigns/nothing-notexist2/invite")
+    assert response.status_code == 404
+
+
+async def test_delete_invite_forbidden(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-inv-del-own", email="rt-inv-del-own@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="invdfb01", invite_code="torevoke")
+    await make_user(db, supertokens_user_id="rt-inv-del-oth", email="rt-inv-del-oth@test.com")
+    ac = campaigns_authenticated_client("rt-inv-del-oth")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-invdfb01/invite")
+    assert response.status_code == 403
+
+
+# --- GET /campaigns/{slug}/join/{invite_code} ---
+
+
+async def test_get_join_preview_returns_campaign_info(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-jnpv-own", email="rt-jnpv-own@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="jnprev01", invite_code="validcode")
+    await make_user(db, supertokens_user_id="rt-jnpv-ply", email="rt-jnpv-ply@test.com")
+    ac = campaigns_authenticated_client("rt-jnpv-ply")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnprev01/join/validcode")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Test Campaign"
+    assert "slug" in data
+
+
+async def test_get_join_preview_wrong_code_returns_404(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-jnpv-bad", email="rt-jnpv-bad@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="jnpbad01", invite_code="rightcode")
+    await make_user(db, supertokens_user_id="rt-jnpv-bply", email="rt-jnpv-bply@test.com")
+    ac = campaigns_authenticated_client("rt-jnpv-bply")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnpbad01/join/wrongcode")
+    assert response.status_code == 404
+
+
+async def test_get_join_preview_no_invite_returns_404(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-jnpv-noinv", email="rt-jnpv-noinv@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="jnnoinv1")
+    await make_user(db, supertokens_user_id="rt-jnpv-nply", email="rt-jnpv-nply@test.com")
+    ac = campaigns_authenticated_client("rt-jnpv-nply")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnnoinv1/join/anycode")
+    assert response.status_code == 404
+
+
+async def test_get_join_preview_stale_slug_redirects(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-jnpv-rdr", email="rt-jnpv-rdr@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_label="new-label", slug_id="jnrdr001", invite_code="thecode")
+    await make_user(db, supertokens_user_id="rt-jnpv-rply", email="rt-jnpv-rply@test.com")
+    ac = campaigns_authenticated_client("rt-jnpv-rply")
+    response = await ac.get("/api/v1/campaigns/old-label-jnrdr001/join/thecode", follow_redirects=False)
+    assert response.status_code == 307
+    assert "new-label-jnrdr001" in response.headers["location"]
+    assert "thecode" in response.headers["location"]
+
+
+# --- POST /campaigns/{slug}/join/{invite_code} ---
+
+
+async def test_post_join_adds_member_returns_campaign(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-join-own", email="rt-join-own@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="rtjoin01", invite_code="joinme01")
+    await make_user(db, supertokens_user_id="rt-join-ply", email="rt-join-ply@test.com")
+    ac = campaigns_authenticated_client("rt-join-ply")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjoin01/join/joinme01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "player"
+    assert "slug" in data
+
+
+async def test_post_join_wrong_code_returns_404(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-join-bad", email="rt-join-bad@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="rtjbad01", invite_code="rightone")
+    await make_user(db, supertokens_user_id="rt-join-bply", email="rt-join-bply@test.com")
+    ac = campaigns_authenticated_client("rt-join-bply")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjbad01/join/wrongone")
+    assert response.status_code == 404
+
+
+async def test_post_join_idempotent(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-join-iown", email="rt-join-iown@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="rtjidem1", invite_code="idemcode")
+    await make_user(db, supertokens_user_id="rt-join-iply", email="rt-join-iply@test.com")
+    ac = campaigns_authenticated_client("rt-join-iply")
+    await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
+    assert response.status_code == 200
