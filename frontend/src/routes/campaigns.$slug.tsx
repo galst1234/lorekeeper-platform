@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { type SyntheticEvent, useState } from "react";
+import { type SyntheticEvent, useEffect, useState } from "react";
 import { campaignQueryOptions, deleteCampaign, patchCampaign } from "../api/campaigns";
 import { meQueryOptions } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
