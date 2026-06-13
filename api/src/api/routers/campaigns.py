@@ -85,7 +85,7 @@ async def create_campaign(
     return _to_response(campaign)
 
 
-@router.get("/campaigns/{slug}", response_model=None)
+@router.get("/campaigns/{slug}", response_model=CampaignResponse)
 async def get_campaign(
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
