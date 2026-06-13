@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from supertokens_python import get_all_cors_headers
@@ -23,8 +23,10 @@ app.add_middleware(
     allow_methods=["GET", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", *get_all_cors_headers()],
 )
-app.include_router(me_router.router, prefix="/api/v1")
-app.include_router(campaigns_router.router, prefix="/api/v1")
+router = APIRouter(prefix="/api/v1")
+router.include_router(me_router.router)
+router.include_router(campaigns_router.router)
+app.include_router(router)
 
 
 @app.get("/health")
