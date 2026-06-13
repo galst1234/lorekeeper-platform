@@ -244,8 +244,7 @@ async def test_create_invite_returns_200_with_code(
     assert response.status_code == 200
     data = response.json()
     assert "invite_code" in data
-    assert "invite_url" in data
-    assert data["invite_code"] in data["invite_url"]
+    assert data["invite_url"] == f"/campaigns/test-campaign-invgen01/join/{data['invite_code']}"
 
 
 async def test_create_invite_not_found(
