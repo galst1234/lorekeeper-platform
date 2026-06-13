@@ -44,7 +44,7 @@ function CampaignDetailPage() {
     mutationFn: (data: { name: string; description: string | null }) =>
       patchCampaign(campaign.slug, { name: data.name, description: data.description }),
     onSuccess: async (updated) => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
       setEditing(false);
       if (updated.slug !== slug) {
         await router.navigate({ to: "/campaigns/$slug", params: { slug: updated.slug } });
@@ -56,7 +56,7 @@ function CampaignDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteCampaign(campaign.slug),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
       await router.navigate({ to: "/" });
     },
     onError: () => setError("Failed to delete. Please try again."),
