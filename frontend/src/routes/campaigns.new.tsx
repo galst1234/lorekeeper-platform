@@ -54,6 +54,16 @@ function NewCampaignPage() {
       setError("URL slug is required.");
       return;
     }
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(trimmedSlug)) {
+      setError(
+        "URL slug may only contain lowercase letters, numbers, and hyphens, and cannot start or end with a hyphen."
+      );
+      return;
+    }
+    if (trimmedSlug.length > 100) {
+      setError("URL slug must be 100 characters or fewer.");
+      return;
+    }
     setError("");
     mutation.mutate({ name: trimmedName, slug_label: trimmedSlug, description: description.trim() || undefined });
   }
