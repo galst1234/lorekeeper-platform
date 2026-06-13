@@ -14,6 +14,8 @@ import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginResetPasswordRouteImport } from './routes/login_.reset-password'
+import { Route as CampaignsNewRouteImport } from './routes/campaigns.new'
+import { Route as CampaignsSlugRouteImport } from './routes/campaigns.$slug'
 import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
 
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -41,6 +43,16 @@ const LoginResetPasswordRoute = LoginResetPasswordRouteImport.update({
   path: '/login/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsNewRoute = CampaignsNewRouteImport.update({
+  id: '/campaigns/new',
+  path: '/campaigns/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsSlugRoute = CampaignsSlugRouteImport.update({
+  id: '/campaigns/$slug',
+  path: '/campaigns/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
   id: '/login_/callback/$provider',
   path: '/login/callback/$provider',
@@ -52,6 +64,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/campaigns/$slug': typeof CampaignsSlugRoute
+  '/campaigns/new': typeof CampaignsNewRoute
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
@@ -60,6 +74,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/campaigns/$slug': typeof CampaignsSlugRoute
+  '/campaigns/new': typeof CampaignsNewRoute
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
 }
@@ -69,6 +85,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/logout': typeof LogoutRoute
   '/onboarding': typeof OnboardingRoute
+  '/campaigns/$slug': typeof CampaignsSlugRoute
+  '/campaigns/new': typeof CampaignsNewRoute
   '/login_/reset-password': typeof LoginResetPasswordRoute
   '/login_/callback/$provider': typeof LoginCallbackProviderRoute
 }
@@ -79,6 +97,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
+    | '/campaigns/$slug'
+    | '/campaigns/new'
     | '/login/reset-password'
     | '/login/callback/$provider'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +107,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
+    | '/campaigns/$slug'
+    | '/campaigns/new'
     | '/login/reset-password'
     | '/login/callback/$provider'
   id:
@@ -95,6 +117,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/logout'
     | '/onboarding'
+    | '/campaigns/$slug'
+    | '/campaigns/new'
     | '/login_/reset-password'
     | '/login_/callback/$provider'
   fileRoutesById: FileRoutesById
@@ -104,6 +128,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   LogoutRoute: typeof LogoutRoute
   OnboardingRoute: typeof OnboardingRoute
+  CampaignsSlugRoute: typeof CampaignsSlugRoute
+  CampaignsNewRoute: typeof CampaignsNewRoute
   LoginResetPasswordRoute: typeof LoginResetPasswordRoute
   LoginCallbackProviderRoute: typeof LoginCallbackProviderRoute
 }
@@ -145,6 +171,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns/new': {
+      id: '/campaigns/new'
+      path: '/campaigns/new'
+      fullPath: '/campaigns/new'
+      preLoaderRoute: typeof CampaignsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns/$slug': {
+      id: '/campaigns/$slug'
+      path: '/campaigns/$slug'
+      fullPath: '/campaigns/$slug'
+      preLoaderRoute: typeof CampaignsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login_/callback/$provider': {
       id: '/login_/callback/$provider'
       path: '/login/callback/$provider'
@@ -160,6 +200,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   LogoutRoute: LogoutRoute,
   OnboardingRoute: OnboardingRoute,
+  CampaignsSlugRoute: CampaignsSlugRoute,
+  CampaignsNewRoute: CampaignsNewRoute,
   LoginResetPasswordRoute: LoginResetPasswordRoute,
   LoginCallbackProviderRoute: LoginCallbackProviderRoute,
 }

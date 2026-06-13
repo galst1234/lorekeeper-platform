@@ -81,3 +81,40 @@ def authenticated_client(client: tuple[AsyncClient, FastAPI]) -> Callable[[str],
         return ac
 
     return _with_user
+
+
+@pytest.fixture
+async def campaigns_client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
+    from supertokens_python.framework.fastapi import get_middleware
+
+    from api.routers import campaigns as campaigns_router
+    from api.supertokens import init_supertokens
+
+    global _supertokens_initialized
+    if not _supertokens_initialized:
+        init_supertokens()
+        _supertokens_initialized = True
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
+        yield db
+
+    inner_app = FastAPI()
+    inner_app.add_middleware(get_middleware())
+    inner_app.include_router(campaigns_router.router, prefix="/api/v1")
+    inner_app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(transport=ASGITransport(app=inner_app), base_url="http://test") as ac:
+        yield ac, inner_app
+
+
+@pytest.fixture
+def campaigns_authenticated_client(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+) -> Callable[[str], AsyncClient]:
+    ac, inner_app = campaigns_client
+
+    def _with_user(user_id: str) -> AsyncClient:
+        inner_app.dependency_overrides[get_session] = lambda: make_mock_session(user_id)
+        return ac
+
+    return _with_user
