@@ -33,6 +33,13 @@ function CampaignDetailPage() {
   const [description, setDescription] = useState(campaign.description ?? "");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!editing) {
+      setName(campaign.name);
+      setDescription(campaign.description ?? "");
+    }
+  }, [campaign.name, campaign.description, editing]);
+
   const patchMutation = useMutation({
     mutationFn: (data: { name: string; description: string | null }) =>
       patchCampaign(campaign.slug, { name: data.name, description: data.description }),
