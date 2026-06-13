@@ -1,4 +1,3 @@
-import re
 import secrets
 import string
 import uuid
@@ -7,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, StringConstraints, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +19,15 @@ from api.models.campaign import Campaign
 router = APIRouter()
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
+_NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+_SlugLabelStr = Annotated[
+    str,
+    StringConstraints(
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$",
+    ),
+]
 
 
 def _generate_slug_id() -> str:
@@ -40,56 +48,21 @@ class CampaignResponse(BaseModel):
 
 
 class CreateCampaignRequest(BaseModel):
-    name: str
+    name: _NonEmptyStr
     description: str | None = None
-    slug_label: str
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("name cannot be empty")
-        return v
-
-    @field_validator("slug_label")
-    @classmethod
-    def validate_slug_label(cls, v: str) -> str:
-        if len(v) > 100:
-            raise ValueError("slug_label must be 100 characters or fewer")
-        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", v):
-            raise ValueError(
-                "slug_label must be lowercase alphanumeric with hyphens, no leading/trailing or consecutive hyphens"
-            )
-        return v
+    slug_label: _SlugLabelStr
 
 
 class PatchCampaignRequest(BaseModel):
-    name: str | None = None
+    name: _NonEmptyStr | None = None
     description: str | None = None
-    slug_label: str | None = None
+    slug_label: _SlugLabelStr | None = None
 
-    @field_validator("name")
+    @field_validator("name", "slug_label", mode="before")
     @classmethod
-    def validate_name(cls, v: str | None) -> str:
+    def reject_null(cls, v: object) -> object:
         if v is None:
-            raise ValueError("name cannot be null")
-        v = v.strip()
-        if not v:
-            raise ValueError("name cannot be empty")
-        return v
-
-    @field_validator("slug_label")
-    @classmethod
-    def validate_slug_label(cls, v: str | None) -> str:
-        if v is None:
-            raise ValueError("slug_label cannot be null")
-        if len(v) > 100:
-            raise ValueError("slug_label must be 100 characters or fewer")
-        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", v):
-            raise ValueError(
-                "slug_label must be lowercase alphanumeric with hyphens, no leading/trailing or consecutive hyphens"
-            )
+            raise ValueError("cannot be null")
         return v
 
 
