@@ -1,9 +1,9 @@
 import secrets
 import string
 import uuid
-from typing import cast
 
 from asyncpg import UniqueViolationError
+from pydantic_core import MISSING
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -79,14 +79,17 @@ async def get_campaign_by_slug(db: AsyncSession, slug: str) -> Campaign | None:
 async def patch_campaign(
     db: AsyncSession,
     campaign: Campaign,
-    fields: dict[str, object],
+    *,
+    name: str | MISSING = MISSING,
+    description: str | None | MISSING = MISSING,
+    slug_label: str | MISSING = MISSING,
 ) -> Campaign:
-    if "name" in fields:
-        campaign.name = cast(str, fields["name"])
-    if "description" in fields:
-        campaign.description = cast(str | None, fields["description"])
-    if "slug_label" in fields:
-        campaign.slug_label = cast(str, fields["slug_label"])
+    if name is not MISSING:
+        campaign.name = name
+    if description is not MISSING:
+        campaign.description = description
+    if slug_label is not MISSING:
+        campaign.slug_label = slug_label
 
     await db.commit()
     await db.refresh(campaign)

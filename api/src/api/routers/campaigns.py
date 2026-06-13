@@ -115,8 +115,13 @@ async def patch_campaign(
     if campaign.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    fields = body.model_dump()
-    updated_campaign = await campaign_service.patch_campaign(db, campaign, fields)
+    updated_campaign = await campaign_service.patch_campaign(
+        db,
+        campaign,
+        name=body.name,
+        description=body.description,
+        slug_label=body.slug_label,
+    )
     return _to_response(updated_campaign)
 
 
