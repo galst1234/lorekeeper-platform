@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models.campaign import Campaign
+from api.models.membership import CampaignMember
 from api.models.user import User, UserAuthMethod
 
 
@@ -30,6 +31,7 @@ async def make_campaign(
     slug_label: str = "test-campaign",
     slug_id: str = "aabbccdd",
     description: str | None = None,
+    invite_code: str | None = None,
     created_at: datetime | None = None,
 ) -> Campaign:
     campaign = Campaign(
@@ -38,9 +40,22 @@ async def make_campaign(
         description=description,
         slug_label=slug_label,
         slug_id=slug_id,
+        invite_code=invite_code,
     )
     if created_at is not None:
         campaign.created_at = created_at
     db.add(campaign)
     await db.flush()
     return campaign
+
+
+async def make_member(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> CampaignMember:
+    member = CampaignMember(campaign_id=campaign_id, user_id=user_id)
+    db.add(member)
+    await db.flush()
+    return member
