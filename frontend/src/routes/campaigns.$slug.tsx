@@ -17,5 +17,10 @@ export const Route = createFileRoute("/campaigns/$slug")({
       throw redirect({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     }
   },
-  component: () => <Outlet />,
+  component: SlugLayout,
 });
+
+function SlugLayout() {
+  const { slug } = Route.useParams();
+  return <Outlet key={slug} />;
+}
