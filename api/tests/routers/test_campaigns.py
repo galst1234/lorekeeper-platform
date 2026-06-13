@@ -99,6 +99,20 @@ async def test_get_campaign_forbidden(
     assert response.status_code == 403
 
 
+async def test_get_campaign_member_can_access(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-get-mem-own", email="rt-get-mem-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_label="shared", slug_id="member01")
+    player = await make_user(db, supertokens_user_id="rt-get-mem-ply", email="rt-get-mem-ply@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    ac = campaigns_authenticated_client("rt-get-mem-ply")
+    response = await ac.get("/api/v1/campaigns/shared-member01")
+    assert response.status_code == 200
+    assert response.json()["role"] == "player"
+
+
 # --- Patch ---
 
 

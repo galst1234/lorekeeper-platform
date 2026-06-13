@@ -162,3 +162,15 @@ async def list_members(db: AsyncSession, campaign_id: uuid.UUID) -> list[Campaig
             select(CampaignMember).where(CampaignMember.campaign_id == campaign_id),
         )
     )
+
+
+async def is_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    return (
+        await db.scalar(
+            select(CampaignMember).where(
+                CampaignMember.campaign_id == campaign_id,
+                CampaignMember.user_id == user_id,
+            )
+        )
+        is not None
+    )

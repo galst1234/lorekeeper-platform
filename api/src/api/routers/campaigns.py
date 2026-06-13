@@ -105,11 +105,15 @@ async def get_campaign(
     campaign = await campaign_service.get_campaign_by_slug(db, slug)
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if campaign.owner_id == user.id:
+        role = "gm"
+    else:
+        if not await campaign_service.is_member(db, campaign.id, user.id):
+            raise HTTPException(status_code=403, detail="Forbidden")
+        role = "player"
     if slug != campaign.slug:
         return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=307)
-    return _to_response(campaign)
+    return _to_response(campaign, role)
 
 
 @router.patch("/campaigns/{slug}")
@@ -164,7 +168,7 @@ async def create_invite(
         raise HTTPException(status_code=500, detail="Failed to generate invite code")
     return InviteResponse(
         invite_code=campaign.invite_code,
-        invite_url=f"/api/v1/campaigns/{campaign.slug}/join/{campaign.invite_code}",
+        invite_url=f"/campaigns/{campaign.slug}/join/{campaign.invite_code}",
     )
 
 
