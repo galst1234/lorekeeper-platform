@@ -1,6 +1,7 @@
 import secrets
 import string
 import uuid
+from dataclasses import dataclass
 
 from asyncpg import UniqueViolationError
 from pydantic_core import MISSING
@@ -10,8 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
 from api.models.campaign import SLUG_ID_UNIQUE_CONSTRAINT, Campaign
+from api.models.membership import CampaignMember
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+
+@dataclass
+class CampaignWithRole:
+    campaign: Campaign
+    role: str
 
 
 def _generate_slug_id() -> str:
@@ -33,11 +41,23 @@ def _is_slug_id_collision(exc: BaseException) -> bool:
     )
 
 
-async def list_campaigns(db: AsyncSession, owner_id: uuid.UUID) -> list[Campaign]:
-    result = await db.scalars(
-        select(Campaign).where(Campaign.owner_id == owner_id).order_by(Campaign.created_at.desc()),
+async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignWithRole]:
+    owned = list(
+        await db.scalars(
+            select(Campaign).where(Campaign.owner_id == user_id).order_by(Campaign.created_at.desc()),
+        )
     )
-    return list(result)
+    member = list(
+        await db.scalars(
+            select(Campaign)
+            .join(CampaignMember, Campaign.id == CampaignMember.campaign_id)
+            .where(CampaignMember.user_id == user_id, Campaign.owner_id != user_id)
+            .order_by(Campaign.created_at.desc()),
+        )
+    )
+    return [CampaignWithRole(campaign=c, role="gm") for c in owned] + [
+        CampaignWithRole(campaign=c, role="player") for c in member
+    ]
 
 
 @retry(
@@ -99,3 +119,44 @@ async def update_campaign(
 async def delete_campaign(db: AsyncSession, campaign: Campaign) -> None:
     await db.delete(campaign)
     await db.commit()
+
+
+def _generate_invite_code() -> str:
+    return secrets.token_urlsafe(24)
+
+
+async def generate_invite(db: AsyncSession, campaign: Campaign) -> Campaign:
+    if campaign.invite_code is not None:
+        return campaign
+    campaign.invite_code = _generate_invite_code()
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+async def revoke_invite(db: AsyncSession, campaign: Campaign) -> None:
+    campaign.invite_code = None
+    await db.commit()
+
+
+async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID) -> None:
+    if campaign.owner_id == user_id:
+        return
+    existing = await db.scalar(
+        select(CampaignMember).where(
+            CampaignMember.campaign_id == campaign.id,
+            CampaignMember.user_id == user_id,
+        )
+    )
+    if existing is not None:
+        return
+    db.add(CampaignMember(campaign_id=campaign.id, user_id=user_id))
+    await db.commit()
+
+
+async def list_members(db: AsyncSession, campaign_id: uuid.UUID) -> list[CampaignMember]:
+    return list(
+        await db.scalars(
+            select(CampaignMember).where(CampaignMember.campaign_id == campaign_id),
+        )
+    )

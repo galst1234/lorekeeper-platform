@@ -41,9 +41,10 @@ async def test_list_campaigns_returns_own(db: AsyncSession) -> None:
     campaign = await make_campaign(db, owner_id=user.id, name="Mine", slug_label="mine", slug_id="own00001")
     result = await campaign_service.list_campaigns(db, user.id)
     assert len(result) == 1
-    assert result[0].id == campaign.id
-    assert result[0].name == "Mine"
-    assert result[0].slug == "mine-own00001"
+    assert result[0].campaign.id == campaign.id
+    assert result[0].campaign.name == "Mine"
+    assert result[0].campaign.slug == "mine-own00001"
+    assert result[0].role == "gm"
 
 
 async def test_list_campaigns_excludes_others(db: AsyncSession) -> None:
@@ -69,8 +70,8 @@ async def test_list_campaigns_ordered_newest_first(db: AsyncSession) -> None:
         created_at=datetime(2024, 6, 1, tzinfo=UTC),
     )
     result = await campaign_service.list_campaigns(db, user.id)
-    assert result[0].id == newer.id
-    assert result[1].id == older.id
+    assert result[0].campaign.id == newer.id
+    assert result[1].campaign.id == older.id
 
 
 # --- create_campaign ---
