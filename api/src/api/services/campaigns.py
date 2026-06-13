@@ -76,7 +76,7 @@ async def get_campaign_by_slug(db: AsyncSession, slug: str) -> Campaign | None:
     return await db.scalar(select(Campaign).where(Campaign.slug_id == slug_id))
 
 
-async def patch_campaign(
+async def update_campaign(
     db: AsyncSession,
     campaign: Campaign,
     *,

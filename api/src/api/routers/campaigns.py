@@ -115,7 +115,7 @@ async def patch_campaign(
     if campaign.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    updated_campaign = await campaign_service.patch_campaign(
+    updated_campaign = await campaign_service.update_campaign(
         db,
         campaign,
         name=body.name,
