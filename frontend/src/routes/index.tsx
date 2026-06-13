@@ -62,9 +62,23 @@ function HomePage() {
         <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "1rem" }}>
           {campaigns.map((campaign) => (
             <li key={campaign.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "1rem" }}>
-              <Link to="/campaigns/$slug" params={{ slug: campaign.slug }}>
-                <h2 style={{ margin: "0 0 0.5rem" }}>{campaign.name}</h2>
-              </Link>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                <Link to="/campaigns/$slug" params={{ slug: campaign.slug }}>
+                  <h2 style={{ margin: 0 }}>{campaign.name}</h2>
+                </Link>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.125rem 0.5rem",
+                    borderRadius: "999px",
+                    background: campaign.role === "gm" ? "#e8f4e8" : "#e8eef4",
+                    color: campaign.role === "gm" ? "#2d6a2d" : "#2d4a6a",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {campaign.role === "gm" ? "GM" : "Player"}
+                </span>
+              </div>
               {campaign.description && (
                 <p style={{ margin: "0 0 0.5rem", color: "#555" }}>
                   {campaign.description.length > 120 ? `${campaign.description.slice(0, 120)}…` : campaign.description}
