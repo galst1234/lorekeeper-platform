@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -18,15 +19,46 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _next_rev_id() -> str:
+    script = ScriptDirectory.from_config(config)
+    max_num = max(
+        (int(r.revision) for r in script.walk_revisions() if r.revision.isdigit()),
+        default=0,
+    )
+    return f"{max_num + 1:04d}"
+
+
+def process_revision_directives(context: object, revision: object, directives: list) -> None:
+    for directive in directives:
+        directive.rev_id = _next_rev_id()
+
+
+def include_name(name: str | None, type_: str, parent_names: dict) -> bool:
+    if type_ == "table":
+        return name is not None and not name.startswith("supertokens_")
+    return True
+
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        include_name=include_name,
+        process_revision_directives=process_revision_directives,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_name=include_name,
+        process_revision_directives=process_revision_directives,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

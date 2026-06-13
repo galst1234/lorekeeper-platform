@@ -22,7 +22,7 @@ _SlugLabelStr = Annotated[
     StringConstraints(
         min_length=1,
         max_length=100,
-        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$",
+        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
     ),
 ]
 
@@ -97,7 +97,7 @@ async def get_campaign(
     if campaign.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
     if slug != campaign.slug:
-        return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=301)
+        return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=307)
 
     return _to_response(campaign)
 

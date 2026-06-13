@@ -73,7 +73,7 @@ async def test_get_campaign_stale_label_redirects(
     await make_campaign(db, owner_id=user.id, slug_label="new-label", slug_id="redir001")
     ac = campaigns_authenticated_client("rt-get-redir")
     response = await ac.get("/api/v1/campaigns/old-label-redir001", follow_redirects=False)
-    assert response.status_code == 301
+    assert response.status_code == 307
     assert response.headers["location"].endswith("/api/v1/campaigns/new-label-redir001")
 
 

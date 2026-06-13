@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +12,10 @@ SLUG_ID_UNIQUE_CONSTRAINT = "uq_campaigns_slug_id"
 
 class Campaign(Base):
     __tablename__ = "campaigns"
-    __table_args__ = (UniqueConstraint("slug_id", name=SLUG_ID_UNIQUE_CONSTRAINT),)
+    __table_args__ = (
+        UniqueConstraint("slug_id", name=SLUG_ID_UNIQUE_CONSTRAINT),
+        Index("ix_campaigns_owner_id_created_at", "owner_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
