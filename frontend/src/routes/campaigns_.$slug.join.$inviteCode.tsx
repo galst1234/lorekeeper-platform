@@ -1,18 +1,36 @@
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import { meQueryOptions } from "../api/me";
 import { fetchJoinPreview, joinCampaign } from "../api/membership";
+import { doesSessionExist } from "../lib/auth";
 
-export const Route = createFileRoute("/campaigns/$slug/join/$inviteCode")({
+export const Route = createFileRoute("/campaigns_/$slug/join/$inviteCode")({
+  beforeLoad: async ({ context }) => {
+    if (!(await doesSessionExist())) {
+      throw redirect({ to: "/login" });
+    }
+    const me = await context.queryClient.fetchQuery(meQueryOptions);
+    if (me.display_name === null) {
+      throw redirect({ to: "/onboarding" });
+    }
+  },
   loader: async ({ params }) => {
     return fetchJoinPreview(params.slug, params.inviteCode);
   },
-  errorComponent: ({ error }) => (
-    <main style={{ padding: "2rem" }}>
-      <h1>Invite Not Found</h1>
-      <p>{error instanceof Error ? error.message : "This invite link is invalid or has been revoked."}</p>
-    </main>
-  ),
+  errorComponent: ({ error }) => {
+    const isNotFound = error instanceof Error && error.message === "Invite not found";
+    return (
+      <main style={{ padding: "2rem" }}>
+        <h1>{isNotFound ? "Invite Not Found" : "Something Went Wrong"}</h1>
+        <p>
+          {isNotFound
+            ? "This invite link is invalid or has been revoked."
+            : "An unexpected error occurred. Please try again."}
+        </p>
+      </main>
+    );
+  },
   component: JoinPage,
 });
 

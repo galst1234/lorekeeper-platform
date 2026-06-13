@@ -18,6 +18,7 @@ import { Route as CampaignsNewRouteImport } from './routes/campaigns.new'
 import { Route as CampaignsSlugRouteImport } from './routes/campaigns.$slug'
 import { Route as CampaignsSlugIndexRouteImport } from './routes/campaigns.$slug.index'
 import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
+import { Route as CampaignsSlugJoinInviteCodeRouteImport } from './routes/campaigns_.$slug.join.$inviteCode'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -64,6 +65,12 @@ const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
   path: '/login/callback/$provider',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsSlugJoinInviteCodeRoute =
+  CampaignsSlugJoinInviteCodeRouteImport.update({
+    id: '/campaigns_/$slug/join/$inviteCode',
+    path: '/campaigns/$slug/join/$inviteCode',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
+  '/campaigns/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,6 +93,7 @@ export interface FileRoutesByTo {
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug': typeof CampaignsSlugIndexRoute
+  '/campaigns/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,6 +106,7 @@ export interface FileRoutesById {
   '/login_/reset-password': typeof LoginResetPasswordRoute
   '/login_/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
+  '/campaigns_/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/login/reset-password'
     | '/login/callback/$provider'
     | '/campaigns/$slug/'
+    | '/campaigns/$slug/join/$inviteCode'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/login/reset-password'
     | '/login/callback/$provider'
     | '/campaigns/$slug'
+    | '/campaigns/$slug/join/$inviteCode'
   id:
     | '__root__'
     | '/'
@@ -131,6 +143,7 @@ export interface FileRouteTypes {
     | '/login_/reset-password'
     | '/login_/callback/$provider'
     | '/campaigns/$slug/'
+    | '/campaigns_/$slug/join/$inviteCode'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -142,6 +155,7 @@ export interface RootRouteChildren {
   CampaignsNewRoute: typeof CampaignsNewRoute
   LoginResetPasswordRoute: typeof LoginResetPasswordRoute
   LoginCallbackProviderRoute: typeof LoginCallbackProviderRoute
+  CampaignsSlugJoinInviteCodeRoute: typeof CampaignsSlugJoinInviteCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -209,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginCallbackProviderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns_/$slug/join/$inviteCode': {
+      id: '/campaigns_/$slug/join/$inviteCode'
+      path: '/campaigns/$slug/join/$inviteCode'
+      fullPath: '/campaigns/$slug/join/$inviteCode'
+      preLoaderRoute: typeof CampaignsSlugJoinInviteCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -233,6 +254,7 @@ const rootRouteChildren: RootRouteChildren = {
   CampaignsNewRoute: CampaignsNewRoute,
   LoginResetPasswordRoute: LoginResetPasswordRoute,
   LoginCallbackProviderRoute: LoginCallbackProviderRoute,
+  CampaignsSlugJoinInviteCodeRoute: CampaignsSlugJoinInviteCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
