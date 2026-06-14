@@ -8,11 +8,17 @@ import { doesSessionExist } from "../lib/auth";
 export const Route = createFileRoute("/campaigns_/$slug/join/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
     if (!(await doesSessionExist())) {
-      throw redirect({ to: "/login", search: { redirectToPath: location.href } });
+      throw redirect({
+        to: "/login",
+        search: { redirectToPath: location.pathname + location.searchStr + location.hash },
+      });
     }
     const me = await context.queryClient.fetchQuery(meQueryOptions);
     if (me.display_name === null) {
-      throw redirect({ to: "/onboarding", search: { redirectToPath: location.href } });
+      throw redirect({
+        to: "/onboarding",
+        search: { redirectToPath: location.pathname + location.searchStr + location.hash },
+      });
     }
   },
   loader: async ({ params }) => {

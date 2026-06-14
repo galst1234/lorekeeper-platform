@@ -31,7 +31,8 @@ function OnboardingPage() {
     mutationFn: patchMe,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["me"] });
-      await router.navigate({ to: redirectToPath ?? "/" });
+      const safePath = redirectToPath?.startsWith("/") && !redirectToPath.startsWith("//") ? redirectToPath : "/";
+      await router.navigate({ to: safePath });
     },
     onError: () => setError("Something went wrong. Please try again."),
   });
