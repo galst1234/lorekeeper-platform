@@ -12,7 +12,7 @@ export const Route = createFileRoute("/campaigns_/$slug/join/$inviteCode")({
     }
     const me = await context.queryClient.fetchQuery(meQueryOptions);
     if (me.display_name === null) {
-      throw redirect({ to: "/onboarding" });
+      throw redirect({ to: "/onboarding", search: { redirectToPath: location.href } });
     }
   },
   loader: async ({ params }) => {

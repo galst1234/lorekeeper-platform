@@ -141,19 +141,22 @@ async def revoke_invite(db: AsyncSession, campaign: Campaign) -> None:
     await db.commit()
 
 
-async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID) -> None:
-    if campaign.owner_id == user_id:
-        return
-    stmt = (
-        pg_insert(CampaignMember)
-        .values(
-            campaign_id=campaign.id,
-            user_id=user_id,
-        )
-        .on_conflict_do_nothing()
+async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID, invite_code: str) -> bool:
+    """Returns False if the invite code was revoked before the insert could complete."""
+    campaign_id = campaign.id  # PK is always retained in the identity map
+    # Lock and re-validate the invite code atomically to close the revoke-then-join race window
+    locked = await db.scalar(
+        select(Campaign).where(Campaign.id == campaign_id, Campaign.invite_code == invite_code).with_for_update()
     )
+    if locked is None:
+        return False
+    # Owner joining is a no-op (check on fresh locked instance to avoid stale state)
+    if locked.owner_id == user_id:
+        return True
+    stmt = pg_insert(CampaignMember).values(campaign_id=campaign_id, user_id=user_id).on_conflict_do_nothing()
     await db.execute(stmt)
     await db.commit()
+    return True
 
 
 async def list_members(db: AsyncSession, campaign_id: uuid.UUID) -> list[CampaignMember]:

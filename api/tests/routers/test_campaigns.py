@@ -1,8 +1,10 @@
 from collections.abc import Callable
 
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.models.campaign import Campaign
 from tests.helpers import make_campaign, make_member, make_user
 
 # --- List ---
@@ -402,3 +404,17 @@ async def test_post_join_idempotent(
     await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
     response = await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
     assert response.status_code == 200
+
+
+async def test_post_join_revoked_code_returns_404(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-join-rvk", email="rt-join-rvk@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtjrvk01", invite_code="torevoke")
+    await make_user(db, supertokens_user_id="rt-join-rply", email="rt-join-rply@test.com")
+    await db.execute(update(Campaign).where(Campaign.id == campaign.id).values(invite_code=None))
+    await db.commit()
+    ac = campaigns_authenticated_client("rt-join-rply")
+    response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/join/torevoke")
+    assert response.status_code == 404

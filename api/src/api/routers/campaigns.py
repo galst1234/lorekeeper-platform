@@ -219,6 +219,8 @@ async def join_campaign(
             url=f"/api/v1/campaigns/{campaign.slug}/join/{invite_code}",
             status_code=307,
         )
-    await campaign_service.join_campaign(db, campaign, user.id)
+    joined = await campaign_service.join_campaign(db, campaign, user.id, invite_code)
+    if not joined:
+        raise HTTPException(status_code=404, detail="Invalid invite")
     role = "gm" if campaign.owner_id == user.id else "player"
     return _to_response(campaign, role)

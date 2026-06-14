@@ -59,8 +59,9 @@ async def test_join_campaign_adds_member(db: AsyncSession) -> None:
     player = await make_user(db, supertokens_user_id="inv-join-ply", email="inv-join-ply@test.com")
     campaign = await make_campaign(db, owner_id=owner.id, slug_id="injoin01", invite_code="joincode")
 
-    await campaign_service.join_campaign(db, campaign, player.id)
+    result = await campaign_service.join_campaign(db, campaign, player.id, "joincode")
 
+    assert result is True
     members = await campaign_service.list_members(db, campaign.id)
     assert any(m.user_id == player.id for m in members)
 
@@ -70,8 +71,8 @@ async def test_join_campaign_idempotent(db: AsyncSession) -> None:
     player = await make_user(db, supertokens_user_id="inv-join-iply", email="inv-join-iply@test.com")
     campaign = await make_campaign(db, owner_id=owner.id, slug_id="injoid01", invite_code="joincode")
 
-    await campaign_service.join_campaign(db, campaign, player.id)
-    await campaign_service.join_campaign(db, campaign, player.id)
+    await campaign_service.join_campaign(db, campaign, player.id, "joincode")
+    await campaign_service.join_campaign(db, campaign, player.id, "joincode")
 
     members = await campaign_service.list_members(db, campaign.id)
     assert len([m for m in members if m.user_id == player.id]) == 1
@@ -81,10 +82,24 @@ async def test_join_campaign_owner_is_noop(db: AsyncSession) -> None:
     owner = await make_user(db, supertokens_user_id="inv-join-own2", email="inv-join-own2@test.com")
     campaign = await make_campaign(db, owner_id=owner.id, slug_id="injown01", invite_code="joincode")
 
-    await campaign_service.join_campaign(db, campaign, owner.id)
+    result = await campaign_service.join_campaign(db, campaign, owner.id, "joincode")
 
+    assert result is True
     members = await campaign_service.list_members(db, campaign.id)
     assert not any(m.user_id == owner.id for m in members)
+
+
+async def test_join_campaign_revoked_code_returns_false(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="inv-join-rev", email="inv-join-rev@test.com")
+    player = await make_user(db, supertokens_user_id="inv-join-rply", email="inv-join-rply@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="injrev01", invite_code="revoked1")
+    await campaign_service.revoke_invite(db, campaign)
+
+    result = await campaign_service.join_campaign(db, campaign, player.id, "revoked1")
+
+    assert result is False
+    members = await campaign_service.list_members(db, campaign.id)
+    assert not any(m.user_id == player.id for m in members)
 
 
 # --- list_campaigns with membership ---
