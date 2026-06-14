@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.database import Base
+
+if TYPE_CHECKING:
+    from api.models.membership import CampaignMember
+    from api.models.user import User
 
 SLUG_ID_UNIQUE_CONSTRAINT = "uq_campaigns_slug_id"
 
@@ -44,6 +51,9 @@ class Campaign(Base):
         onupdate=lambda: datetime.now(UTC),
     )
     invite_code: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
+
+    owner: Mapped[User] = relationship("User", back_populates="owned_campaigns", lazy="raise")
+    members: Mapped[list[CampaignMember]] = relationship("CampaignMember", back_populates="campaign", lazy="raise")
 
     @property
     def slug(self) -> str:

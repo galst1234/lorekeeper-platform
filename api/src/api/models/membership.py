@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.database import Base
+
+if TYPE_CHECKING:
+    from api.models.campaign import Campaign
+    from api.models.user import User
 
 
 class CampaignMember(Base):
@@ -29,3 +36,6 @@ class CampaignMember(Base):
         server_default=text("now()"),
         default=lambda: datetime.now(UTC),
     )
+
+    campaign: Mapped[Campaign] = relationship("Campaign", back_populates="members", lazy="raise")
+    user: Mapped[User] = relationship("User", back_populates="memberships", lazy="raise")
