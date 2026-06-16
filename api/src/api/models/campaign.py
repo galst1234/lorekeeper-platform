@@ -53,7 +53,9 @@ class Campaign(Base):
     invite_code: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
 
     owner: Mapped[User] = relationship("User", back_populates="owned_campaigns", lazy="raise")
-    members: Mapped[list[CampaignMember]] = relationship("CampaignMember", back_populates="campaign", lazy="raise")
+    members: Mapped[list[CampaignMember]] = relationship(
+        "CampaignMember", back_populates="campaign", lazy="raise", passive_deletes=True
+    )
 
     @property
     def slug(self) -> str:

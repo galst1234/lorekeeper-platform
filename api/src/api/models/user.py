@@ -25,8 +25,12 @@ class User(Base):
         default=uuid.uuid4,
     )
     auth_methods: Mapped[list[UserAuthMethod]] = relationship("UserAuthMethod", back_populates="user")
-    owned_campaigns: Mapped[list[Campaign]] = relationship("Campaign", back_populates="owner", lazy="raise")
-    memberships: Mapped[list[CampaignMember]] = relationship("CampaignMember", back_populates="user", lazy="raise")
+    owned_campaigns: Mapped[list[Campaign]] = relationship(
+        "Campaign", back_populates="owner", lazy="raise", passive_deletes=True
+    )
+    memberships: Mapped[list[CampaignMember]] = relationship(
+        "CampaignMember", back_populates="user", lazy="raise", passive_deletes=True
+    )
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
