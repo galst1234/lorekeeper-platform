@@ -153,8 +153,8 @@ async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID
     # Owner joining is a no-op (check on fresh locked instance to avoid stale state)
     if locked.owner_id == user_id:
         return True
-    stmt = pg_insert(CampaignMember).values(campaign_id=campaign_id, user_id=user_id).on_conflict_do_nothing()
-    await db.execute(stmt)
+    query = pg_insert(CampaignMember).values(campaign_id=campaign_id, user_id=user_id).on_conflict_do_nothing()
+    await db.execute(query)
     await db.commit()
     return True
 
