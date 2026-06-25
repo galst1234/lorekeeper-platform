@@ -56,8 +56,8 @@ async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignW
             .order_by(Campaign.created_at.desc()),
         )
     )
-    return [CampaignWithRole(campaign=c, role="gm") for c in owned] + [
-        CampaignWithRole(campaign=c, role="player") for c in member
+    return [CampaignWithRole(campaign=campaign, role="gm") for campaign in owned] + [
+        CampaignWithRole(campaign=campaign, role="player") for campaign in member
     ]
 
 

@@ -77,7 +77,7 @@ async def list_campaigns(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[CampaignResponse]:
     campaigns = await campaign_service.list_campaigns(db, user.id)
-    return [_to_response(cwr.campaign, cwr.role) for cwr in campaigns]
+    return [_to_response(campaign_with_role.campaign, campaign_with_role.role) for campaign_with_role in campaigns]
 
 
 @router.post("/campaigns", status_code=201)
