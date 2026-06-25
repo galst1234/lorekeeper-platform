@@ -11,8 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models.campaign import SLUG_ID_UNIQUE_CONSTRAINT, Campaign
-from api.models.membership import CampaignMember
+from api.models import Campaign, CampaignMember
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
 
@@ -38,7 +37,7 @@ def _is_slug_id_collision(exc: BaseException) -> bool:
     original_error = exc.orig.__cause__
     return (
         isinstance(original_error, UniqueViolationError)
-        and getattr(original_error, "constraint_name", None) == SLUG_ID_UNIQUE_CONSTRAINT
+        and getattr(original_error, "constraint_name", None) == Campaign.SLUG_ID_UNIQUE_CONSTRAINT
     )
 
 

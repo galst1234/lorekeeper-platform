@@ -14,10 +14,10 @@ if TYPE_CHECKING:
     from api.models.membership import CampaignMember
     from api.models.user import User
 
-SLUG_ID_UNIQUE_CONSTRAINT = "uq_campaigns_slug_id"
-
 
 class Campaign(Base):
+    SLUG_ID_UNIQUE_CONSTRAINT = "uq_campaigns_slug_id"
+
     __tablename__ = "campaigns"
     __table_args__ = (
         UniqueConstraint("slug_id", name=SLUG_ID_UNIQUE_CONSTRAINT),
