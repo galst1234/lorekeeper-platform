@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
-from api.models.campaign import Campaign
-from api.models.user import User
+from api.models import Campaign, User
 from api.services import campaigns as campaign_service
 
 router = APIRouter()

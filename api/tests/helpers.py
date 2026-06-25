@@ -3,9 +3,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models.campaign import Campaign
-from api.models.membership import CampaignMember
-from api.models.user import User, UserAuthMethod
+from api.models import Campaign, CampaignMember, User, UserAuthMethod
 
 
 async def make_user(

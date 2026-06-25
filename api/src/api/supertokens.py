@@ -41,7 +41,7 @@ from supertokens_python.types.response import GeneralErrorResponse
 
 from api.config import settings
 from api.database import AsyncSessionLocal
-from api.models.user import User, UserAuthMethod
+from api.models import User, UserAuthMethod
 
 
 def _override_emailpassword_apis(original: EPAPIInterface) -> EPAPIInterface:

@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models.campaign import Campaign
+from api.models import Campaign
 from tests.helpers import make_campaign, make_member, make_user
 
 # --- List ---
