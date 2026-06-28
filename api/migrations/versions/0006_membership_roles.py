@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 
 revision: str = "0006"
 down_revision: str | None = "0005"
@@ -23,7 +24,7 @@ def upgrade() -> None:
         "campaign_members",
         sa.Column(
             "role",
-            sa.Enum("gm", "player", name="member_role", create_type=False),
+            PG_ENUM("gm", "player", name="member_role", create_type=False),
             nullable=True,
         ),
     )
@@ -37,7 +38,7 @@ def upgrade() -> None:
     op.alter_column(
         "campaign_members",
         "role",
-        existing_type=sa.Enum("gm", "player", name="member_role", create_type=False),
+        existing_type=PG_ENUM("gm", "player", name="member_role", create_type=False),
         nullable=False,
     )
 
