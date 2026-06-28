@@ -42,22 +42,17 @@ def _is_slug_id_collision(exc: BaseException) -> bool:
 
 
 async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignWithRole]:
-    owned = list(
-        await db.scalars(
-            select(Campaign).where(Campaign.owner_id == user_id).order_by(Campaign.created_at.desc()),
+    rows = list(
+        await db.execute(
+            select(Campaign, CampaignMember.role)
+            .join(
+                CampaignMember,
+                (Campaign.id == CampaignMember.campaign_id) & (CampaignMember.user_id == user_id),
+            )
+            .order_by(Campaign.created_at.desc())
         )
     )
-    member = list(
-        await db.scalars(
-            select(Campaign)
-            .join(CampaignMember, Campaign.id == CampaignMember.campaign_id)
-            .where(CampaignMember.user_id == user_id, Campaign.owner_id != user_id)
-            .order_by(Campaign.created_at.desc()),
-        )
-    )
-    return [CampaignWithRole(campaign=campaign, role=MemberRole.GM) for campaign in owned] + [
-        CampaignWithRole(campaign=campaign, role=MemberRole.PLAYER) for campaign in member
-    ]
+    return [CampaignWithRole(campaign=campaign, role=role) for campaign, role in rows]
 
 
 @retry(
@@ -151,9 +146,6 @@ async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID
     )
     if locked is None:
         return False
-    # Owner joining is a no-op (check on fresh locked instance to avoid stale state)
-    if locked.owner_id == user_id:
-        return True
     query = (
         pg_insert(CampaignMember)
         .values(campaign_id=campaign_id, user_id=user_id, role=MemberRole.PLAYER)

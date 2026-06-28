@@ -87,7 +87,9 @@ async def test_join_campaign_owner_is_noop(db: AsyncSession) -> None:
 
     assert result is True
     members = await campaign_service.list_members(db, campaign.id)
-    assert not any(m.user_id == owner.id for m in members)
+    gm_rows = [m for m in members if m.user_id == owner.id]
+    assert len(gm_rows) == 1
+    assert gm_rows[0].role == MemberRole.GM
 
 
 async def test_join_campaign_revoked_code_returns_false(db: AsyncSession) -> None:
@@ -129,16 +131,25 @@ async def test_list_campaigns_gm_role_for_owned(db: AsyncSession) -> None:
     assert result[0].role == "gm"
 
 
-async def test_list_campaigns_excludes_owned_from_player_list(db: AsyncSession) -> None:
+async def test_list_campaigns_shows_owner_as_gm_only(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="inv-lst-dup", email="inv-lst-dup@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="invldup1")
-    await make_member(db, campaign_id=campaign.id, user_id=user.id)
+    await make_campaign(db, owner_id=user.id, slug_id="invldup1")
 
     result = await campaign_service.list_campaigns(db, user.id)
 
-    roles = [r.role for r in result]
-    assert roles.count("gm") == 1
-    assert "player" not in roles
+    assert len(result) == 1
+    assert result[0].role == MemberRole.GM
+
+
+async def test_join_campaign_member_has_player_role(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="inv-jn-rl-own", email="inv-jn-rl-own@test.com")
+    player = await make_user(db, supertokens_user_id="inv-jn-rl-ply", email="inv-jn-rl-ply@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="jnrole01", invite_code="roletest")
+
+    await campaign_service.join_campaign(db, campaign, player.id, "roletest")
+
+    role = await campaign_service.get_member_role(db, campaign.id, player.id)
+    assert role == MemberRole.PLAYER
 
 
 # --- get_member_role ---
