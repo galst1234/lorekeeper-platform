@@ -44,7 +44,7 @@ class CampaignMember(Base):
         default=lambda: datetime.now(UTC),
     )
     role: Mapped[MemberRole] = mapped_column(
-        SAEnum(MemberRole, name="member_role"),
+        SAEnum(MemberRole, name="member_role", values_callable=lambda roles: [r.value for r in roles]),
         nullable=False,
     )
 
