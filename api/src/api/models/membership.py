@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from api.models.user import User
 
 
-class MemberRole(str, enum.Enum):  # noqa: UP042
+class MemberRole(enum.StrEnum):
     GM = "gm"
     PLAYER = "player"
 
