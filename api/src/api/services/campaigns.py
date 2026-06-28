@@ -180,3 +180,12 @@ async def is_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID
         )
         is not None
     )
+
+
+async def get_member_role(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> MemberRole | None:
+    return await db.scalar(
+        select(CampaignMember.role).where(
+            CampaignMember.campaign_id == campaign_id,
+            CampaignMember.user_id == user_id,
+        )
+    )

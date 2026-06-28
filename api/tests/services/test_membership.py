@@ -141,6 +141,33 @@ async def test_list_campaigns_excludes_owned_from_player_list(db: AsyncSession) 
     assert "player" not in roles
 
 
+# --- get_member_role ---
+
+
+async def test_get_member_role_returns_gm(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="svc-gmr-gm-own", email="svc-gmr-gm@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="gmrgm001")
+    role = await campaign_service.get_member_role(db, campaign.id, owner.id)
+    assert role == MemberRole.GM
+
+
+async def test_get_member_role_returns_player(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="svc-gmr-pl-own", email="svc-gmr-pl-own@test.com")
+    player = await make_user(db, supertokens_user_id="svc-gmr-pl-ply", email="svc-gmr-pl-ply@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="gmrpl001")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id, role=MemberRole.PLAYER)
+    role = await campaign_service.get_member_role(db, campaign.id, player.id)
+    assert role == MemberRole.PLAYER
+
+
+async def test_get_member_role_returns_none_for_non_member(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="svc-gmr-no-own", email="svc-gmr-no-own@test.com")
+    non_member = await make_user(db, supertokens_user_id="svc-gmr-no-nm", email="svc-gmr-no-nm@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="gmrnon01")
+    role = await campaign_service.get_member_role(db, campaign.id, non_member.id)
+    assert role is None
+
+
 # --- MemberRole smoke test ---
 
 
