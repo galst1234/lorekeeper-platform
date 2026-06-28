@@ -118,7 +118,7 @@ async def test_list_campaigns_includes_member_campaigns(db: AsyncSession) -> Non
 
     assert len(result) == 1
     assert result[0].campaign.id == campaign.id
-    assert result[0].role == "player"
+    assert result[0].role == MemberRole.PLAYER
 
 
 async def test_list_campaigns_gm_role_for_owned(db: AsyncSession) -> None:
@@ -128,7 +128,7 @@ async def test_list_campaigns_gm_role_for_owned(db: AsyncSession) -> None:
     result = await campaign_service.list_campaigns(db, user.id)
 
     assert len(result) == 1
-    assert result[0].role == "gm"
+    assert result[0].role == MemberRole.GM
 
 
 async def test_list_campaigns_shows_owner_as_gm_only(db: AsyncSession) -> None:
