@@ -5,6 +5,7 @@ export interface Campaign {
   name: string;
   description: string | null;
   slug: string;
+  role: string;
   created_at: string;
   updated_at: string;
 }

@@ -7,7 +7,7 @@ from asyncpg import UniqueViolationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models.campaign import SLUG_ID_UNIQUE_CONSTRAINT
+from api.models import Campaign
 from api.services import campaigns as campaign_service
 from api.services.campaigns import _parse_slug_id
 from tests.helpers import make_campaign, make_user
@@ -41,9 +41,10 @@ async def test_list_campaigns_returns_own(db: AsyncSession) -> None:
     campaign = await make_campaign(db, owner_id=user.id, name="Mine", slug_label="mine", slug_id="own00001")
     result = await campaign_service.list_campaigns(db, user.id)
     assert len(result) == 1
-    assert result[0].id == campaign.id
-    assert result[0].name == "Mine"
-    assert result[0].slug == "mine-own00001"
+    assert result[0].campaign.id == campaign.id
+    assert result[0].campaign.name == "Mine"
+    assert result[0].campaign.slug == "mine-own00001"
+    assert result[0].role == "gm"
 
 
 async def test_list_campaigns_excludes_others(db: AsyncSession) -> None:
@@ -69,8 +70,8 @@ async def test_list_campaigns_ordered_newest_first(db: AsyncSession) -> None:
         created_at=datetime(2024, 6, 1, tzinfo=UTC),
     )
     result = await campaign_service.list_campaigns(db, user.id)
-    assert result[0].id == newer.id
-    assert result[1].id == older.id
+    assert result[0].campaign.id == newer.id
+    assert result[1].campaign.id == older.id
 
 
 # --- create_campaign ---
@@ -196,7 +197,7 @@ def _unique_violation(constraint_name: str) -> IntegrityError:
 
 async def test_create_campaign_retries_slug_id_collision(monkeypatch: pytest.MonkeyPatch) -> None:
     db = MagicMock(spec=AsyncSession)
-    db.flush = AsyncMock(side_effect=[_unique_violation(SLUG_ID_UNIQUE_CONSTRAINT), None])
+    db.flush = AsyncMock(side_effect=[_unique_violation(Campaign.SLUG_ID_UNIQUE_CONSTRAINT), None])
     db.commit = AsyncMock()
     db.refresh = AsyncMock()
     db.rollback = AsyncMock()
@@ -241,7 +242,7 @@ async def test_create_campaign_does_not_retry_other_unique_violation() -> None:
 
 async def test_create_campaign_reraises_integrity_error_after_five_collisions() -> None:
     db = MagicMock(spec=AsyncSession)
-    error = _unique_violation(SLUG_ID_UNIQUE_CONSTRAINT)
+    error = _unique_violation(Campaign.SLUG_ID_UNIQUE_CONSTRAINT)
     db.flush = AsyncMock(side_effect=error)
     db.commit = AsyncMock()
     db.refresh = AsyncMock()

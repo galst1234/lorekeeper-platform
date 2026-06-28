@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
-from api.models.campaign import Campaign
-from api.models.user import User
+from api.models import Campaign, User
 from api.services import campaigns as campaign_service
 
 router = APIRouter()
@@ -32,6 +31,7 @@ class CampaignResponse(BaseModel):
     name: str
     description: str | None
     slug: str
+    role: str
     created_at: datetime
     updated_at: datetime
 
@@ -48,12 +48,23 @@ class PatchCampaignRequest(BaseModel):
     slug_label: _SlugLabelStr | MISSING = MISSING
 
 
-def _to_response(campaign: Campaign) -> CampaignResponse:
+class InviteResponse(BaseModel):
+    invite_code: str
+    invite_url: str
+
+
+class JoinPreviewResponse(BaseModel):
+    name: str
+    slug: str
+
+
+def _to_response(campaign: Campaign, role: str = "gm") -> CampaignResponse:
     return CampaignResponse(
         id=campaign.id,
         name=campaign.name,
         description=campaign.description,
         slug=campaign.slug,
+        role=role,
         created_at=campaign.created_at,
         updated_at=campaign.updated_at,
     )
@@ -65,7 +76,7 @@ async def list_campaigns(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[CampaignResponse]:
     campaigns = await campaign_service.list_campaigns(db, user.id)
-    return [_to_response(campaign) for campaign in campaigns]
+    return [_to_response(campaign_with_role.campaign, campaign_with_role.role) for campaign_with_role in campaigns]
 
 
 @router.post("/campaigns", status_code=201)
@@ -81,7 +92,6 @@ async def create_campaign(
         description=body.description,
         slug_label=body.slug_label,
     )
-
     return _to_response(campaign)
 
 
@@ -94,12 +104,15 @@ async def get_campaign(
     campaign = await campaign_service.get_campaign_by_slug(db, slug)
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    if campaign.owner_id == user.id:
+        role = "gm"
+    else:
+        if not await campaign_service.is_member(db, campaign.id, user.id):
+            raise HTTPException(status_code=403, detail="Forbidden")
+        role = "player"
     if slug != campaign.slug:
         return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=307)
-
-    return _to_response(campaign)
+    return _to_response(campaign, role)
 
 
 @router.patch("/campaigns/{slug}")
@@ -114,7 +127,6 @@ async def patch_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
     if campaign.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-
     updated_campaign = await campaign_service.update_campaign(
         db,
         campaign,
@@ -136,5 +148,78 @@ async def delete_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
     if campaign.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-
     await campaign_service.delete_campaign(db, campaign)
+
+
+@router.post("/campaigns/{slug}/invite")
+async def create_invite(
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> InviteResponse:
+    campaign = await campaign_service.get_campaign_by_slug(db, slug)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    campaign = await campaign_service.generate_invite(db, campaign)
+    if campaign.invite_code is None:
+        raise HTTPException(status_code=500, detail="Failed to generate invite code")
+    return InviteResponse(
+        invite_code=campaign.invite_code,
+        invite_url=f"/campaigns/{campaign.slug}/join/{campaign.invite_code}",
+    )
+
+
+@router.delete("/campaigns/{slug}/invite", status_code=204)
+async def delete_invite(
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    campaign = await campaign_service.get_campaign_by_slug(db, slug)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if campaign.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await campaign_service.revoke_invite(db, campaign)
+
+
+@router.get("/campaigns/{slug}/join/{invite_code}", response_model=JoinPreviewResponse)
+async def get_join_preview(
+    slug: str,
+    invite_code: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> JoinPreviewResponse | RedirectResponse:
+    campaign = await campaign_service.get_campaign_by_slug(db, slug)
+    if campaign is None or campaign.invite_code is None or campaign.invite_code != invite_code:
+        raise HTTPException(status_code=404, detail="Invalid invite")
+    if slug != campaign.slug:
+        return RedirectResponse(
+            url=f"/api/v1/campaigns/{campaign.slug}/join/{invite_code}",
+            status_code=307,
+        )
+    return JoinPreviewResponse(name=campaign.name, slug=campaign.slug)
+
+
+@router.post("/campaigns/{slug}/join/{invite_code}", response_model=CampaignResponse)
+async def join_campaign(
+    slug: str,
+    invite_code: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CampaignResponse | RedirectResponse:
+    campaign = await campaign_service.get_campaign_by_slug(db, slug)
+    if campaign is None or campaign.invite_code is None or campaign.invite_code != invite_code:
+        raise HTTPException(status_code=404, detail="Invalid invite")
+    if slug != campaign.slug:
+        return RedirectResponse(
+            url=f"/api/v1/campaigns/{campaign.slug}/join/{invite_code}",
+            status_code=307,
+        )
+    joined = await campaign_service.join_campaign(db, campaign, user.id, invite_code)
+    if not joined:
+        raise HTTPException(status_code=404, detail="Invalid invite")
+    role = "gm" if campaign.owner_id == user.id else "player"
+    return _to_response(campaign, role)

@@ -5,6 +5,9 @@ import { meQueryOptions, patchMe } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
 export const Route = createFileRoute("/onboarding")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirectToPath: typeof search.redirectToPath === "string" ? search.redirectToPath : undefined,
+  }),
   beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
       throw redirect({ to: "/login" });
@@ -20,6 +23,7 @@ export const Route = createFileRoute("/onboarding")({
 function OnboardingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { redirectToPath } = Route.useSearch();
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
@@ -27,7 +31,8 @@ function OnboardingPage() {
     mutationFn: patchMe,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["me"] });
-      await router.navigate({ to: "/" });
+      const safePath = redirectToPath?.startsWith("/") && !redirectToPath.startsWith("//") ? redirectToPath : "/";
+      await router.navigate({ to: safePath });
     },
     onError: () => setError("Something went wrong. Please try again."),
   });

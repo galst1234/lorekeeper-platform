@@ -1,11 +1,18 @@
+from __future__ import annotations
+
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.database import Base
+
+if TYPE_CHECKING:
+    from api.models.campaign import Campaign
+    from api.models.membership import CampaignMember
 
 
 class User(Base):
@@ -18,6 +25,12 @@ class User(Base):
         default=uuid.uuid4,
     )
     auth_methods: Mapped[list[UserAuthMethod]] = relationship("UserAuthMethod", back_populates="user")
+    owned_campaigns: Mapped[list[Campaign]] = relationship(
+        "Campaign", back_populates="owner", lazy="raise", passive_deletes=True
+    )
+    memberships: Mapped[list[CampaignMember]] = relationship(
+        "CampaignMember", back_populates="user", lazy="raise", passive_deletes=True
+    )
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

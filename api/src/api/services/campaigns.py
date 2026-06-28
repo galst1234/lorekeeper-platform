@@ -1,17 +1,25 @@
 import secrets
 import string
 import uuid
+from dataclasses import dataclass
 
 from asyncpg import UniqueViolationError
 from pydantic_core import MISSING
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models.campaign import SLUG_ID_UNIQUE_CONSTRAINT, Campaign
+from api.models import Campaign, CampaignMember
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+
+@dataclass
+class CampaignWithRole:
+    campaign: Campaign
+    role: str
 
 
 def _generate_slug_id() -> str:
@@ -29,15 +37,27 @@ def _is_slug_id_collision(exc: BaseException) -> bool:
     original_error = exc.orig.__cause__
     return (
         isinstance(original_error, UniqueViolationError)
-        and getattr(original_error, "constraint_name", None) == SLUG_ID_UNIQUE_CONSTRAINT
+        and getattr(original_error, "constraint_name", None) == Campaign.SLUG_ID_UNIQUE_CONSTRAINT
     )
 
 
-async def list_campaigns(db: AsyncSession, owner_id: uuid.UUID) -> list[Campaign]:
-    result = await db.scalars(
-        select(Campaign).where(Campaign.owner_id == owner_id).order_by(Campaign.created_at.desc()),
+async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignWithRole]:
+    owned = list(
+        await db.scalars(
+            select(Campaign).where(Campaign.owner_id == user_id).order_by(Campaign.created_at.desc()),
+        )
     )
-    return list(result)
+    member = list(
+        await db.scalars(
+            select(Campaign)
+            .join(CampaignMember, Campaign.id == CampaignMember.campaign_id)
+            .where(CampaignMember.user_id == user_id, Campaign.owner_id != user_id)
+            .order_by(Campaign.created_at.desc()),
+        )
+    )
+    return [CampaignWithRole(campaign=campaign, role="gm") for campaign in owned] + [
+        CampaignWithRole(campaign=campaign, role="player") for campaign in member
+    ]
 
 
 @retry(
@@ -99,3 +119,60 @@ async def update_campaign(
 async def delete_campaign(db: AsyncSession, campaign: Campaign) -> None:
     await db.delete(campaign)
     await db.commit()
+
+
+def _generate_invite_code() -> str:
+    return secrets.token_urlsafe(24)
+
+
+async def generate_invite(db: AsyncSession, campaign: Campaign) -> Campaign:
+    new_code = _generate_invite_code()
+    await db.execute(
+        update(Campaign).where(Campaign.id == campaign.id, Campaign.invite_code.is_(None)).values(invite_code=new_code)
+    )
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
+async def revoke_invite(db: AsyncSession, campaign: Campaign) -> None:
+    campaign.invite_code = None
+    await db.commit()
+
+
+async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID, invite_code: str) -> bool:
+    """Returns False if the invite code was revoked before the insert could complete."""
+    campaign_id = campaign.id  # PK is always retained in the identity map
+    # Lock and re-validate the invite code atomically to close the revoke-then-join race window
+    locked = await db.scalar(
+        select(Campaign).where(Campaign.id == campaign_id, Campaign.invite_code == invite_code).with_for_update()
+    )
+    if locked is None:
+        return False
+    # Owner joining is a no-op (check on fresh locked instance to avoid stale state)
+    if locked.owner_id == user_id:
+        return True
+    query = pg_insert(CampaignMember).values(campaign_id=campaign_id, user_id=user_id).on_conflict_do_nothing()
+    await db.execute(query)
+    await db.commit()
+    return True
+
+
+async def list_members(db: AsyncSession, campaign_id: uuid.UUID) -> list[CampaignMember]:
+    return list(
+        await db.scalars(
+            select(CampaignMember).where(CampaignMember.campaign_id == campaign_id),
+        )
+    )
+
+
+async def is_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    return (
+        await db.scalar(
+            select(CampaignMember).where(
+                CampaignMember.campaign_id == campaign_id,
+                CampaignMember.user_id == user_id,
+            )
+        )
+        is not None
+    )

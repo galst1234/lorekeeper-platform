@@ -56,6 +56,7 @@ select = [
     "RUF",  # Ruff-specific rules
     "C90",  # mccabe complexity
     "FAST", # FastAPI-specific rules
+    "TID",  # flake8-tidy-imports — import discipline
 ]
 ignore = [
     "ANN401",  # allow typing.Any — needed for SDK callback types
@@ -68,6 +69,14 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"api.models.campaign".msg = "Import models from 'api.models' instead of submodules."
+"api.models.membership".msg = "Import models from 'api.models' instead of submodules."
+"api.models.user".msg = "Import models from 'api.models' instead of submodules."
+
+[tool.ruff.lint.per-file-ignores]
+"src/api/models/*" = ["TID251"]  # model files themselves are exempt (TYPE_CHECKING imports)
 
 [tool.ty.src]
 include = ["src"]

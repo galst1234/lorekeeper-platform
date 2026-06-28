@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models.user import User, UserAuthMethod
+from api.models import User, UserAuthMethod
 
 
 async def _make_user(

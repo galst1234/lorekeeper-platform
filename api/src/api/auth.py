@@ -7,7 +7,7 @@ from supertokens_python.recipe.session import SessionContainer
 from supertokens_python.recipe.session.framework.fastapi import verify_session
 
 from api.database import get_db
-from api.models.user import User, UserAuthMethod
+from api.models import User, UserAuthMethod
 
 
 async def get_session(
