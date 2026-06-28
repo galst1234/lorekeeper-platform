@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.models import MemberRole
 from api.services import campaigns as campaign_service
 from tests.helpers import make_campaign, make_member, make_user
 
@@ -138,3 +139,14 @@ async def test_list_campaigns_excludes_owned_from_player_list(db: AsyncSession) 
     roles = [r.role for r in result]
     assert roles.count("gm") == 1
     assert "player" not in roles
+
+
+# --- MemberRole smoke test ---
+
+
+async def test_campaign_member_has_role(db: AsyncSession) -> None:
+    owner = await make_user(db, supertokens_user_id="mrl-smoke-own", email="mrl-smoke-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="mrlsmk01")
+    members = await campaign_service.list_members(db, campaign.id)
+    assert len(members) == 1
+    assert members[0].role == MemberRole.GM
