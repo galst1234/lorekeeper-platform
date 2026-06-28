@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, text
-from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,7 +44,7 @@ class CampaignMember(Base):
         default=lambda: datetime.now(UTC),
     )
     role: Mapped[MemberRole] = mapped_column(
-        SAEnum(MemberRole, name="member_role", values_callable=lambda roles: [r.value for r in roles]),
+        SqlEnum(MemberRole, name="member_role", values_callable=lambda roles: [r.value for r in roles]),
         nullable=False,
     )
 
