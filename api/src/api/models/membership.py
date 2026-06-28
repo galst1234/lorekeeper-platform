@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import enum
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, text
+from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +15,11 @@ from api.database import Base
 if TYPE_CHECKING:
     from api.models.campaign import Campaign
     from api.models.user import User
+
+
+class MemberRole(enum.StrEnum):
+    GM = "gm"
+    PLAYER = "player"
 
 
 class CampaignMember(Base):
@@ -35,6 +42,10 @@ class CampaignMember(Base):
         DateTime(timezone=True),
         server_default=text("now()"),
         default=lambda: datetime.now(UTC),
+    )
+    role: Mapped[MemberRole] = mapped_column(
+        SqlEnum(MemberRole, name="member_role", values_callable=lambda roles: [r.value for r in roles]),
+        nullable=False,
     )
 
     campaign: Mapped[Campaign] = relationship("Campaign", back_populates="members", lazy="raise")

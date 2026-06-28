@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models import Campaign, CampaignMember
+from api.models import Campaign, CampaignMember, MemberRole
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
 
@@ -19,7 +19,7 @@ _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
 @dataclass
 class CampaignWithRole:
     campaign: Campaign
-    role: str
+    role: MemberRole
 
 
 def _generate_slug_id() -> str:
@@ -42,22 +42,17 @@ def _is_slug_id_collision(exc: BaseException) -> bool:
 
 
 async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignWithRole]:
-    owned = list(
-        await db.scalars(
-            select(Campaign).where(Campaign.owner_id == user_id).order_by(Campaign.created_at.desc()),
+    rows = list(
+        await db.execute(
+            select(Campaign, CampaignMember.role)
+            .join(
+                CampaignMember,
+                (Campaign.id == CampaignMember.campaign_id) & (CampaignMember.user_id == user_id),
+            )
+            .order_by(Campaign.created_at.desc())
         )
     )
-    member = list(
-        await db.scalars(
-            select(Campaign)
-            .join(CampaignMember, Campaign.id == CampaignMember.campaign_id)
-            .where(CampaignMember.user_id == user_id, Campaign.owner_id != user_id)
-            .order_by(Campaign.created_at.desc()),
-        )
-    )
-    return [CampaignWithRole(campaign=campaign, role="gm") for campaign in owned] + [
-        CampaignWithRole(campaign=campaign, role="player") for campaign in member
-    ]
+    return [CampaignWithRole(campaign=campaign, role=role) for campaign, role in rows]
 
 
 @retry(
@@ -81,6 +76,8 @@ async def create_campaign(
     )
     db.add(campaign)
     try:
+        await db.flush()
+        db.add(CampaignMember(campaign_id=campaign.id, user_id=owner_id, role=MemberRole.GM))
         await db.flush()
         await db.commit()
         await db.refresh(campaign)
@@ -149,10 +146,11 @@ async def join_campaign(db: AsyncSession, campaign: Campaign, user_id: uuid.UUID
     )
     if locked is None:
         return False
-    # Owner joining is a no-op (check on fresh locked instance to avoid stale state)
-    if locked.owner_id == user_id:
-        return True
-    query = pg_insert(CampaignMember).values(campaign_id=campaign_id, user_id=user_id).on_conflict_do_nothing()
+    query = (
+        pg_insert(CampaignMember)
+        .values(campaign_id=campaign_id, user_id=user_id, role=MemberRole.PLAYER)
+        .on_conflict_do_nothing()
+    )
     await db.execute(query)
     await db.commit()
     return True
@@ -175,4 +173,13 @@ async def is_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID
             )
         )
         is not None
+    )
+
+
+async def get_member_role(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> MemberRole | None:
+    return await db.scalar(
+        select(CampaignMember.role).where(
+            CampaignMember.campaign_id == campaign_id,
+            CampaignMember.user_id == user_id,
+        )
     )
