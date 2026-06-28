@@ -19,7 +19,7 @@ _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
 @dataclass
 class CampaignWithRole:
     campaign: Campaign
-    role: str
+    role: MemberRole
 
 
 def _generate_slug_id() -> str:
@@ -55,8 +55,8 @@ async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[CampaignW
             .order_by(Campaign.created_at.desc()),
         )
     )
-    return [CampaignWithRole(campaign=campaign, role="gm") for campaign in owned] + [
-        CampaignWithRole(campaign=campaign, role="player") for campaign in member
+    return [CampaignWithRole(campaign=campaign, role=MemberRole.GM) for campaign in owned] + [
+        CampaignWithRole(campaign=campaign, role=MemberRole.PLAYER) for campaign in member
     ]
 
 
