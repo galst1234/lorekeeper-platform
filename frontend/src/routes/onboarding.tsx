@@ -5,8 +5,8 @@ import { meQueryOptions, patchMe } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
 export const Route = createFileRoute("/onboarding")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirectToPath: typeof search.redirectToPath === "string" ? search.redirectToPath : undefined,
+  validateSearch: (search: Record<string, unknown>): { redirectToPath?: string } => ({
+    ...(typeof search.redirectToPath === "string" ? { redirectToPath: search.redirectToPath } : {}),
   }),
   beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
