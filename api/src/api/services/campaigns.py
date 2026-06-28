@@ -82,6 +82,8 @@ async def create_campaign(
     db.add(campaign)
     try:
         await db.flush()
+        db.add(CampaignMember(campaign_id=campaign.id, user_id=owner_id, role=MemberRole.GM))
+        await db.flush()
         await db.commit()
         await db.refresh(campaign)
     except IntegrityError:

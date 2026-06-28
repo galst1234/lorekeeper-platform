@@ -7,7 +7,7 @@ from asyncpg import UniqueViolationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign
+from api.models import Campaign, MemberRole
 from api.services import campaigns as campaign_service
 from api.services.campaigns import _parse_slug_id
 from tests.helpers import make_campaign, make_user
@@ -105,6 +105,19 @@ async def test_create_campaign_no_description(db: AsyncSession) -> None:
     assert campaign.description is None
 
 
+async def test_create_campaign_inserts_owner_as_gm(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-cr-gm-usr", email="svc-cr-gm-usr@test.com")
+    campaign = await campaign_service.create_campaign(
+        db,
+        owner_id=user.id,
+        name="With GM",
+        description=None,
+        slug_label="with-gm",
+    )
+    role = await campaign_service.get_member_role(db, campaign.id, user.id)
+    assert role == MemberRole.GM
+
+
 # --- get_campaign_by_slug ---
 
 
@@ -197,7 +210,7 @@ def _unique_violation(constraint_name: str) -> IntegrityError:
 
 async def test_create_campaign_retries_slug_id_collision(monkeypatch: pytest.MonkeyPatch) -> None:
     db = MagicMock(spec=AsyncSession)
-    db.flush = AsyncMock(side_effect=[_unique_violation(Campaign.SLUG_ID_UNIQUE_CONSTRAINT), None])
+    db.flush = AsyncMock(side_effect=[_unique_violation(Campaign.SLUG_ID_UNIQUE_CONSTRAINT), None, None])
     db.commit = AsyncMock()
     db.refresh = AsyncMock()
     db.rollback = AsyncMock()
@@ -213,8 +226,8 @@ async def test_create_campaign_retries_slug_id_collision(monkeypatch: pytest.Mon
     )
 
     assert campaign.slug_id == "unique01"
-    assert db.add.call_count == 2
-    assert db.flush.await_count == 2
+    assert db.add.call_count == 3
+    assert db.flush.await_count == 3
     db.rollback.assert_awaited_once()
 
 
