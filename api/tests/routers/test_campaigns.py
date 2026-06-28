@@ -406,6 +406,30 @@ async def test_post_join_idempotent(
     assert response.status_code == 200
 
 
+async def test_get_campaign_owner_has_gm_role(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-get-gm-role", email="rt-get-gm-role@test.com")
+    await make_campaign(db, owner_id=user.id, slug_label="gm-role", slug_id="gmrole01")
+    ac = campaigns_authenticated_client("rt-get-gm-role")
+    response = await ac.get("/api/v1/campaigns/gm-role-gmrole01")
+    assert response.status_code == 200
+    assert response.json()["role"] == "gm"
+
+
+async def test_post_join_owner_has_gm_role_in_response(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-join-gm-own", email="rt-join-gm-own@test.com")
+    await make_campaign(db, owner_id=owner.id, slug_id="rtjgm001", invite_code="ownjoin1")
+    ac = campaigns_authenticated_client("rt-join-gm-own")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjgm001/join/ownjoin1")
+    assert response.status_code == 200
+    assert response.json()["role"] == "gm"
+
+
 async def test_post_join_revoked_code_returns_404(
     campaigns_authenticated_client: Callable[[str], AsyncClient],
     db: AsyncSession,

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
-from api.models import Campaign, User
+from api.models import Campaign, MemberRole, User
 from api.services import campaigns as campaign_service
 
 router = APIRouter()
@@ -31,7 +31,7 @@ class CampaignResponse(BaseModel):
     name: str
     description: str | None
     slug: str
-    role: str
+    role: MemberRole
     created_at: datetime
     updated_at: datetime
 
@@ -58,7 +58,7 @@ class JoinPreviewResponse(BaseModel):
     slug: str
 
 
-def _to_response(campaign: Campaign, role: str = "gm") -> CampaignResponse:
+def _to_response(campaign: Campaign, role: MemberRole = MemberRole.GM) -> CampaignResponse:
     return CampaignResponse(
         id=campaign.id,
         name=campaign.name,
@@ -104,12 +104,9 @@ async def get_campaign(
     campaign = await campaign_service.get_campaign_by_slug(db, slug)
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id == user.id:
-        role = "gm"
-    else:
-        if not await campaign_service.is_member(db, campaign.id, user.id):
-            raise HTTPException(status_code=403, detail="Forbidden")
-        role = "player"
+    role = await campaign_service.get_member_role(db, campaign.id, user.id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     if slug != campaign.slug:
         return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=307)
     return _to_response(campaign, role)
@@ -221,5 +218,7 @@ async def join_campaign(
     joined = await campaign_service.join_campaign(db, campaign, user.id, invite_code)
     if not joined:
         raise HTTPException(status_code=404, detail="Invalid invite")
-    role = "gm" if campaign.owner_id == user.id else "player"
+    role = await campaign_service.get_member_role(db, campaign.id, user.id)
+    if role is None:
+        raise HTTPException(status_code=500, detail="Membership state error")
     return _to_response(campaign, role)
