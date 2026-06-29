@@ -62,19 +62,6 @@ async def create_character(
         raise
 
 
-async def get_character(
-    db: AsyncSession,
-    campaign_id: uuid.UUID,
-    character_id: uuid.UUID,
-) -> Character | None:
-    return await db.scalar(
-        select(Character).where(
-            Character.id == character_id,
-            Character.campaign_id == campaign_id,
-        )
-    )
-
-
 async def get_character_by_slug(
     db: AsyncSession,
     campaign_id: uuid.UUID,

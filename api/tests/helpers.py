@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime
 
@@ -54,11 +55,13 @@ async def make_character(
     db: AsyncSession,
     *,
     campaign_id: uuid.UUID,
-    slug: str = "test-character",
     name: str = "Test Character",
+    slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
 ) -> Character:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     character = Character(
         campaign_id=campaign_id,
         slug=slug,

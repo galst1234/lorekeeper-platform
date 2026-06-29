@@ -1,5 +1,3 @@
-import uuid
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import CharacterType
@@ -145,34 +143,6 @@ async def test_create_character_same_slug_different_campaigns_ok(db: AsyncSessio
     assert character.slug == "gandalf"
 
 
-# --- get_character ---
-
-
-async def test_get_character_found(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-chr-get-ok", email="svc-chr-get-ok@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="chrg0001")
-    character = await make_character(db, campaign_id=campaign.id)
-    result = await character_service.get_character(db, campaign.id, character.id)
-    assert result is not None
-    assert result.id == character.id
-
-
-async def test_get_character_not_found(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-chr-get-404", email="svc-chr-get-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="chrg0002")
-    result = await character_service.get_character(db, campaign.id, uuid.uuid4())
-    assert result is None
-
-
-async def test_get_character_wrong_campaign_returns_none(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-chr-get-iso", email="svc-chr-get-iso@test.com")
-    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="chrga001")
-    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="chrgb001")
-    character = await make_character(db, campaign_id=campaign_b.id)
-    result = await character_service.get_character(db, campaign_a.id, character.id)
-    assert result is None
-
-
 # --- get_character_by_slug ---
 
 
@@ -237,7 +207,7 @@ async def test_delete_character_removes_record(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-chr-del-ok", email="svc-chr-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrd0001")
     character = await make_character(db, campaign_id=campaign.id)
-    character_id = character.id
+    character_slug = character.slug
     await character_service.delete_character(db, character)
-    result = await character_service.get_character(db, campaign.id, character_id)
+    result = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     assert result is None
