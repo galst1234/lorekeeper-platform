@@ -7,10 +7,9 @@ from pydantic import BaseModel, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth import get_current_user
 from api.database import get_db
-from api.models import Campaign, Character, CharacterType, User
-from api.services import campaigns as campaign_service
+from api.models import Campaign, Character, CharacterType
+from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 
 router = APIRouter()
@@ -50,40 +49,22 @@ def _to_response(character: Character) -> CharacterResponse:
     )
 
 
-async def _get_campaign_or_404(slug: str, db: AsyncSession) -> Campaign:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
-
-
-async def _assert_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> None:
-    if not await campaign_service.is_member(db, campaign_id, user_id):
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-
 @router.get("/campaigns/{slug}/characters")
 async def list_characters(
-    slug: str,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     character_type: CharacterType | None = None,
 ) -> list[CharacterResponse]:
-    campaign = await _get_campaign_or_404(slug, db)
-    await _assert_member(db, campaign.id, user.id)
     characters = await character_service.list_characters(db, campaign.id, character_type)
     return [_to_response(character) for character in characters]
 
 
 @router.post("/campaigns/{slug}/characters", status_code=201)
 async def create_character(
-    slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
-    user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CharacterResponse:
-    campaign = await _get_campaign_or_404(slug, db)
-    await _assert_member(db, campaign.id, user.id)
     character = await character_service.create_character(
         db,
         campaign_id=campaign.id,
@@ -96,13 +77,10 @@ async def create_character(
 
 @router.get("/campaigns/{slug}/characters/{character_id}")
 async def get_character(
-    slug: str,
     character_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CharacterResponse:
-    campaign = await _get_campaign_or_404(slug, db)
-    await _assert_member(db, campaign.id, user.id)
     character = await character_service.get_character(db, campaign.id, character_id)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
@@ -111,14 +89,11 @@ async def get_character(
 
 @router.patch("/campaigns/{slug}/characters/{character_id}")
 async def patch_character(
-    slug: str,
     character_id: uuid.UUID,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: PatchCharacterRequest,
-    user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CharacterResponse:
-    campaign = await _get_campaign_or_404(slug, db)
-    await _assert_member(db, campaign.id, user.id)
     character = await character_service.get_character(db, campaign.id, character_id)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
@@ -134,13 +109,10 @@ async def patch_character(
 
 @router.delete("/campaigns/{slug}/characters/{character_id}", status_code=204)
 async def delete_character(
-    slug: str,
     character_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    campaign = await _get_campaign_or_404(slug, db)
-    await _assert_member(db, campaign.id, user.id)
     character = await character_service.get_character(db, campaign.id, character_id)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
