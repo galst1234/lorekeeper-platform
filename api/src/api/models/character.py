@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,8 +18,13 @@ class CharacterType(enum.StrEnum):
 
 
 class Character(Base):
+    SLUG_UNIQUE_CONSTRAINT = "uq_characters_campaign_slug"
+
     __tablename__ = "characters"
-    __table_args__ = (Index("ix_characters_campaign_id", "campaign_id"),)
+    __table_args__ = (
+        Index("ix_characters_campaign_id", "campaign_id"),
+        UniqueConstraint("campaign_id", "slug", name=SLUG_UNIQUE_CONSTRAINT),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -32,6 +37,7 @@ class Character(Base):
         ForeignKey("campaigns.id", ondelete="CASCADE"),
         nullable=False,
     )
+    slug: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     character_type: Mapped[CharacterType] = mapped_column(
         SqlEnum(

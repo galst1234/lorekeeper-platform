@@ -25,6 +25,7 @@ def upgrade() -> None:
         "characters",
         sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("campaign_id", UUID(as_uuid=True), nullable=False),
+        sa.Column("slug", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column(
             "character_type",
@@ -36,6 +37,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("campaign_id", "slug", name="uq_characters_campaign_slug"),
     )
     op.create_index("ix_characters_campaign_id", "characters", ["campaign_id"])
 

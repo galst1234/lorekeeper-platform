@@ -19,7 +19,7 @@ import { Route as CampaignsSlugRouteImport } from './routes/campaigns.$slug'
 import { Route as CampaignsSlugIndexRouteImport } from './routes/campaigns.$slug.index'
 import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
 import { Route as CampaignsSlugJoinInviteCodeRouteImport } from './routes/campaigns_.$slug.join.$inviteCode'
-import { Route as CampaignsSlugCharactersCharacterIdRouteImport } from './routes/campaigns.$slug.characters.$characterId'
+import { Route as CampaignsSlugCharactersCharacterIdRouteImport } from './routes/campaigns.$slug.characters.$characterSlug'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -74,8 +74,8 @@ const CampaignsSlugJoinInviteCodeRoute =
   } as any)
 const CampaignsSlugCharactersCharacterIdRoute =
   CampaignsSlugCharactersCharacterIdRouteImport.update({
-    id: '/characters/$characterId',
-    path: '/characters/$characterId',
+    id: '/characters/$characterSlug',
+    path: '/characters/$characterSlug',
     getParentRoute: () => CampaignsSlugRoute,
   } as any)
 
@@ -89,7 +89,7 @@ export interface FileRoutesByFullPath {
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
-  '/campaigns/$slug/characters/$characterId': typeof CampaignsSlugCharactersCharacterIdRoute
+  '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterIdRoute
   '/campaigns/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRoutesByTo {
@@ -101,7 +101,7 @@ export interface FileRoutesByTo {
   '/login/reset-password': typeof LoginResetPasswordRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug': typeof CampaignsSlugIndexRoute
-  '/campaigns/$slug/characters/$characterId': typeof CampaignsSlugCharactersCharacterIdRoute
+  '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterIdRoute
   '/campaigns/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRoutesById {
@@ -115,7 +115,7 @@ export interface FileRoutesById {
   '/login_/reset-password': typeof LoginResetPasswordRoute
   '/login_/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
-  '/campaigns/$slug/characters/$characterId': typeof CampaignsSlugCharactersCharacterIdRoute
+  '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterIdRoute
   '/campaigns_/$slug/join/$inviteCode': typeof CampaignsSlugJoinInviteCodeRoute
 }
 export interface FileRouteTypes {
@@ -130,7 +130,7 @@ export interface FileRouteTypes {
     | '/login/reset-password'
     | '/login/callback/$provider'
     | '/campaigns/$slug/'
-    | '/campaigns/$slug/characters/$characterId'
+    | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns/$slug/join/$inviteCode'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -142,7 +142,7 @@ export interface FileRouteTypes {
     | '/login/reset-password'
     | '/login/callback/$provider'
     | '/campaigns/$slug'
-    | '/campaigns/$slug/characters/$characterId'
+    | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns/$slug/join/$inviteCode'
   id:
     | '__root__'
@@ -155,7 +155,7 @@ export interface FileRouteTypes {
     | '/login_/reset-password'
     | '/login_/callback/$provider'
     | '/campaigns/$slug/'
-    | '/campaigns/$slug/characters/$characterId'
+    | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns_/$slug/join/$inviteCode'
   fileRoutesById: FileRoutesById
 }
@@ -243,10 +243,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsSlugJoinInviteCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/campaigns/$slug/characters/$characterId': {
-      id: '/campaigns/$slug/characters/$characterId'
-      path: '/characters/$characterId'
-      fullPath: '/campaigns/$slug/characters/$characterId'
+    '/campaigns/$slug/characters/$characterSlug': {
+      id: '/campaigns/$slug/characters/$characterSlug'
+      path: '/characters/$characterSlug'
+      fullPath: '/campaigns/$slug/characters/$characterSlug'
       preLoaderRoute: typeof CampaignsSlugCharactersCharacterIdRouteImport
       parentRoute: typeof CampaignsSlugRoute
     }

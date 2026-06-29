@@ -3,15 +3,15 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { characterQueryOptions, deleteCharacter, patchCharacter } from "../api/characters";
 
-export const Route = createFileRoute("/campaigns/$slug/characters/$characterId")({
+export const Route = createFileRoute("/campaigns/$slug/characters/$characterSlug")({
   component: CharacterDetailPage,
 });
 
 function CharacterDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { slug, characterId } = Route.useParams();
-  const { data: character } = useSuspenseQuery(characterQueryOptions(slug, characterId));
+  const { slug, characterSlug } = Route.useParams();
+  const { data: character } = useSuspenseQuery(characterQueryOptions(slug, characterSlug));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(character.name);
   const [characterType, setCharacterType] = useState<"pc" | "npc">(character.character_type);
@@ -28,7 +28,7 @@ function CharacterDetailPage() {
 
   const patchMutation = useMutation({
     mutationFn: (data: { name: string; character_type: "pc" | "npc"; description: string | null }) =>
-      patchCharacter(slug, characterId, data),
+      patchCharacter(slug, characterSlug, data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["characters", slug] });
       setEditing(false);
@@ -37,7 +37,7 @@ function CharacterDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCharacter(slug, characterId),
+    mutationFn: () => deleteCharacter(slug, characterSlug),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["characters", slug] });
       await router.navigate({ to: "/campaigns/$slug", params: { slug } });

@@ -26,32 +26,47 @@ function CharacterSection({
   const queryClient = useQueryClient();
   const [addingFor, setAddingFor] = useState<AddingFor>(null);
   const [newName, setNewName] = useState("");
+  const [newSlug, setNewSlug] = useState("");
   const [newType, setNewType] = useState<"pc" | "npc">(characterType);
   const [newDescription, setNewDescription] = useState("");
   const [addError, setAddError] = useState("");
 
+  function toSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; character_type: "pc" | "npc"; description?: string }) =>
+    mutationFn: (data: { slug: string; name: string; character_type: "pc" | "npc"; description?: string }) =>
       createCharacter(slug, data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["characters", slug] });
       setAddingFor(null);
       setNewName("");
+      setNewSlug("");
       setNewDescription("");
       setAddError("");
     },
-    onError: () => setAddError("Failed to create character. Please try again."),
+    onError: (err: Error) => setAddError(err.message || "Failed to create character. Please try again."),
   });
 
   function handleAdd(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedName = newName.trim();
+    const trimmedSlug = newSlug.trim();
     if (!trimmedName) {
       setAddError("Name is required.");
       return;
     }
+    if (!trimmedSlug) {
+      setAddError("Slug is required.");
+      return;
+    }
     setAddError("");
     createMutation.mutate({
+      slug: trimmedSlug,
       name: trimmedName,
       character_type: newType,
       description: newDescription.trim() || undefined,
@@ -61,6 +76,7 @@ function CharacterSection({
   function openAddForm() {
     setNewType(characterType);
     setNewName("");
+    setNewSlug("");
     setNewDescription("");
     setAddError("");
     setAddingFor(characterType);
@@ -75,7 +91,7 @@ function CharacterSection({
         <ul style={{ paddingLeft: "1.25rem" }}>
           {characters.map((character) => (
             <li key={character.id}>
-              <Link to="/campaigns/$slug/characters/$characterId" params={{ slug, characterId: character.id }}>
+              <Link to="/campaigns/$slug/characters/$characterSlug" params={{ slug, characterSlug: character.slug }}>
                 {character.name}
               </Link>
             </li>
@@ -93,7 +109,22 @@ function CharacterSection({
               id={`name-${characterType}`}
               type="text"
               value={newName}
-              onChange={(event) => setNewName(event.target.value)}
+              onChange={(event) => {
+                setNewName(event.target.value);
+                setNewSlug(toSlug(event.target.value));
+              }}
+              style={{ display: "block", width: "100%" }}
+            />
+          </div>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label htmlFor={`slug-${characterType}`} style={{ display: "block", marginBottom: "0.25rem" }}>
+              Slug *
+            </label>
+            <input
+              id={`slug-${characterType}`}
+              type="text"
+              value={newSlug}
+              onChange={(event) => setNewSlug(event.target.value)}
               style={{ display: "block", width: "100%" }}
             />
           </div>

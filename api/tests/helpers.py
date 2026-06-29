@@ -54,12 +54,14 @@ async def make_character(
     db: AsyncSession,
     *,
     campaign_id: uuid.UUID,
+    slug: str = "test-character",
     name: str = "Test Character",
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
 ) -> Character:
     character = Character(
         campaign_id=campaign_id,
+        slug=slug,
         name=name,
         character_type=character_type,
         description=description,
