@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { campaignQueryOptions, deleteCampaign, patchCampaign } from "../api/campaigns";
+import { type Character, charactersQueryOptions, createCharacter } from "../api/characters";
 import { meQueryOptions } from "../api/me";
 import { generateInvite, revokeInvite } from "../api/membership";
 
@@ -9,12 +10,176 @@ export const Route = createFileRoute("/campaigns/$slug/")({
   component: CampaignDetailPage,
 });
 
+type AddingFor = "pc" | "npc" | null;
+
+function CharacterSection({
+  title,
+  characters,
+  slug,
+  characterType,
+}: {
+  title: string;
+  characters: Character[];
+  slug: string;
+  characterType: "pc" | "npc";
+}) {
+  const queryClient = useQueryClient();
+  const [addingFor, setAddingFor] = useState<AddingFor>(null);
+  const [newName, setNewName] = useState("");
+  const [newSlug, setNewSlug] = useState("");
+  const [newType, setNewType] = useState<"pc" | "npc">(characterType);
+  const [newDescription, setNewDescription] = useState("");
+  const [addError, setAddError] = useState("");
+
+  function toSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  const createMutation = useMutation({
+    mutationFn: (data: { slug: string; name: string; character_type: "pc" | "npc"; description?: string }) =>
+      createCharacter(slug, data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["characters", slug] });
+      setAddingFor(null);
+      setNewName("");
+      setNewSlug("");
+      setNewDescription("");
+      setAddError("");
+    },
+    onError: (err: Error) => setAddError(err.message || "Failed to create character. Please try again."),
+  });
+
+  function handleAdd(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = newName.trim();
+    const trimmedSlug = newSlug.trim();
+    if (!trimmedName) {
+      setAddError("Name is required.");
+      return;
+    }
+    if (!trimmedSlug) {
+      setAddError("Slug is required.");
+      return;
+    }
+    setAddError("");
+    createMutation.mutate({
+      slug: trimmedSlug,
+      name: trimmedName,
+      character_type: newType,
+      description: newDescription.trim() || undefined,
+    });
+  }
+
+  function openAddForm() {
+    setNewType(characterType);
+    setNewName("");
+    setNewSlug("");
+    setNewDescription("");
+    setAddError("");
+    setAddingFor(characterType);
+  }
+
+  return (
+    <div style={{ marginBottom: "2rem" }}>
+      <h2>{title}</h2>
+      {characters.length === 0 ? (
+        <p style={{ color: "#999" }}>No {characterType === "pc" ? "player characters" : "NPCs"} yet.</p>
+      ) : (
+        <ul style={{ paddingLeft: "1.25rem" }}>
+          {characters.map((character) => (
+            <li key={character.id}>
+              <Link to="/campaigns/$slug/characters/$characterSlug" params={{ slug, characterSlug: character.slug }}>
+                {character.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {addingFor === characterType ? (
+        <form onSubmit={handleAdd} style={{ marginTop: "1rem" }}>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label htmlFor={`name-${characterType}`} style={{ display: "block", marginBottom: "0.25rem" }}>
+              Name *
+            </label>
+            <input
+              id={`name-${characterType}`}
+              type="text"
+              value={newName}
+              onChange={(event) => {
+                setNewName(event.target.value);
+                setNewSlug(toSlug(event.target.value));
+              }}
+              style={{ display: "block", width: "100%" }}
+            />
+          </div>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label htmlFor={`slug-${characterType}`} style={{ display: "block", marginBottom: "0.25rem" }}>
+              Slug *
+            </label>
+            <input
+              id={`slug-${characterType}`}
+              type="text"
+              value={newSlug}
+              onChange={(event) => setNewSlug(event.target.value)}
+              style={{ display: "block", width: "100%" }}
+            />
+          </div>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label htmlFor={`type-${characterType}`} style={{ display: "block", marginBottom: "0.25rem" }}>
+              Type
+            </label>
+            <select
+              id={`type-${characterType}`}
+              value={newType}
+              onChange={(event) => setNewType(event.target.value as "pc" | "npc")}
+              style={{ display: "block" }}
+            >
+              <option value="pc">PC</option>
+              <option value="npc">NPC</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <label htmlFor={`desc-${characterType}`} style={{ display: "block", marginBottom: "0.25rem" }}>
+              Description
+            </label>
+            <textarea
+              id={`desc-${characterType}`}
+              value={newDescription}
+              onChange={(event) => setNewDescription(event.target.value)}
+              rows={2}
+              style={{ display: "block", width: "100%" }}
+            />
+          </div>
+          {addError && <p style={{ color: "red" }}>{addError}</p>}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Adding..." : "Add"}
+            </button>
+            <button type="button" onClick={() => setAddingFor(null)} disabled={createMutation.isPending}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" onClick={openAddForm} style={{ marginTop: "0.5rem" }}>
+          + Add {characterType === "pc" ? "Player Character" : "NPC"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CampaignDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { slug } = Route.useParams();
   const { data: me } = useSuspenseQuery(meQueryOptions);
   const { data: campaign } = useSuspenseQuery(campaignQueryOptions(me.id, slug));
+  const { data: characters } = useSuspenseQuery(charactersQueryOptions(slug));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(campaign.name);
   const [description, setDescription] = useState(campaign.description ?? "");
@@ -71,8 +236,8 @@ function CampaignDetailPage() {
     onError: () => setInviteError("Failed to revoke invite link."),
   });
 
-  function handleSave(e: SyntheticEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleSave(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
       setError("Name is required.");
@@ -88,6 +253,9 @@ function CampaignDetailPage() {
     }
   }
 
+  const playerCharacters = characters.filter((character) => character.character_type === "pc");
+  const npcs = characters.filter((character) => character.character_type === "npc");
+
   if (editing) {
     return (
       <main style={{ padding: "2rem", maxWidth: 480 }}>
@@ -101,7 +269,7 @@ function CampaignDetailPage() {
               id="name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               style={{ display: "block", width: "100%" }}
             />
           </div>
@@ -113,7 +281,7 @@ function CampaignDetailPage() {
             <textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(event) => setDescription(event.target.value)}
               rows={3}
               style={{ display: "block", width: "100%" }}
             />
@@ -162,17 +330,9 @@ function CampaignDetailPage() {
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <div
-        style={{
-          marginTop: "2rem",
-          padding: "2rem",
-          background: "#f9f9f9",
-          borderRadius: "8px",
-          color: "#999",
-          textAlign: "center",
-        }}
-      >
-        Campaign content coming soon
+      <div style={{ marginTop: "2rem" }}>
+        <CharacterSection title="Player Characters" characters={playerCharacters} slug={slug} characterType="pc" />
+        <CharacterSection title="NPCs" characters={npcs} slug={slug} characterType="npc" />
       </div>
 
       {isOwner && (

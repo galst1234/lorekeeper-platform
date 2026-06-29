@@ -1,9 +1,10 @@
+import re
 import uuid
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign, CampaignMember, MemberRole, User, UserAuthMethod
+from api.models import Campaign, CampaignMember, Character, CharacterType, MemberRole, User, UserAuthMethod
 
 
 async def make_user(
@@ -48,6 +49,29 @@ async def make_campaign(
     db.add(gm_member)
     await db.flush()
     return campaign
+
+
+async def make_character(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    name: str = "Test Character",
+    slug: str | None = None,
+    character_type: CharacterType = CharacterType.PC,
+    description: str | None = None,
+) -> Character:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    character = Character(
+        campaign_id=campaign_id,
+        slug=slug,
+        name=name,
+        character_type=character_type,
+        description=description,
+    )
+    db.add(character)
+    await db.flush()
+    return character
 
 
 async def make_member(

@@ -11,9 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import Campaign, MemberRole, User
+from api.routers.campaigns import characters
+from api.routers.campaigns.dependencies import (
+    get_canonical_campaign,
+    require_campaign_owner,
+)
 from api.services import campaigns as campaign_service
 
-router = APIRouter()
+router = APIRouter(prefix="/campaigns")
+detail_router = APIRouter(prefix="/{slug}")
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _SlugLabelStr = Annotated[
@@ -70,7 +76,7 @@ def _to_response(campaign: Campaign, role: MemberRole = MemberRole.GM) -> Campai
     )
 
 
-@router.get("/campaigns")
+@router.get("")
 async def list_campaigns(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -79,7 +85,7 @@ async def list_campaigns(
     return [_to_response(campaign_with_role.campaign, campaign_with_role.role) for campaign_with_role in campaigns]
 
 
-@router.post("/campaigns", status_code=201)
+@router.post("", status_code=201)
 async def create_campaign(
     body: CreateCampaignRequest,
     user: Annotated[User, Depends(get_current_user)],
@@ -95,94 +101,65 @@ async def create_campaign(
     return _to_response(campaign)
 
 
-@router.get("/campaigns/{slug}", response_model=CampaignResponse)
+@detail_router.get("", response_model=CampaignResponse)
 async def get_campaign(
-    slug: str,
+    campaign: Annotated[Campaign, Depends(get_canonical_campaign)],
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CampaignResponse | RedirectResponse:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
     role = await campaign_service.get_member_role(db, campaign.id, user.id)
     if role is None:
         raise HTTPException(status_code=403, detail="Forbidden")
-    if slug != campaign.slug:
-        return RedirectResponse(url=f"/api/v1/campaigns/{campaign.slug}", status_code=307)
     return _to_response(campaign, role)
 
 
-@router.patch("/campaigns/{slug}")
+@detail_router.patch("")
 async def patch_campaign(
-    slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     body: PatchCampaignRequest,
-    user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CampaignResponse:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    updated_campaign = await campaign_service.update_campaign(
+    updated = await campaign_service.update_campaign(
         db,
         campaign,
         name=body.name,
         description=body.description,
         slug_label=body.slug_label,
     )
-    return _to_response(updated_campaign)
+    return _to_response(updated)
 
 
-@router.delete("/campaigns/{slug}", status_code=204)
+@detail_router.delete("", status_code=204)
 async def delete_campaign(
-    slug: str,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
     await campaign_service.delete_campaign(db, campaign)
 
 
-@router.post("/campaigns/{slug}/invite")
+@detail_router.post("/invite")
 async def create_invite(
-    slug: str,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InviteResponse:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    campaign = await campaign_service.generate_invite(db, campaign)
-    if campaign.invite_code is None:
+    updated = await campaign_service.generate_invite(db, campaign)
+    if updated.invite_code is None:
         raise HTTPException(status_code=500, detail="Failed to generate invite code")
     return InviteResponse(
-        invite_code=campaign.invite_code,
-        invite_url=f"/campaigns/{campaign.slug}/join/{campaign.invite_code}",
+        invite_code=updated.invite_code,
+        invite_url=f"/campaigns/{updated.slug}/join/{updated.invite_code}",
     )
 
 
-@router.delete("/campaigns/{slug}/invite", status_code=204)
+@detail_router.delete("/invite", status_code=204)
 async def delete_invite(
-    slug: str,
-    user: Annotated[User, Depends(get_current_user)],
+    campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    campaign = await campaign_service.get_campaign_by_slug(db, slug)
-    if campaign is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    if campaign.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
     await campaign_service.revoke_invite(db, campaign)
 
 
-@router.get("/campaigns/{slug}/join/{invite_code}", response_model=JoinPreviewResponse)
+@detail_router.get("/join/{invite_code}", response_model=JoinPreviewResponse)
 async def get_join_preview(
     slug: str,
     invite_code: str,
@@ -200,7 +177,7 @@ async def get_join_preview(
     return JoinPreviewResponse(name=campaign.name, slug=campaign.slug)
 
 
-@router.post("/campaigns/{slug}/join/{invite_code}", response_model=CampaignResponse)
+@detail_router.post("/join/{invite_code}", response_model=CampaignResponse)
 async def join_campaign(
     slug: str,
     invite_code: str,
@@ -222,3 +199,7 @@ async def join_campaign(
     if role is None:
         raise HTTPException(status_code=500, detail="Membership state error")
     return _to_response(campaign, role)
+
+
+detail_router.include_router(characters.router)
+router.include_router(detail_router)

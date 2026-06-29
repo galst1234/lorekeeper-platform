@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { campaignQueryOptions } from "../api/campaigns";
+import { charactersQueryOptions } from "../api/characters";
 import { meQueryOptions } from "../api/me";
 import { doesSessionExist } from "../lib/auth";
 
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/campaigns/$slug")({
     if (campaign.slug !== params.slug) {
       throw redirect({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     }
+    await context.queryClient.ensureQueryData(charactersQueryOptions(params.slug));
   },
   component: SlugLayout,
 });
