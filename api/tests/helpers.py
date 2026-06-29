@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign, CampaignMember, MemberRole, User, UserAuthMethod
+from api.models import Campaign, CampaignMember, Character, CharacterType, MemberRole, User, UserAuthMethod
 
 
 async def make_user(
@@ -48,6 +48,25 @@ async def make_campaign(
     db.add(gm_member)
     await db.flush()
     return campaign
+
+
+async def make_character(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    name: str = "Test Character",
+    character_type: CharacterType = CharacterType.PC,
+    description: str | None = None,
+) -> Character:
+    character = Character(
+        campaign_id=campaign_id,
+        name=name,
+        character_type=character_type,
+        description=description,
+    )
+    db.add(character)
+    await db.flush()
+    return character
 
 
 async def make_member(
