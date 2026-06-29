@@ -12,7 +12,7 @@ from api.models import Campaign, Character, CharacterType
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 
-router = APIRouter()
+router = APIRouter(prefix="/{slug}/characters")
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -49,8 +49,9 @@ def _to_response(character: Character) -> CharacterResponse:
     )
 
 
-@router.get("/campaigns/{slug}/characters")
+@router.get("")
 async def list_characters(
+    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     character_type: CharacterType | None = None,
@@ -59,8 +60,9 @@ async def list_characters(
     return [_to_response(character) for character in characters]
 
 
-@router.post("/campaigns/{slug}/characters", status_code=201)
+@router.post("", status_code=201)
 async def create_character(
+    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -75,8 +77,9 @@ async def create_character(
     return _to_response(character)
 
 
-@router.get("/campaigns/{slug}/characters/{character_id}")
+@router.get("/{character_id}")
 async def get_character(
+    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -87,8 +90,9 @@ async def get_character(
     return _to_response(character)
 
 
-@router.patch("/campaigns/{slug}/characters/{character_id}")
+@router.patch("/{character_id}")
 async def patch_character(
+    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: PatchCharacterRequest,
@@ -107,8 +111,9 @@ async def patch_character(
     return _to_response(updated)
 
 
-@router.delete("/campaigns/{slug}/characters/{character_id}", status_code=204)
+@router.delete("/{character_id}", status_code=204)
 async def delete_character(
+    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
