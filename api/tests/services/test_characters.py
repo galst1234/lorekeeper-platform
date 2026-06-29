@@ -22,7 +22,7 @@ async def test_list_characters_returns_all(db: AsyncSession) -> None:
     pc = await make_character(db, campaign_id=campaign.id, name="Aria", character_type=CharacterType.PC)
     npc = await make_character(db, campaign_id=campaign.id, name="Innkeeper", character_type=CharacterType.NPC)
     result = await character_service.list_characters(db, campaign.id)
-    ids = [c.id for c in result]
+    ids = [character.id for character in result]
     assert pc.id in ids
     assert npc.id in ids
 
