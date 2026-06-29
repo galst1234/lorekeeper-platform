@@ -34,7 +34,11 @@ class Character(Base):
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     character_type: Mapped[CharacterType] = mapped_column(
-        SqlEnum(CharacterType, name="character_type", values_callable=lambda types: [t.value for t in types]),
+        SqlEnum(
+            CharacterType,
+            name="character_type",
+            values_callable=lambda types: [enum_member.value for enum_member in types],
+        ),
         nullable=False,
     )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
