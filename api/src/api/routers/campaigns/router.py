@@ -19,6 +19,7 @@ from api.routers.campaigns.dependencies import (
 from api.services import campaigns as campaign_service
 
 router = APIRouter(prefix="/campaigns")
+detail_router = APIRouter(prefix="/{slug}")
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _SlugLabelStr = Annotated[
@@ -100,9 +101,8 @@ async def create_campaign(
     return _to_response(campaign)
 
 
-@router.get("/{slug}", response_model=CampaignResponse)
+@detail_router.get("", response_model=CampaignResponse)
 async def get_campaign(
-    slug: str,
     campaign: Annotated[Campaign, Depends(get_canonical_campaign)],
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -113,9 +113,8 @@ async def get_campaign(
     return _to_response(campaign, role)
 
 
-@router.patch("/{slug}")
+@detail_router.patch("")
 async def patch_campaign(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     body: PatchCampaignRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -130,18 +129,16 @@ async def patch_campaign(
     return _to_response(updated)
 
 
-@router.delete("/{slug}", status_code=204)
+@detail_router.delete("", status_code=204)
 async def delete_campaign(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     await campaign_service.delete_campaign(db, campaign)
 
 
-@router.post("/{slug}/invite")
+@detail_router.post("/invite")
 async def create_invite(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InviteResponse:
@@ -154,16 +151,15 @@ async def create_invite(
     )
 
 
-@router.delete("/{slug}/invite", status_code=204)
+@detail_router.delete("/invite", status_code=204)
 async def delete_invite(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     await campaign_service.revoke_invite(db, campaign)
 
 
-@router.get("/{slug}/join/{invite_code}", response_model=JoinPreviewResponse)
+@detail_router.get("/join/{invite_code}", response_model=JoinPreviewResponse)
 async def get_join_preview(
     slug: str,
     invite_code: str,
@@ -181,7 +177,7 @@ async def get_join_preview(
     return JoinPreviewResponse(name=campaign.name, slug=campaign.slug)
 
 
-@router.post("/{slug}/join/{invite_code}", response_model=CampaignResponse)
+@detail_router.post("/join/{invite_code}", response_model=CampaignResponse)
 async def join_campaign(
     slug: str,
     invite_code: str,
@@ -205,4 +201,5 @@ async def join_campaign(
     return _to_response(campaign, role)
 
 
-router.include_router(characters.router)
+detail_router.include_router(characters.router)
+router.include_router(detail_router)

@@ -12,7 +12,7 @@ from api.models import Campaign, Character, CharacterType
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 
-router = APIRouter(prefix="/{slug}/characters")
+router = APIRouter(prefix="/characters")
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -51,7 +51,6 @@ def _to_response(character: Character) -> CharacterResponse:
 
 @router.get("")
 async def list_characters(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     character_type: CharacterType | None = None,
@@ -62,7 +61,6 @@ async def list_characters(
 
 @router.post("", status_code=201)
 async def create_character(
-    slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -79,7 +77,6 @@ async def create_character(
 
 @router.get("/{character_id}")
 async def get_character(
-    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -92,7 +89,6 @@ async def get_character(
 
 @router.patch("/{character_id}")
 async def patch_character(
-    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: PatchCharacterRequest,
@@ -113,7 +109,6 @@ async def patch_character(
 
 @router.delete("/{character_id}", status_code=204)
 async def delete_character(
-    slug: str,
     character_id: uuid.UUID,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
