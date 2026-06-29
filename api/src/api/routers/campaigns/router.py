@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import Campaign, MemberRole, User
+from api.routers.campaigns import characters
 from api.services import campaigns as campaign_service
 
 router = APIRouter()
@@ -222,3 +223,6 @@ async def join_campaign(
     if role is None:
         raise HTTPException(status_code=500, detail="Membership state error")
     return _to_response(campaign, role)
+
+
+router.include_router(characters.router)
