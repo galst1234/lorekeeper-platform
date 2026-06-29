@@ -28,7 +28,7 @@ async def list_characters(
     campaign_id: uuid.UUID,
     character_type: CharacterType | None = None,
 ) -> list[Character]:
-    query = select(Character).where(Character.campaign_id == campaign_id).order_by(Character.created_at.asc())
+    query = select(Character).where(Character.campaign_id == campaign_id).order_by(Character.name.asc())
     if character_type is not None:
         query = query.where(Character.character_type == character_type)
     return list(await db.scalars(query))
