@@ -20,7 +20,6 @@ _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_lengt
 
 class CharacterResponse(BaseModel):
     id: uuid.UUID
-    campaign_id: uuid.UUID
     name: str
     character_type: CharacterType
     description: str | None
@@ -43,7 +42,6 @@ class PatchCharacterRequest(BaseModel):
 def _to_response(character: Character) -> CharacterResponse:
     return CharacterResponse(
         id=character.id,
-        campaign_id=character.campaign_id,
         name=character.name,
         character_type=character.character_type,
         description=character.description,

@@ -2,7 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 
 export interface Character {
   id: string;
-  campaign_id: string;
   name: string;
   character_type: "pc" | "npc";
   description: string | null;
