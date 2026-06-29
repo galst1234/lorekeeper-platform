@@ -14,7 +14,7 @@ Only edit a generated migration file in these two cases:
 
 **Data migrations** — when you need to backfill or transform existing rows, add a `op.execute()` call or a Python data-migration step inside the migration.
 
-**Multi-step non-null column additions** — when adding a column that must be `NOT NULL` without a server default:
+**Multistep non-null column additions** — when adding a column that must be `NOT NULL` without a server default:
 1. Add the column as `nullable=True`
 2. Backfill all existing rows
 3. Alter the column to `nullable=False`
