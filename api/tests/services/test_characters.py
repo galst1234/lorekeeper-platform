@@ -19,22 +19,24 @@ async def test_list_characters_empty(db: AsyncSession) -> None:
 async def test_list_characters_returns_all(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-chr-list-all", email="svc-chr-list-all@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrl0002")
-    pc = await make_character(db, campaign_id=campaign.id, name="Aria", character_type=CharacterType.PC)
-    npc = await make_character(db, campaign_id=campaign.id, name="Innkeeper", character_type=CharacterType.NPC)
+    player_character = await make_character(db, campaign_id=campaign.id, name="Aria", character_type=CharacterType.PC)
+    non_player_character = await make_character(
+        db, campaign_id=campaign.id, name="Innkeeper", character_type=CharacterType.NPC
+    )
     result = await character_service.list_characters(db, campaign.id)
-    ids = [character.id for character in result]
-    assert pc.id in ids
-    assert npc.id in ids
+    character_ids = [character.id for character in result]
+    assert player_character.id in character_ids
+    assert non_player_character.id in character_ids
 
 
 async def test_list_characters_filters_by_type(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-chr-list-flt", email="svc-chr-list-flt@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrl0003")
-    pc = await make_character(db, campaign_id=campaign.id, name="Aria", character_type=CharacterType.PC)
+    player_character = await make_character(db, campaign_id=campaign.id, name="Aria", character_type=CharacterType.PC)
     await make_character(db, campaign_id=campaign.id, name="Innkeeper", character_type=CharacterType.NPC)
     result = await character_service.list_characters(db, campaign.id, character_type=CharacterType.PC)
     assert len(result) == 1
-    assert result[0].id == pc.id
+    assert result[0].id == player_character.id
 
 
 async def test_list_characters_ordered_by_created_at(db: AsyncSession) -> None:
