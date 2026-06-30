@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import { Badge } from "./ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 interface NavItemProps {
   to: string;
