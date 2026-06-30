@@ -9,7 +9,7 @@ from api.models import Campaign
 from api.routers.campaigns.dependencies import require_campaign_owner
 from api.services import campaigns as campaign_service
 
-router = APIRouter(prefix="/invite")
+router = APIRouter(prefix="/invites")
 
 
 class InviteResponse(BaseModel):

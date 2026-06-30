@@ -11,7 +11,7 @@ export interface JoinPreviewResponse {
 }
 
 export async function generateInvite(slug: string): Promise<InviteResponse> {
-  const res = await fetch(`/api/v1/campaigns/${slug}/invite`, {
+  const res = await fetch(`/api/v1/campaigns/${slug}/invites`, {
     method: "POST",
     credentials: "include",
   });
@@ -20,7 +20,7 @@ export async function generateInvite(slug: string): Promise<InviteResponse> {
 }
 
 export async function revokeInvite(slug: string): Promise<void> {
-  const res = await fetch(`/api/v1/campaigns/${slug}/invite`, {
+  const res = await fetch(`/api/v1/campaigns/${slug}/invites`, {
     method: "DELETE",
     credentials: "include",
   });

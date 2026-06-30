@@ -232,7 +232,7 @@ async def test_list_campaigns_includes_role_player(
     assert data[0]["role"] == "player"
 
 
-# --- POST /campaigns/{slug}/invite ---
+# --- POST /campaigns/{slug}/invites ---
 
 
 async def test_create_invite_returns_200_with_code(
@@ -242,7 +242,7 @@ async def test_create_invite_returns_200_with_code(
     user = await make_user(db, supertokens_user_id="rt-inv-gen-ok", email="rt-inv-gen-ok@test.com")
     await make_campaign(db, owner_id=user.id, slug_id="invgen01")
     ac = campaigns_authenticated_client("rt-inv-gen-ok")
-    response = await ac.post("/api/v1/campaigns/test-campaign-invgen01/invite")
+    response = await ac.post("/api/v1/campaigns/test-campaign-invgen01/invites")
     assert response.status_code == 200
     data = response.json()
     assert "invite_code" in data
@@ -255,7 +255,7 @@ async def test_create_invite_not_found(
 ) -> None:
     await make_user(db, supertokens_user_id="rt-inv-gen-404", email="rt-inv-gen-404@test.com")
     ac = campaigns_authenticated_client("rt-inv-gen-404")
-    response = await ac.post("/api/v1/campaigns/nothing-notexist/invite")
+    response = await ac.post("/api/v1/campaigns/nothing-notexist/invites")
     assert response.status_code == 404
 
 
@@ -267,11 +267,11 @@ async def test_create_invite_forbidden(
     await make_campaign(db, owner_id=owner.id, slug_id="invfrb01")
     await make_user(db, supertokens_user_id="rt-inv-gen-oth", email="rt-inv-gen-oth@test.com")
     ac = campaigns_authenticated_client("rt-inv-gen-oth")
-    response = await ac.post("/api/v1/campaigns/test-campaign-invfrb01/invite")
+    response = await ac.post("/api/v1/campaigns/test-campaign-invfrb01/invites")
     assert response.status_code == 403
 
 
-# --- DELETE /campaigns/{slug}/invite ---
+# --- DELETE /campaigns/{slug}/invites ---
 
 
 async def test_delete_invite_returns_204(
@@ -281,7 +281,7 @@ async def test_delete_invite_returns_204(
     user = await make_user(db, supertokens_user_id="rt-inv-del-ok", email="rt-inv-del-ok@test.com")
     await make_campaign(db, owner_id=user.id, slug_id="invdel01", invite_code="torevoke")
     ac = campaigns_authenticated_client("rt-inv-del-ok")
-    response = await ac.delete("/api/v1/campaigns/test-campaign-invdel01/invite")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-invdel01/invites")
     assert response.status_code == 204
 
 
@@ -291,7 +291,7 @@ async def test_delete_invite_not_found(
 ) -> None:
     await make_user(db, supertokens_user_id="rt-inv-del-404", email="rt-inv-del-404@test.com")
     ac = campaigns_authenticated_client("rt-inv-del-404")
-    response = await ac.delete("/api/v1/campaigns/nothing-notexist2/invite")
+    response = await ac.delete("/api/v1/campaigns/nothing-notexist2/invites")
     assert response.status_code == 404
 
 
@@ -303,7 +303,7 @@ async def test_delete_invite_forbidden(
     await make_campaign(db, owner_id=owner.id, slug_id="invdfb01", invite_code="torevoke")
     await make_user(db, supertokens_user_id="rt-inv-del-oth", email="rt-inv-del-oth@test.com")
     ac = campaigns_authenticated_client("rt-inv-del-oth")
-    response = await ac.delete("/api/v1/campaigns/test-campaign-invdfb01/invite")
+    response = await ac.delete("/api/v1/campaigns/test-campaign-invdfb01/invites")
     assert response.status_code == 403
 
 
