@@ -139,12 +139,13 @@ jobs:
           project-dir: frontend
 
   all-ci:
-    needs: [ruff-api, ty-api, pytest-api, ruff-agent, ty-agent, biome]
+    needs: [detect-changes, ruff-api, ty-api, pytest-api, ruff-agent, ty-agent, biome]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs passed or were skipped
         run: |
+          [[ "${{ needs.detect-changes.result }}" == "success" ]] || exit 1
           results=(
             "${{ needs.ruff-api.result }}"
             "${{ needs.ty-api.result }}"
