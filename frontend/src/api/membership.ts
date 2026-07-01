@@ -49,7 +49,7 @@ export async function revokeInvite(slug: string): Promise<void> {
 }
 
 export async function fetchJoinPreview(slug: string, inviteCode: string): Promise<JoinPreviewResponse> {
-  const res = await fetch(`/api/v1/campaigns/${slug}/join/${inviteCode}`, {
+  const res = await fetch(`/api/v1/campaigns/${slug}/invites/${inviteCode}`, {
     credentials: "include",
   });
   if (res.status === 404) throw new Error("Invite not found");
@@ -58,7 +58,7 @@ export async function fetchJoinPreview(slug: string, inviteCode: string): Promis
 }
 
 export async function joinCampaign(slug: string, inviteCode: string): Promise<Campaign> {
-  const res = await fetch(`/api/v1/campaigns/${slug}/join/${inviteCode}`, {
+  const res = await fetch(`/api/v1/campaigns/${slug}/invites/${inviteCode}`, {
     method: "POST",
     credentials: "include",
   });
