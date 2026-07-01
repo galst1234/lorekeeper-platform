@@ -2,24 +2,39 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import User
+from api.routers._openapi import NOT_FOUND, UNAUTHENTICATED
 from api.routers.campaigns.campaigns import CampaignResponse, _to_response
 from api.services import campaigns as campaign_service
 
-router = APIRouter(prefix="/join")
+router = APIRouter(prefix="/join", tags=["Invites"])
 
 
 class JoinPreviewResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Curse of Strahd",
+                "slug": "curse-of-strahd-a1b2c3d4",
+            }
+        }
+    )
+
     name: str
     slug: str
 
 
-@router.get("/{invite_code}", response_model=JoinPreviewResponse)
+@router.get(
+    "/{invite_code}",
+    summary="Preview campaign before joining",
+    response_model=JoinPreviewResponse,
+    responses=UNAUTHENTICATED | NOT_FOUND,
+)
 async def get_join_preview(
     slug: str,
     invite_code: str,
@@ -37,7 +52,12 @@ async def get_join_preview(
     return JoinPreviewResponse(name=campaign.name, slug=campaign.slug)
 
 
-@router.post("/{invite_code}", response_model=CampaignResponse)
+@router.post(
+    "/{invite_code}",
+    summary="Join campaign via invite",
+    response_model=CampaignResponse,
+    responses=UNAUTHENTICATED | NOT_FOUND,
+)
 async def join_campaign(
     slug: str,
     invite_code: str,

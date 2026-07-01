@@ -13,7 +13,16 @@ from api.supertokens import init_supertokens
 setup_observability()
 init_supertokens()
 
-app = FastAPI(title="Lorekeeper Platform API")
+app = FastAPI(
+    title="Lorekeeper Platform API",
+    openapi_tags=[
+        {"name": "Me", "description": "Current user profile."},
+        {"name": "Campaigns", "description": "Campaign management — create, read, update, and delete campaigns."},
+        {"name": "Characters", "description": "Character management within a campaign."},
+        {"name": "Members", "description": "Campaign membership — list who is in a campaign."},
+        {"name": "Invites", "description": "Invite links — generate, revoke, preview, and join via invite."},
+    ],
+)
 FastAPIInstrumentor.instrument_app(app)
 app.add_middleware(get_middleware())
 app.add_middleware(
@@ -29,6 +38,6 @@ router.include_router(campaigns_router.router)
 app.include_router(router)
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"], include_in_schema=False)
 async def health() -> dict[str, str]:
     return {"status": "ok"}
