@@ -137,3 +137,22 @@ jobs:
         uses: ./.github/actions/biome-check
         with:
           project-dir: frontend
+
+  all-ci:
+    needs: [ruff-api, ty-api, pytest-api, ruff-agent, ty-agent, biome]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs passed or were skipped
+        run: |
+          results=(
+            "${{ needs.ruff-api.result }}"
+            "${{ needs.ty-api.result }}"
+            "${{ needs.pytest-api.result }}"
+            "${{ needs.ruff-agent.result }}"
+            "${{ needs.ty-agent.result }}"
+            "${{ needs.biome.result }}"
+          )
+          for result in "${results[@]}"; do
+            [[ "$result" == "success" || "$result" == "skipped" ]] || exit 1
+          done
