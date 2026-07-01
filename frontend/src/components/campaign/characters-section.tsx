@@ -12,7 +12,6 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 function toCharacterSlug(name: string): string {
@@ -89,8 +88,8 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-          + Add {characterType === "pc" ? "Player Character" : "NPC"}
+        <Button size="sm" onClick={() => setAddOpen(true)}>
+          + Create {characterType === "pc" ? "Player Character" : "NPC"}
         </Button>
       </div>
 
@@ -123,10 +122,19 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
       <Dialog open={addOpen} onOpenChange={(open) => (open ? setAddOpen(true) : closeAdd())}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add {characterType === "pc" ? "Player Character" : "NPC"}</DialogTitle>
+            <DialogTitle>Create {characterType === "pc" ? "Player Character" : "NPC"}</DialogTitle>
           </DialogHeader>
           <Form {...addForm}>
-            <form onSubmit={addForm.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
+            <form
+              onSubmit={addForm.handleSubmit((v) => createMutation.mutate(v))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) {
+                  e.preventDefault();
+                  addForm.handleSubmit((v) => createMutation.mutate(v))();
+                }
+              }}
+              className="space-y-4"
+            >
               <FormField
                 control={addForm.control}
                 name="name"
@@ -161,27 +169,6 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
               />
               <FormField
                 control={addForm.control}
-                name="character_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pc">PC</SelectItem>
-                        <SelectItem value="npc">NPC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={addForm.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -203,7 +190,7 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Adding…" : "Add"}
+                  {createMutation.isPending ? "Creating…" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
