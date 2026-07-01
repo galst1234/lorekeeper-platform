@@ -246,7 +246,7 @@ async def test_create_invite_returns_200_with_code(
     assert response.status_code == 200
     data = response.json()
     assert "invite_code" in data
-    assert data["invite_url"] == f"/campaigns/test-campaign-invgen01/join/{data['invite_code']}"
+    assert data["invite_url"] == f"/campaigns/test-campaign-invgen01/invites/{data['invite_code']}"
 
 
 async def test_create_invite_not_found(
@@ -307,7 +307,7 @@ async def test_delete_invite_forbidden(
     assert response.status_code == 403
 
 
-# --- GET /campaigns/{slug}/join/{invite_code} ---
+# --- GET /campaigns/{slug}/invites/{invite_code} ---
 
 
 async def test_get_join_preview_returns_campaign_info(
@@ -318,7 +318,7 @@ async def test_get_join_preview_returns_campaign_info(
     await make_campaign(db, owner_id=owner.id, slug_id="jnprev01", invite_code="validcode")
     await make_user(db, supertokens_user_id="rt-jnpv-ply", email="rt-jnpv-ply@test.com")
     ac = campaigns_authenticated_client("rt-jnpv-ply")
-    response = await ac.get("/api/v1/campaigns/test-campaign-jnprev01/join/validcode")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnprev01/invites/validcode")
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Campaign"
@@ -333,7 +333,7 @@ async def test_get_join_preview_wrong_code_returns_404(
     await make_campaign(db, owner_id=owner.id, slug_id="jnpbad01", invite_code="rightcode")
     await make_user(db, supertokens_user_id="rt-jnpv-bply", email="rt-jnpv-bply@test.com")
     ac = campaigns_authenticated_client("rt-jnpv-bply")
-    response = await ac.get("/api/v1/campaigns/test-campaign-jnpbad01/join/wrongcode")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnpbad01/invites/wrongcode")
     assert response.status_code == 404
 
 
@@ -345,7 +345,7 @@ async def test_get_join_preview_no_invite_returns_404(
     await make_campaign(db, owner_id=owner.id, slug_id="jnnoinv1")
     await make_user(db, supertokens_user_id="rt-jnpv-nply", email="rt-jnpv-nply@test.com")
     ac = campaigns_authenticated_client("rt-jnpv-nply")
-    response = await ac.get("/api/v1/campaigns/test-campaign-jnnoinv1/join/anycode")
+    response = await ac.get("/api/v1/campaigns/test-campaign-jnnoinv1/invites/anycode")
     assert response.status_code == 404
 
 
@@ -357,13 +357,13 @@ async def test_get_join_preview_stale_slug_redirects(
     await make_campaign(db, owner_id=owner.id, slug_label="new-label", slug_id="jnrdr001", invite_code="thecode")
     await make_user(db, supertokens_user_id="rt-jnpv-rply", email="rt-jnpv-rply@test.com")
     ac = campaigns_authenticated_client("rt-jnpv-rply")
-    response = await ac.get("/api/v1/campaigns/old-label-jnrdr001/join/thecode", follow_redirects=False)
+    response = await ac.get("/api/v1/campaigns/old-label-jnrdr001/invites/thecode", follow_redirects=False)
     assert response.status_code == 307
     assert "new-label-jnrdr001" in response.headers["location"]
     assert "thecode" in response.headers["location"]
 
 
-# --- POST /campaigns/{slug}/join/{invite_code} ---
+# --- POST /campaigns/{slug}/invites/{invite_code} (join) ---
 
 
 async def test_post_join_adds_member_returns_campaign(
@@ -374,7 +374,7 @@ async def test_post_join_adds_member_returns_campaign(
     await make_campaign(db, owner_id=owner.id, slug_id="rtjoin01", invite_code="joinme01")
     await make_user(db, supertokens_user_id="rt-join-ply", email="rt-join-ply@test.com")
     ac = campaigns_authenticated_client("rt-join-ply")
-    response = await ac.post("/api/v1/campaigns/test-campaign-rtjoin01/join/joinme01")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjoin01/invites/joinme01")
     assert response.status_code == 200
     data = response.json()
     assert data["role"] == "player"
@@ -389,7 +389,7 @@ async def test_post_join_wrong_code_returns_404(
     await make_campaign(db, owner_id=owner.id, slug_id="rtjbad01", invite_code="rightone")
     await make_user(db, supertokens_user_id="rt-join-bply", email="rt-join-bply@test.com")
     ac = campaigns_authenticated_client("rt-join-bply")
-    response = await ac.post("/api/v1/campaigns/test-campaign-rtjbad01/join/wrongone")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjbad01/invites/wrongone")
     assert response.status_code == 404
 
 
@@ -401,8 +401,8 @@ async def test_post_join_idempotent(
     await make_campaign(db, owner_id=owner.id, slug_id="rtjidem1", invite_code="idemcode")
     await make_user(db, supertokens_user_id="rt-join-iply", email="rt-join-iply@test.com")
     ac = campaigns_authenticated_client("rt-join-iply")
-    await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
-    response = await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/join/idemcode")
+    await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/invites/idemcode")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjidem1/invites/idemcode")
     assert response.status_code == 200
 
 
@@ -425,7 +425,7 @@ async def test_post_join_owner_has_gm_role_in_response(
     owner = await make_user(db, supertokens_user_id="rt-join-gm-own", email="rt-join-gm-own@test.com")
     await make_campaign(db, owner_id=owner.id, slug_id="rtjgm001", invite_code="ownjoin1")
     ac = campaigns_authenticated_client("rt-join-gm-own")
-    response = await ac.post("/api/v1/campaigns/test-campaign-rtjgm001/join/ownjoin1")
+    response = await ac.post("/api/v1/campaigns/test-campaign-rtjgm001/invites/ownjoin1")
     assert response.status_code == 200
     assert response.json()["role"] == "gm"
 
@@ -440,5 +440,5 @@ async def test_post_join_revoked_code_returns_404(
     await db.execute(update(Campaign).where(Campaign.id == campaign.id).values(invite_code=None))
     await db.commit()
     ac = campaigns_authenticated_client("rt-join-rply")
-    response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/join/torevoke")
+    response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites/torevoke")
     assert response.status_code == 404

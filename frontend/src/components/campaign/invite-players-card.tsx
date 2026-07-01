@@ -14,7 +14,7 @@ interface InvitePlayersCardProps {
 export function InvitePlayersCard({ campaignSlug, existingInviteCode }: InvitePlayersCardProps) {
   const queryClient = useQueryClient();
   const [inviteUrl, setInviteUrl] = useState<string | null>(
-    existingInviteCode ? `${window.location.origin}/campaigns/${campaignSlug}/join/${existingInviteCode}` : null
+    existingInviteCode ? `${window.location.origin}/campaigns/${campaignSlug}/invites/${existingInviteCode}` : null
   );
 
   const generateMutation = useMutation({

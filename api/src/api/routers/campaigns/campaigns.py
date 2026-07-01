@@ -4,13 +4,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import Campaign, MemberRole, User
+from api.routers._openapi import FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers.campaigns.dependencies import (
     get_canonical_campaign,
     require_campaign_owner,
@@ -32,6 +33,21 @@ _SlugLabelStr = Annotated[
 
 
 class CampaignResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "name": "Curse of Strahd",
+                "description": "A gothic horror campaign set in the mist-shrouded land of Barovia.",
+                "slug": "curse-of-strahd-a1b2c3d4",
+                "role": "gm",
+                "invite_code": "dX9kLmN2pQrS4tUvWxYz",
+                "created_at": "2024-01-15T10:00:00Z",
+                "updated_at": "2024-01-15T10:00:00Z",
+            }
+        }
+    )
+
     id: uuid.UUID
     name: str
     description: str | None
@@ -43,12 +59,32 @@ class CampaignResponse(BaseModel):
 
 
 class CreateCampaignRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Curse of Strahd",
+                "description": "A gothic horror campaign set in the mist-shrouded land of Barovia.",
+                "slug_label": "curse-of-strahd",
+            }
+        }
+    )
+
     name: _NonEmptyStr
     description: str | None = None
     slug_label: _SlugLabelStr
 
 
 class PatchCampaignRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Curse of Strahd: Reloaded",
+                "description": "Updated campaign description.",
+                "slug_label": "curse-of-strahd-reloaded",
+            }
+        }
+    )
+
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
     slug_label: _SlugLabelStr | MISSING = MISSING
@@ -69,7 +105,7 @@ def _to_response(
     )
 
 
-@router.get("")
+@router.get("", tags=["Campaigns"], responses=UNAUTHENTICATED)
 async def list_campaigns(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -78,7 +114,7 @@ async def list_campaigns(
     return [_to_response(campaign_with_role.campaign, campaign_with_role.role) for campaign_with_role in campaigns]
 
 
-@router.post("", status_code=201)
+@router.post("", tags=["Campaigns"], status_code=201, responses=UNAUTHENTICATED)
 async def create_campaign(
     body: CreateCampaignRequest,
     user: Annotated[User, Depends(get_current_user)],
@@ -94,7 +130,9 @@ async def create_campaign(
     return _to_response(campaign)
 
 
-@detail_router.get("", response_model=CampaignResponse)
+@detail_router.get(
+    "", tags=["Campaigns"], response_model=CampaignResponse, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND
+)
 async def get_campaign(
     campaign: Annotated[Campaign, Depends(get_canonical_campaign)],
     user: Annotated[User, Depends(get_current_user)],
@@ -107,7 +145,7 @@ async def get_campaign(
     return _to_response(campaign, role, invite_code=invite_code)
 
 
-@detail_router.patch("")
+@detail_router.patch("", tags=["Campaigns"], responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_campaign(
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     body: PatchCampaignRequest,
@@ -123,7 +161,7 @@ async def patch_campaign(
     return _to_response(updated)
 
 
-@detail_router.delete("", status_code=204)
+@detail_router.delete("", tags=["Campaigns"], status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_campaign(
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -3,17 +3,18 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_db
 from api.models import Campaign, Character, CharacterType
+from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
 
-router = APIRouter(prefix="/characters")
+router = APIRouter(prefix="/characters", tags=["Characters"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 _CharacterSlugStr = Annotated[
@@ -27,6 +28,20 @@ _CharacterSlugStr = Annotated[
 
 
 class CharacterResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+                "slug": "elara-moonwhisper",
+                "name": "Elara Moonwhisper",
+                "character_type": "pc",
+                "description": "A wise elven druid from the Emerald Enclave.",
+                "created_at": "2024-01-15T10:00:00Z",
+                "updated_at": "2024-01-15T10:00:00Z",
+            }
+        }
+    )
+
     id: uuid.UUID
     slug: str
     name: str
@@ -37,6 +52,17 @@ class CharacterResponse(BaseModel):
 
 
 class CreateCharacterRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "slug": "elara-moonwhisper",
+                "name": "Elara Moonwhisper",
+                "character_type": "pc",
+                "description": "A wise elven druid from the Emerald Enclave.",
+            }
+        }
+    )
+
     slug: _CharacterSlugStr
     name: _NonEmptyStr
     character_type: CharacterType
@@ -44,6 +70,16 @@ class CreateCharacterRequest(BaseModel):
 
 
 class PatchCharacterRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Elara of the Enclave",
+                "character_type": "pc",
+                "description": "Updated description.",
+            }
+        }
+    )
+
     name: _NonEmptyStr | MISSING = MISSING
     character_type: CharacterType | MISSING = MISSING
     description: str | None | MISSING = MISSING
@@ -61,7 +97,7 @@ def _to_response(character: Character) -> CharacterResponse:
     )
 
 
-@router.get("")
+@router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def list_characters(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -71,7 +107,7 @@ async def list_characters(
     return [_to_response(character) for character in characters]
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_character(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
@@ -93,7 +129,7 @@ async def create_character(
     return _to_response(character)
 
 
-@router.get("/{character_slug}")
+@router.get("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def get_character(
     character_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
@@ -105,7 +141,7 @@ async def get_character(
     return _to_response(character)
 
 
-@router.patch("/{character_slug}")
+@router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_character(
     character_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
@@ -125,7 +161,7 @@ async def patch_character(
     return _to_response(updated)
 
 
-@router.delete("/{character_slug}", status_code=204)
+@router.delete("/{character_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_character(
     character_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],

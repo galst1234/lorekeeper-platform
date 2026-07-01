@@ -4,7 +4,7 @@ import { fetchJoinPreview } from "@/api/membership";
 import { JoinCampaignCard } from "@/components/campaign/join-campaign-card";
 import { doesSessionExist } from "@/lib/auth";
 
-export const Route = createFileRoute("/campaigns_/$slug/join/$inviteCode")({
+export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
     if (!(await doesSessionExist())) {
       throw redirect({
