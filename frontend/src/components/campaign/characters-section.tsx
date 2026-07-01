@@ -88,7 +88,7 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
+        <Button variant="create" size="sm" onClick={() => setAddOpen(true)}>
           + Create {characterType === "pc" ? "Player Character" : "NPC"}
         </Button>
       </div>
