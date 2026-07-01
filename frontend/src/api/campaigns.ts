@@ -6,6 +6,7 @@ export interface Campaign {
   description: string | null;
   slug: string;
   role: string;
+  invite_code: string | null;
   created_at: string;
   updated_at: string;
 }

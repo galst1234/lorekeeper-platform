@@ -1,10 +1,19 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { ThemeProvider } from "@/components/theme-provider";
 
 interface RouterContext {
   queryClient: QueryClient;
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  component: () => <Outlet />,
+  component: RootLayout,
 });
+
+function RootLayout() {
+  return (
+    <ThemeProvider>
+      <Outlet />
+    </ThemeProvider>
+  );
+}

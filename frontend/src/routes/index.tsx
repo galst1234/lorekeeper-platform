@@ -1,8 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { campaignsQueryOptions } from "../api/campaigns";
-import { meQueryOptions } from "../api/me";
-import { doesSessionExist } from "../lib/auth";
+import { Scroll } from "lucide-react";
+import { campaignsQueryOptions } from "@/api/campaigns";
+import { meQueryOptions } from "@/api/me";
+import { CampaignCard } from "@/components/campaign/campaign-card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { HomeShell } from "@/layouts/home-shell";
+import { doesSessionExist } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
@@ -15,84 +21,63 @@ export const Route = createFileRoute("/")({
     }
     await context.queryClient.ensureQueryData(campaignsQueryOptions(me.id));
   },
+  pendingComponent: HomePendingComponent,
+  pendingMs: 0,
   component: HomePage,
 });
+
+function HomePendingComponent() {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="h-14 border-b" />
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-36 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function HomePage() {
   const { data: me } = useSuspenseQuery(meQueryOptions);
   const { data: campaigns } = useSuspenseQuery(campaignsQueryOptions(me.id));
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <h1>Welcome, {me.display_name}</h1>
-        <Link
-          to="/campaigns/new"
-          style={{
-            display: "inline-block",
-            padding: "0.5rem 1rem",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            textDecoration: "none",
-            color: "inherit",
-          }}
-        >
-          New Campaign
-        </Link>
-      </div>
-
-      {campaigns.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "3rem 0", color: "#666" }}>
-          <p>You don't have any campaigns yet.</p>
-          <Link
-            to="/campaigns/new"
-            style={{
-              display: "inline-block",
-              padding: "0.5rem 1rem",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
-            Create your first campaign
-          </Link>
+    <HomeShell>
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-semibold">Your Campaigns</h1>
+          <Button asChild>
+            <Link to="/campaigns/new">+ New Campaign</Link>
+          </Button>
         </div>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "1rem" }}>
-          {campaigns.map((campaign) => (
-            <li key={campaign.id} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                <Link to="/campaigns/$slug" params={{ slug: campaign.slug }}>
-                  <h2 style={{ margin: 0 }}>{campaign.name}</h2>
-                </Link>
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    padding: "0.125rem 0.5rem",
-                    borderRadius: "999px",
-                    background: campaign.role === "gm" ? "#e8f4e8" : "#e8eef4",
-                    color: campaign.role === "gm" ? "#2d6a2d" : "#2d4a6a",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {campaign.role === "gm" ? "GM" : "Player"}
-                </span>
-              </div>
-              {campaign.description && (
-                <p style={{ margin: "0 0 0.5rem", color: "#555" }}>
-                  {campaign.description.length > 120 ? `${campaign.description.slice(0, 120)}…` : campaign.description}
-                </p>
-              )}
-              <small style={{ color: "#999" }}>Created {new Date(campaign.created_at).toLocaleDateString()}</small>
-            </li>
-          ))}
-        </ul>
-      )}
 
-      <div style={{ marginTop: "2rem" }}>
-        <Link to="/logout">Logout</Link>
+        {campaigns.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center text-center py-12 gap-4">
+              <Scroll className="h-10 w-10 text-muted-foreground" />
+              <h2 className="text-lg font-semibold">No campaigns yet</h2>
+              <p className="text-sm text-muted-foreground">Create your first campaign to get started.</p>
+              <Button asChild>
+                <Link to="/campaigns/new">Create your first campaign</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {campaigns.map((campaign) => (
+              <CampaignCard key={campaign.id} campaign={campaign} />
+            ))}
+          </div>
+        )}
       </div>
-    </main>
+    </HomeShell>
   );
 }
