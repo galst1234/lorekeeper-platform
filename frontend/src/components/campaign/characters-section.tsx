@@ -189,7 +189,7 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
                 <Button type="button" variant="ghost" onClick={closeAdd} disabled={createMutation.isPending}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
+                <Button type="submit" variant="create" disabled={createMutation.isPending}>
                   {createMutation.isPending ? "Creating…" : "Create"}
                 </Button>
               </DialogFooter>
