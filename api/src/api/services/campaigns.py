@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models import Campaign, CampaignMember, MemberRole
+from api.models import Campaign, CampaignMember, MemberRole, User
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
 
@@ -162,6 +162,16 @@ async def list_members(db: AsyncSession, campaign_id: uuid.UUID) -> list[Campaig
             select(CampaignMember).where(CampaignMember.campaign_id == campaign_id),
         )
     )
+
+
+async def list_members_with_users(db: AsyncSession, campaign_id: uuid.UUID) -> list[tuple[CampaignMember, User]]:
+    rows = await db.execute(
+        select(CampaignMember, User)
+        .join(User, CampaignMember.user_id == User.id)
+        .where(CampaignMember.campaign_id == campaign_id)
+        .order_by(CampaignMember.role, User.display_name),
+    )
+    return list(rows.tuples())
 
 
 async def is_member(db: AsyncSession, campaign_id: uuid.UUID, user_id: uuid.UUID) -> bool:
