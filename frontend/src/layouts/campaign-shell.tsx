@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, useMatch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, Menu, Settings, Users } from "lucide-react";
 import { useState } from "react";
 import { campaignQueryOptions } from "@/api/campaigns";
@@ -31,32 +31,18 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
 
   const isGm = campaign.role === "gm";
 
-  const isOnCharacterDetail =
-    useMatch({
-      from: "/campaigns/$slug/characters/$characterSlug",
-      shouldThrow: false,
-    }) != null;
-
   const sidebarItems = (
     <>
       <NavItem to="/campaigns/$slug" params={{ slug }} icon={LayoutDashboard} label="Overview" exact />
       <NavItem
-        to="/campaigns/$slug"
+        to="/campaigns/$slug/characters"
         params={{ slug }}
-        hash="characters"
         icon={Users}
         label="Characters"
         badge={characters.length}
-        isActive={isOnCharacterDetail}
       />
       <Separator className="my-2" />
-      {isGm && (
-        <div className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground opacity-50 cursor-not-allowed select-none">
-          <Settings className="h-4 w-4 shrink-0" />
-          <span className="flex-1">Settings</span>
-          <span className="text-xs">Soon</span>
-        </div>
-      )}
+      {isGm && <NavItem to="/campaigns/$slug/settings" params={{ slug }} icon={Settings} label="Settings" exact />}
     </>
   );
 

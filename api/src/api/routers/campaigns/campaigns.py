@@ -37,6 +37,7 @@ class CampaignResponse(BaseModel):
     description: str | None
     slug: str
     role: MemberRole
+    invite_code: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -53,13 +54,16 @@ class PatchCampaignRequest(BaseModel):
     slug_label: _SlugLabelStr | MISSING = MISSING
 
 
-def _to_response(campaign: Campaign, role: MemberRole = MemberRole.GM) -> CampaignResponse:
+def _to_response(
+    campaign: Campaign, role: MemberRole = MemberRole.GM, invite_code: str | None = None
+) -> CampaignResponse:
     return CampaignResponse(
         id=campaign.id,
         name=campaign.name,
         description=campaign.description,
         slug=campaign.slug,
         role=role,
+        invite_code=invite_code,
         created_at=campaign.created_at,
         updated_at=campaign.updated_at,
     )
@@ -99,7 +103,8 @@ async def get_campaign(
     role = await campaign_service.get_member_role(db, campaign.id, user.id)
     if role is None:
         raise HTTPException(status_code=403, detail="Forbidden")
-    return _to_response(campaign, role)
+    invite_code = campaign.invite_code if role == MemberRole.GM else None
+    return _to_response(campaign, role, invite_code=invite_code)
 
 
 @detail_router.patch("")

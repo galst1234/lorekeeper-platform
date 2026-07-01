@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy, Users } from "lucide-react";
 import { useState } from "react";
 import { generateInvite, revokeInvite } from "@/api/membership";
@@ -8,19 +8,29 @@ import { Input } from "@/components/ui/input";
 
 interface InvitePlayersCardProps {
   campaignSlug: string;
+  existingInviteCode: string | null;
 }
 
-export function InvitePlayersCard({ campaignSlug }: InvitePlayersCardProps) {
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+export function InvitePlayersCard({ campaignSlug, existingInviteCode }: InvitePlayersCardProps) {
+  const queryClient = useQueryClient();
+  const [inviteUrl, setInviteUrl] = useState<string | null>(
+    existingInviteCode ? `${window.location.origin}/campaigns/${campaignSlug}/join/${existingInviteCode}` : null
+  );
 
   const generateMutation = useMutation({
     mutationFn: () => generateInvite(campaignSlug),
-    onSuccess: (data) => setInviteUrl(`${window.location.origin}${data.invite_url}`),
+    onSuccess: (data) => {
+      setInviteUrl(`${window.location.origin}${data.invite_url}`);
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
   });
 
   const revokeMutation = useMutation({
     mutationFn: () => revokeInvite(campaignSlug),
-    onSuccess: () => setInviteUrl(null),
+    onSuccess: () => {
+      setInviteUrl(null);
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
   });
 
   return (
