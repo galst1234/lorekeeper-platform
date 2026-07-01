@@ -83,7 +83,7 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
         )}
       </div>
 
-      {campaign.description && <p className="mt-2 text-muted-foreground">{campaign.description}</p>}
+      {campaign.description !== null && <p className="mt-2 text-muted-foreground">{campaign.description}</p>}
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
