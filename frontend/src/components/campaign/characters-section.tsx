@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { charactersQueryOptions, createCharacter } from "@/api/characters";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -88,8 +87,14 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <Button variant="create" size="sm" onClick={() => setAddOpen(true)}>
-          + Create {characterType === "pc" ? "Player Character" : "NPC"}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setAddOpen(true)}
+          aria-label={`Create ${characterType === "pc" ? "Player Character" : "NPC"}`}
+          className="-my-1"
+        >
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
 
@@ -100,18 +105,13 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
           {filtered.map((character) => (
             <Card key={character.id} className="px-4 py-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/campaigns/$slug/characters/$characterSlug"
-                    params={{ slug, characterSlug: character.slug }}
-                    className="font-medium hover:underline"
-                  >
-                    {character.name}
-                  </Link>
-                  <Badge variant="secondary" className="text-xs">
-                    {character.character_type.toUpperCase()}
-                  </Badge>
-                </div>
+                <Link
+                  to="/campaigns/$slug/characters/$characterSlug"
+                  params={{ slug, characterSlug: character.slug }}
+                  className="font-medium hover:underline"
+                >
+                  {character.name}
+                </Link>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
             </Card>
