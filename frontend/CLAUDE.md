@@ -43,9 +43,14 @@ npx shadcn@latest add <component>
 
 ### Component hierarchy
 
-Route files are orchestrators — they read from the query cache and compose feature components. They do not import from `@/components/ui/` directly.
+Route files are orchestrators: they handle auth guards, data prefetching, and layout composition. Keep them thin. Small, stateless UI directly in a route (a loading skeleton, a single CTA button) is fine.
 
-Feature components (in `src/components/`) own a single concern: markup, internal UI state, and mutations. shadcn primitives live inside feature components.
+Extract a feature component (`src/components/`) when:
+- The route's JSX grows complex or mixes data, state, and markup in one place
+- The same UI is reused across routes
+- The component owns internal state or mutations
+
+Feature components own a single concern: markup, internal UI state, and mutations.
 
 ## Forms
 
