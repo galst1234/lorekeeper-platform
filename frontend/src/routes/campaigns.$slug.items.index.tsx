@@ -9,7 +9,7 @@ function ItemsPage() {
   const { slug } = Route.useParams();
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
       <ItemsSection slug={slug} />
     </div>
   );
