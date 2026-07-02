@@ -59,7 +59,7 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
     mutationFn: () => deleteCharacter(campaignSlug, character.slug),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["characters", campaignSlug] });
-      await router.navigate({ to: "/campaigns/$slug", params: { slug: campaignSlug } });
+      await router.navigate({ to: "/campaigns/$slug/characters", params: { slug: campaignSlug } });
     },
   });
 
