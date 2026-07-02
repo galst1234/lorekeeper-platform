@@ -68,11 +68,10 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
             </nav>
           </SheetContent>
         </Sheet>
-
         <Link to="/" className="font-semibold text-foreground hidden md:block shrink-0">
           Lorekeeper
         </Link>
-
+        /
         <Link
           to="/campaigns/$slug"
           params={{ slug }}
@@ -80,7 +79,6 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         >
           {campaign.name}
         </Link>
-
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
           <DropdownMenu>
