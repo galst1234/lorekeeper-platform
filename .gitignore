@@ -9,3 +9,6 @@ Thumbs.db
 
 # Prod secrets
 stack.env
+
+# Management documents
+docs/Lorekeeper Platform/
