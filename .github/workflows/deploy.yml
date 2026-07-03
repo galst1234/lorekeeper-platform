@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   build-api:
     if: (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || github.event_name == 'workflow_dispatch'
