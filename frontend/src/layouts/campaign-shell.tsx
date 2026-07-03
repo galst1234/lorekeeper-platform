@@ -74,7 +74,7 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         <Link to="/" className="font-semibold text-foreground hidden md:block shrink-0">
           Lorekeeper
         </Link>
-        /
+        <span className="hidden md:inline text-foreground">/</span>
         <Link
           to="/campaigns/$slug"
           params={{ slug }}
