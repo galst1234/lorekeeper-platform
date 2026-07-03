@@ -1,4 +1,4 @@
-import { Backpack } from "lucide-react";
+import { Swords } from "lucide-react";
 import type { Item } from "@/api/items";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -22,7 +22,7 @@ export function ItemSidebarCard({ item }: ItemSidebarCardProps) {
     <Card className="sticky top-6">
       <CardContent className="pt-6 space-y-4">
         <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-          <Backpack className="h-12 w-12 text-muted-foreground" />
+          <Swords className="h-12 w-12 text-muted-foreground" />
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Last updated</p>
