@@ -98,6 +98,9 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
                 <Link to="/">Switch Campaign</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <a href="/legacy-agent">Legacy Agent</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/logout">Sign out</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

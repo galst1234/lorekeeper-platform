@@ -33,6 +33,9 @@ export function HomeShell({ children }: { children: React.ReactNode }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
+                <a href="/legacy-agent">Legacy Agent</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/logout">Sign out</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
