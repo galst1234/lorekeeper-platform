@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CharactersSection } from "@/components/campaign/characters-section";
+import { CharactersSection } from "@/components/character/characters-section";
 
 export const Route = createFileRoute("/campaigns/$slug/characters/")({
   component: CharactersPage,

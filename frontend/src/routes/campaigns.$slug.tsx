@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { campaignQueryOptions } from "@/api/campaigns";
 import { charactersQueryOptions } from "@/api/characters";
+import { itemsQueryOptions } from "@/api/items";
 import { meQueryOptions } from "@/api/me";
 import { membersQueryOptions } from "@/api/membership";
 import { CampaignShell } from "@/layouts/campaign-shell";
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/campaigns/$slug")({
       throw redirect({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     }
     await context.queryClient.ensureQueryData(charactersQueryOptions(params.slug));
+    await context.queryClient.ensureQueryData(itemsQueryOptions(params.slug));
     await context.queryClient.ensureQueryData(membersQueryOptions(params.slug));
   },
   component: SlugLayout,

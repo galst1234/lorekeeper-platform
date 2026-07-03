@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign, CampaignMember, Character, CharacterType, MemberRole, User, UserAuthMethod
+from api.models import Campaign, CampaignMember, Character, CharacterType, Item, MemberRole, User, UserAuthMethod
 
 
 async def make_user(
@@ -72,6 +72,27 @@ async def make_character(
     db.add(character)
     await db.flush()
     return character
+
+
+async def make_item(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    name: str = "Test Item",
+    slug: str | None = None,
+    description: str | None = None,
+) -> Item:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    item = Item(
+        campaign_id=campaign_id,
+        slug=slug,
+        name=name,
+        description=description,
+    )
+    db.add(item)
+    await db.flush()
+    return item
 
 
 async def make_member(

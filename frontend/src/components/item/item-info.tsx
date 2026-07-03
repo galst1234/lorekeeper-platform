@@ -5,29 +5,26 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { type Character, deleteCharacter, patchCharacter } from "@/api/characters";
-import { Badge } from "@/components/ui/badge";
+import { deleteItem, type Item, patchItem } from "@/api/items";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const editSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  character_type: z.enum(["pc", "npc"]),
   description: z.string(),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
 
-interface CharacterInfoProps {
-  character: Character;
+interface ItemInfoProps {
+  item: Item;
   campaignSlug: string;
 }
 
-export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
+export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -36,53 +33,48 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
     values: {
-      name: character.name,
-      character_type: character.character_type,
-      description: character.description ?? "",
+      name: item.name,
+      description: item.description ?? "",
     },
   });
 
   const patchMutation = useMutation({
     mutationFn: (values: EditFormValues) =>
-      patchCharacter(campaignSlug, character.slug, {
+      patchItem(campaignSlug, item.slug, {
         name: values.name.trim(),
-        character_type: values.character_type,
         description: values.description.trim() || null,
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["characters", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: ["items", campaignSlug] });
       setEditOpen(false);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCharacter(campaignSlug, character.slug),
+    mutationFn: () => deleteItem(campaignSlug, item.slug),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["characters", campaignSlug] });
-      await router.navigate({ to: "/campaigns/$slug/characters", params: { slug: campaignSlug } });
+      await queryClient.invalidateQueries({ queryKey: ["items", campaignSlug] });
+      await router.navigate({ to: "/campaigns/$slug/items", params: { slug: campaignSlug } });
     },
   });
 
   return (
     <div>
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold">{character.name}</h1>
-          <Badge variant="secondary">{character.character_type.toUpperCase()}</Badge>
-        </div>
+        <h1 className="text-3xl font-bold">{item.name}</h1>
         <div className="flex items-center gap-1 shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => setEditOpen(true)} aria-label="Edit character">
+          <Button variant="ghost" size="icon" onClick={() => setEditOpen(true)} aria-label="Edit item">
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label="Delete character">
+          <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label="Delete item">
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>
 
       <div className="mt-4">
-        {character.description ? (
-          <p className="text-muted-foreground">{character.description}</p>
+        {item.description ? (
+          <p className="text-muted-foreground">{item.description}</p>
         ) : (
           <p className="text-muted-foreground italic">No description yet.</p>
         )}
@@ -92,7 +84,7 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Character</DialogTitle>
+            <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit((v) => patchMutation.mutate(v))} className="space-y-4">
@@ -105,27 +97,6 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="character_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pc">PC</SelectItem>
-                        <SelectItem value="npc">NPC</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -166,7 +137,7 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete "{character.name}"?</DialogTitle>
+            <DialogTitle>Delete "{item.name}"?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">This cannot be undone.</p>
           {deleteMutation.isError && <p className="text-sm text-destructive">Failed to delete. Please try again.</p>}
