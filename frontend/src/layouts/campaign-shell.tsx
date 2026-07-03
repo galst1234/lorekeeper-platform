@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Menu, Package, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Menu, Settings, Sword, Users } from "lucide-react";
 import { useState } from "react";
 import { campaignQueryOptions } from "@/api/campaigns";
 import { charactersQueryOptions } from "@/api/characters";
@@ -43,7 +43,7 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         label="Characters"
         badge={characters.length}
       />
-      <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Package} label="Items" badge={items.length} />
+      <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Sword} label="Items" badge={items.length} />
       <Separator className="my-2" />
       {isGm && <NavItem to="/campaigns/$slug/settings" params={{ slug }} icon={Settings} label="Settings" exact />}
     </>
