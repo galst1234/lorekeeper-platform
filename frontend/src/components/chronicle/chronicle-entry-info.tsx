@@ -57,9 +57,9 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-6">
         {entry.body ? (
-          <p className="whitespace-pre-wrap text-muted-foreground">{entry.body}</p>
+          <p className="whitespace-pre-wrap leading-7 text-foreground">{entry.body}</p>
         ) : (
           <p className="text-muted-foreground italic">No write-up yet.</p>
         )}

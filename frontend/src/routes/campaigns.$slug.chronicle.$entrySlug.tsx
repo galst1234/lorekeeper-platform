@@ -13,20 +13,20 @@ function ChronicleEntryDetailPage() {
   const { data: entry } = useSuspenseQuery(chronicleEntryQueryOptions(slug, entrySlug));
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8">
       <Link
         to="/campaigns/$slug/chronicle"
         params={{ slug }}
-        className="text-sm text-muted-foreground hover:text-foreground inline-block mb-6"
+        className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground"
       >
         ← Back to Chronicle
       </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="min-w-0">
           <ChronicleEntryInfo entry={entry} campaignSlug={slug} />
         </div>
-        <div>
+        <div className="min-w-0">
           <ChronicleEntrySidebarCard entry={entry} />
         </div>
       </div>

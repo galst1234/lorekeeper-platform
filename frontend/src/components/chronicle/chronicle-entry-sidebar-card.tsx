@@ -1,4 +1,3 @@
-import { ScrollText } from "lucide-react";
 import type { ChronicleEntryDetail } from "@/api/chronicle";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -20,10 +19,7 @@ function formatRelativeDate(dateString: string): string {
 export function ChronicleEntrySidebarCard({ entry }: ChronicleEntrySidebarCardProps) {
   return (
     <Card className="sticky top-6">
-      <CardContent className="pt-6 space-y-4">
-        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-          <ScrollText className="h-12 w-12 text-muted-foreground" />
-        </div>
+      <CardContent className="flex flex-col gap-4 pt-6">
         <div>
           <p className="text-xs text-muted-foreground">Author</p>
           <p className="text-xs text-muted-foreground">{entry.author?.display_name ?? "Unknown"}</p>
