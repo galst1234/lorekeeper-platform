@@ -1,30 +1,32 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { campaignQueryOptions } from "@/api/campaigns";
-import { charactersQueryOptions } from "@/api/characters";
-import { chronicleEntriesQueryOptions } from "@/api/chronicle";
-import { itemsQueryOptions } from "@/api/items";
-import { meQueryOptions } from "@/api/me";
-import { membersQueryOptions } from "@/api/membership";
+import {
+  getCampaignOptions,
+  listCharactersOptions,
+  listChronicleEntriesOptions,
+  listItemsOptions,
+  listMembersOptions,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { CampaignShell } from "@/layouts/campaign-shell";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/campaigns/$slug")({
   beforeLoad: async ({ context, params }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.fetchQuery(meQueryOptions);
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }
-    const campaign = await context.queryClient.ensureQueryData(campaignQueryOptions(me.id, params.slug));
+    const campaign = await context.queryClient.ensureQueryData(getCampaignOptions({ path: { slug: params.slug } }));
     if (campaign.slug !== params.slug) {
       throw redirect({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     }
-    await context.queryClient.ensureQueryData(charactersQueryOptions(params.slug));
-    await context.queryClient.ensureQueryData(itemsQueryOptions(params.slug));
-    await context.queryClient.ensureQueryData(chronicleEntriesQueryOptions(params.slug));
-    await context.queryClient.ensureQueryData(membersQueryOptions(params.slug));
+    await context.queryClient.ensureQueryData(listCharactersOptions({ path: { slug: params.slug } }));
+    await context.queryClient.ensureQueryData(listItemsOptions({ path: { slug: params.slug } }));
+    await context.queryClient.ensureQueryData(listChronicleEntriesOptions({ path: { slug: params.slug } }));
+    await context.queryClient.ensureQueryData(listMembersOptions({ path: { slug: params.slug } }));
   },
   component: SlugLayout,
 });

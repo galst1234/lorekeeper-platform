@@ -97,6 +97,28 @@ jobs:
           API_DOMAIN: http://localhost:8000
           WEBSITE_DOMAIN: http://localhost:5173
 
+  openapi-drift-api:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: ./.github/actions/setup-python
+        with:
+          project-dir: api
+      - name: Check openapi.json is in sync with API code
+        working-directory: api
+        env:
+          DATABASE_URL: postgresql+asyncpg://fake:fake@localhost/fake
+        run: |
+          uv run python scripts/export_openapi_schema.py
+          if [ -n "$(git status --porcelain openapi.json)" ]; then
+            git diff -- openapi.json
+            echo "::error::api/openapi.json is out of sync. Run 'uv run python scripts/export_openapi_schema.py' in api/ and commit the result."
+            exit 1
+          fi
+
   ruff-agent:
     needs: detect-changes
     if: needs.detect-changes.outputs.agent == 'true'
@@ -139,7 +161,7 @@ jobs:
           project-dir: frontend
 
   all-ci:
-    needs: [detect-changes, ruff-api, ty-api, pytest-api, ruff-agent, ty-agent, biome]
+    needs: [detect-changes, ruff-api, ty-api, pytest-api, openapi-drift-api, ruff-agent, ty-agent, biome]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -150,6 +172,7 @@ jobs:
             "${{ needs.ruff-api.result }}"
             "${{ needs.ty-api.result }}"
             "${{ needs.pytest-api.result }}"
+            "${{ needs.openapi-drift-api.result }}"
             "${{ needs.ruff-agent.result }}"
             "${{ needs.ty-agent.result }}"
             "${{ needs.biome.result }}"

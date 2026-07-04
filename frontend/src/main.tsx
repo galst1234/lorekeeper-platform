@@ -19,7 +19,7 @@ Sentry.init({
 
 initSuperTokens();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const router = createAppRouter(queryClient);
 
 // biome-ignore lint/style/noNonNullAssertion: root element is guaranteed by index.html

@@ -1,18 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { meQueryOptions } from "@/api/me";
-import { fetchJoinPreview } from "@/api/membership";
+import { getJoinPreview } from "@/api/generated";
 import { JoinCampaignCard } from "@/components/campaign/join-campaign-card";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({
         to: "/login",
         search: { redirectToPath: location.pathname + location.searchStr + location.hash },
       });
     }
-    const me = await context.queryClient.fetchQuery(meQueryOptions);
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({
         to: "/onboarding",
@@ -21,7 +21,14 @@ export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
     }
   },
   loader: async ({ params }) => {
-    return fetchJoinPreview(params.slug, params.inviteCode);
+    const { data, response } = await getJoinPreview({
+      path: { slug: params.slug, invite_code: params.inviteCode },
+    });
+    if (!data) {
+      if (response?.status === 404) throw new Error("Invite not found");
+      throw new Error("Failed to fetch join preview");
+    }
+    return data;
   },
   errorComponent: ({ error }) => {
     const isNotFound = error instanceof Error && error.message === "Invite not found";

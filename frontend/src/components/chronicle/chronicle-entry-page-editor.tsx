@@ -4,13 +4,16 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { type ChronicleEntryDetail, createChronicleEntry, patchChronicleEntry } from "@/api/chronicle";
+import type { ChronicleEntryDetailResponse } from "@/api/generated";
+import { createChronicleEntry, patchChronicleEntry } from "@/api/generated";
+import { getChronicleEntryQueryKey, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { datetimeLocalToIso, toDatetimeLocalValue } from "@/lib/datetime";
+import { getErrorMessage } from "@/lib/utils";
 
 type ChronicleEntryPageEditorProps =
   | {
@@ -20,7 +23,7 @@ type ChronicleEntryPageEditorProps =
   | {
       mode: "edit";
       campaignSlug: string;
-      entry: ChronicleEntryDetail;
+      entry: ChronicleEntryDetailResponse;
     };
 
 function toEntrySlug(title: string): string {
@@ -48,7 +51,7 @@ function createDefaultValues(): EditorFormValues {
   return { title: "", slug: "", occurredAt: toDatetimeLocalValue(new Date()), body: "" };
 }
 
-function editDefaultValues(entry: ChronicleEntryDetail): EditorFormValues {
+function editDefaultValues(entry: ChronicleEntryDetailResponse): EditorFormValues {
   return {
     title: entry.title,
     slug: entry.slug,
@@ -80,26 +83,38 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
   }, [titleValue, slugEdited, form, mode]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: EditorFormValues) => {
+    mutationFn: async (values: EditorFormValues) => {
       if (entry) {
-        return patchChronicleEntry(campaignSlug, entry.slug, {
-          title: values.title.trim(),
-          occurred_at: datetimeLocalToIso(values.occurredAt),
-          body: values.body.trim() || null,
+        const { data } = await patchChronicleEntry({
+          path: { slug: campaignSlug, entry_slug: entry.slug },
+          body: {
+            title: values.title.trim(),
+            occurred_at: datetimeLocalToIso(values.occurredAt),
+            body: values.body.trim() || null,
+          },
+          throwOnError: true,
         });
+        return data;
       }
 
-      return createChronicleEntry(campaignSlug, {
-        title: values.title.trim(),
-        slug: values.slug.trim(),
-        occurred_at: datetimeLocalToIso(values.occurredAt),
-        body: values.body.trim() || undefined,
+      const { data } = await createChronicleEntry({
+        path: { slug: campaignSlug },
+        body: {
+          title: values.title.trim(),
+          slug: values.slug.trim(),
+          occurred_at: datetimeLocalToIso(values.occurredAt),
+          body: values.body.trim() || undefined,
+        },
+        throwOnError: true,
       });
+      return data;
     },
     onSuccess: async (savedEntry) => {
-      await queryClient.invalidateQueries({ queryKey: ["chronicle-entries", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listChronicleEntriesQueryKey({ path: { slug: campaignSlug } }) });
       if (entry) {
-        await queryClient.invalidateQueries({ queryKey: ["chronicle-entries", campaignSlug, entry.slug] });
+        await queryClient.invalidateQueries({
+          queryKey: getChronicleEntryQueryKey({ path: { slug: campaignSlug, entry_slug: entry.slug } }),
+        });
       }
       await router.navigate({
         to: "/campaigns/$slug/chronicle/$entrySlug",
@@ -205,9 +220,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
           />
 
           {saveMutation.isError && (
-            <p className="text-sm text-destructive">
-              {saveMutation.error instanceof Error ? saveMutation.error.message : "Failed to save entry."}
-            </p>
+            <p className="text-sm text-destructive">{getErrorMessage(saveMutation.error, "Failed to save entry.")}</p>
           )}
 
           <div className="flex items-center justify-end gap-2">

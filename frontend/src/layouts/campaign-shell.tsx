@@ -2,11 +2,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, Menu, ScrollText, Settings, Swords, Users } from "lucide-react";
 import { useState } from "react";
-import { campaignQueryOptions } from "@/api/campaigns";
-import { charactersQueryOptions } from "@/api/characters";
-import { chronicleEntriesQueryOptions } from "@/api/chronicle";
-import { itemsQueryOptions } from "@/api/items";
-import { meQueryOptions } from "@/api/me";
+import {
+  getCampaignOptions,
+  listCharactersOptions,
+  listChronicleEntriesOptions,
+  listItemsOptions,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { NavItem } from "@/components/nav-item";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useCurrentUser } from "@/lib/auth";
 
 interface CampaignShellProps {
   slug: string;
@@ -26,11 +28,11 @@ interface CampaignShellProps {
 }
 
 export function CampaignShell({ slug, children }: CampaignShellProps) {
-  const { data: me } = useSuspenseQuery(meQueryOptions);
-  const { data: campaign } = useSuspenseQuery(campaignQueryOptions(me.id, slug));
-  const { data: characters } = useSuspenseQuery(charactersQueryOptions(slug));
-  const { data: items } = useSuspenseQuery(itemsQueryOptions(slug));
-  const { data: chronicleEntries } = useSuspenseQuery(chronicleEntriesQueryOptions(slug));
+  const me = useCurrentUser();
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug } }));
+  const { data: characters } = useSuspenseQuery(listCharactersOptions({ path: { slug } }));
+  const { data: items } = useSuspenseQuery(listItemsOptions({ path: { slug } }));
+  const { data: chronicleEntries } = useSuspenseQuery(listChronicleEntriesOptions({ path: { slug } }));
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const isGm = campaign.role === "gm";

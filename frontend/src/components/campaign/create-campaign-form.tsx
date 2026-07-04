@@ -4,12 +4,13 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { createCampaign, toSlugLabel } from "@/api/campaigns";
+import { createCampaignMutation, listCampaignsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toSlugLabel } from "@/lib/utils";
 
 const createSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -46,14 +47,9 @@ export function CreateCampaignForm() {
   }, [nameValue, slugEdited, form]);
 
   const mutation = useMutation({
-    mutationFn: (values: CreateFormValues) =>
-      createCampaign({
-        name: values.name.trim(),
-        slug_label: values.slug_label.trim(),
-        description: values.description.trim() || undefined,
-      }),
+    ...createCampaignMutation(),
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
+      await queryClient.invalidateQueries({ queryKey: listCampaignsQueryKey() });
       await router.navigate({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     },
   });
@@ -65,7 +61,17 @@ export function CreateCampaignForm() {
         <CardDescription>Set up a new campaign for your group.</CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+        <form
+          onSubmit={form.handleSubmit((v) =>
+            mutation.mutate({
+              body: {
+                name: v.name.trim(),
+                slug_label: v.slug_label.trim(),
+                description: v.description.trim() || undefined,
+              },
+            })
+          )}
+        >
           <CardContent className="space-y-4">
             <FormField
               control={form.control}

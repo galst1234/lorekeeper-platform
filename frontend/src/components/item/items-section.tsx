@@ -5,13 +5,14 @@ import { ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { createItem, itemsQueryOptions } from "@/api/items";
+import { createItemMutation, listItemsOptions, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getErrorMessage } from "@/lib/utils";
 
 function toItemSlug(name: string): string {
   return name
@@ -40,7 +41,7 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [slugEdited, setSlugEdited] = useState(false);
-  const { data: items } = useSuspenseQuery(itemsQueryOptions(slug));
+  const { data: items } = useSuspenseQuery(listItemsOptions({ path: { slug } }));
 
   const addForm = useForm<AddFormValues>({
     resolver: zodResolver(addSchema),
@@ -56,14 +57,9 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
   }, [nameValue, slugEdited, addForm]);
 
   const createMutation = useMutation({
-    mutationFn: (values: AddFormValues) =>
-      createItem(slug, {
-        name: values.name.trim(),
-        slug: values.slug.trim(),
-        description: values.description.trim() || undefined,
-      }),
+    ...createItemMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["items", slug] });
+      await queryClient.invalidateQueries({ queryKey: listItemsQueryKey({ path: { slug } }) });
       setAddOpen(false);
       setSlugEdited(false);
       addForm.reset();
@@ -74,6 +70,17 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
     setAddOpen(false);
     setSlugEdited(false);
     addForm.reset();
+  }
+
+  function submitCreate(values: AddFormValues) {
+    createMutation.mutate({
+      path: { slug },
+      body: {
+        name: values.name.trim(),
+        slug: values.slug.trim(),
+        description: values.description.trim() || undefined,
+      },
+    });
   }
 
   return (
@@ -113,11 +120,11 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
           </DialogHeader>
           <Form {...addForm}>
             <form
-              onSubmit={addForm.handleSubmit((v) => createMutation.mutate(v))}
+              onSubmit={addForm.handleSubmit(submitCreate)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && e.ctrlKey) {
                   e.preventDefault();
-                  addForm.handleSubmit((v) => createMutation.mutate(v))();
+                  addForm.handleSubmit(submitCreate)();
                 }
               }}
               className="space-y-4"
@@ -169,7 +176,7 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
               />
               {createMutation.isError && (
                 <p className="text-sm text-destructive">
-                  {createMutation.error instanceof Error ? createMutation.error.message : "Failed to create item."}
+                  {getErrorMessage(createMutation.error, "Failed to create item.")}
                 </p>
               )}
               <DialogFooter>

@@ -1,25 +1,25 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Scroll } from "lucide-react";
-import { campaignsQueryOptions } from "@/api/campaigns";
-import { meQueryOptions } from "@/api/me";
+import { listCampaignsOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CampaignCard } from "@/components/campaign/campaign-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HomeShell } from "@/layouts/home-shell";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.fetchQuery(meQueryOptions);
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }
-    await context.queryClient.ensureQueryData(campaignsQueryOptions(me.id));
+    await context.queryClient.ensureQueryData(listCampaignsOptions());
   },
   pendingComponent: HomePendingComponent,
   pendingMs: 0,
@@ -46,8 +46,7 @@ function HomePendingComponent() {
 }
 
 function HomePage() {
-  const { data: me } = useSuspenseQuery(meQueryOptions);
-  const { data: campaigns } = useSuspenseQuery(campaignsQueryOptions(me.id));
+  const { data: campaigns } = useSuspenseQuery(listCampaignsOptions());
 
   return (
     <HomeShell>

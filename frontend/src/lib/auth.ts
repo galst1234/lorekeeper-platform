@@ -1,7 +1,11 @@
+import { type QueryClient, queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import SuperTokens from "supertokens-auth-react";
 import EmailPassword from "supertokens-auth-react/recipe/emailpassword";
 import Session from "supertokens-auth-react/recipe/session";
 import ThirdParty from "supertokens-auth-react/recipe/thirdparty";
+import { getMe, type MeResponse } from "@/api/generated";
+import { getMeQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { reconcileCurrentUser } from "./current-user-cache";
 import { SUPERTOKENS_DARK_THEME_STYLE } from "./supertokens-theme";
 
 export function initSuperTokens() {
@@ -50,4 +54,21 @@ export async function doesSessionExist(): Promise<boolean> {
 
 export async function signOut(): Promise<void> {
   await Session.signOut();
+}
+
+export function getCurrentUserOptions(queryClient: QueryClient) {
+  const meKey = getMeQueryKey();
+  return queryOptions({
+    queryKey: meKey,
+    queryFn: async ({ signal }) => {
+      const previousUserId = queryClient.getQueryData<MeResponse>(meKey)?.id;
+      const { data: me } = await getMe({ signal, throwOnError: true });
+      return reconcileCurrentUser(previousUserId, me);
+    },
+  });
+}
+
+export function useCurrentUser(): MeResponse {
+  const queryClient = useQueryClient();
+  return useSuspenseQuery(getCurrentUserOptions(queryClient)).data;
 }

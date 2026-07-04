@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { itemQueryOptions } from "@/api/items";
+import { getItemOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { ItemInfo } from "@/components/item/item-info";
 import { ItemSidebarCard } from "@/components/item/item-sidebar-card";
 
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/campaigns/$slug/items/$itemSlug")({
 
 function ItemDetailPage() {
   const { slug, itemSlug } = Route.useParams();
-  const { data: item } = useSuspenseQuery(itemQueryOptions(slug, itemSlug));
+  const { data: item } = useSuspenseQuery(getItemOptions({ path: { slug, item_slug: itemSlug } }));
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">

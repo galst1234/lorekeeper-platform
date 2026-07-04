@@ -34,7 +34,7 @@ app.add_middleware(
     allow_methods=["GET", "PUT", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["Content-Type", *get_all_cors_headers()],
 )
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", generate_unique_id_function=lambda route: route.name)
 router.include_router(me_router.router)
 router.include_router(campaigns_router.router)
 app.include_router(router)

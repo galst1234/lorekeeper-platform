@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Plus, ScrollText } from "lucide-react";
-import { chronicleEntriesQueryOptions } from "@/api/chronicle";
+import { listChronicleEntriesOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -18,7 +18,7 @@ interface ChronicleSectionProps {
 }
 
 export function ChronicleSection({ slug }: ChronicleSectionProps) {
-  const { data: entries } = useSuspenseQuery(chronicleEntriesQueryOptions(slug));
+  const { data: entries } = useSuspenseQuery(listChronicleEntriesOptions({ path: { slug } }));
 
   return (
     <div>

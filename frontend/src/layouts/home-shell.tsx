@@ -1,6 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { meQueryOptions } from "@/api/me";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,9 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCurrentUser } from "@/lib/auth";
 
 export function HomeShell({ children }: { children: React.ReactNode }) {
-  const { data: me } = useSuspenseQuery(meQueryOptions);
+  const me = useCurrentUser();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

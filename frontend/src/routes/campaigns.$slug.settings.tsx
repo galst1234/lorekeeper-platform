@@ -1,13 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { campaignQueryOptions } from "@/api/campaigns";
-import { meQueryOptions } from "@/api/me";
+import { getCampaignOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { InvitePlayersCard } from "@/components/campaign/invite-players-card";
 
 export const Route = createFileRoute("/campaigns/$slug/settings")({
   beforeLoad: async ({ context, params }) => {
-    const me = await context.queryClient.ensureQueryData(meQueryOptions);
-    const campaign = await context.queryClient.ensureQueryData(campaignQueryOptions(me.id, params.slug));
+    const campaign = await context.queryClient.ensureQueryData(getCampaignOptions({ path: { slug: params.slug } }));
     if (campaign.role !== "gm") {
       throw redirect({ to: "/campaigns/$slug", params: { slug: params.slug } });
     }
@@ -17,8 +15,7 @@ export const Route = createFileRoute("/campaigns/$slug/settings")({
 
 function CampaignSettingsPage() {
   const { slug } = Route.useParams();
-  const { data: me } = useSuspenseQuery(meQueryOptions);
-  const { data: campaign } = useSuspenseQuery(campaignQueryOptions(me.id, slug));
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug } }));
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
