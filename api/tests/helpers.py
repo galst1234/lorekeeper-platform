@@ -1,10 +1,20 @@
 import re
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign, CampaignMember, Character, CharacterType, Item, MemberRole, User, UserAuthMethod
+from api.models import (
+    Campaign,
+    CampaignMember,
+    Character,
+    CharacterType,
+    ChronicleEntry,
+    Item,
+    MemberRole,
+    User,
+    UserAuthMethod,
+)
 
 
 async def make_user(
@@ -93,6 +103,33 @@ async def make_item(
     db.add(item)
     await db.flush()
     return item
+
+
+async def make_chronicle_entry(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    title: str = "Test Entry",
+    slug: str | None = None,
+    occurred_at: datetime | None = None,
+    body: str | None = None,
+    author_id: uuid.UUID | None = None,
+) -> ChronicleEntry:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if occurred_at is None:
+        occurred_at = datetime.now(UTC)
+    entry = ChronicleEntry(
+        campaign_id=campaign_id,
+        slug=slug,
+        title=title,
+        occurred_at=occurred_at,
+        body=body,
+        author_id=author_id,
+    )
+    db.add(entry)
+    await db.flush()
+    return entry
 
 
 async def make_member(
