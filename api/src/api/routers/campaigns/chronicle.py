@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints, field_validator
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,7 +106,7 @@ class CreateChronicleEntryRequest(BaseModel):
 
     slug: _EntrySlugStr
     title: _NonEmptyStr
-    occurred_at: datetime
+    occurred_at: AwareDatetime
     body: str | None = None
 
     @field_validator("slug")
@@ -128,7 +128,7 @@ class PatchChronicleEntryRequest(BaseModel):
     )
 
     title: _NonEmptyStr | MISSING = MISSING
-    occurred_at: datetime | MISSING = MISSING
+    occurred_at: AwareDatetime | MISSING = MISSING
     body: str | None | MISSING = MISSING
 
 

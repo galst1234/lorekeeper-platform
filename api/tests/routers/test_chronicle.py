@@ -167,6 +167,20 @@ async def test_create_chronicle_entry_invalid_slug_rejected(
     assert response.status_code == 422
 
 
+async def test_create_chronicle_entry_naive_occurred_at_rejected(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-cr-naive", email="rt-chr-cr-naive@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0007")
+    ac = campaigns_authenticated_client("rt-chr-cr-naive")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00"},
+    )
+    assert response.status_code == 422
+
+
 async def test_create_chronicle_entry_reserved_slug_rejected(
     campaigns_authenticated_client: Callable[[str], AsyncClient],
     db: AsyncSession,
@@ -329,6 +343,21 @@ async def test_patch_chronicle_entry_ignores_slug_and_author_id(
     assert data["title"] == "Updated Title"
     detail = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/original-slug")
     assert detail.json()["author"]["id"] == str(user.id)
+
+
+async def test_patch_chronicle_entry_naive_occurred_at_rejected(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-patch-naive", email="rt-chr-patch-naive@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcp0005")
+    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="old-entry", title="Old")
+    ac = campaigns_authenticated_client("rt-chr-patch-naive")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        json={"occurred_at": "2024-01-15T19:00:00"},
+    )
+    assert response.status_code == 422
 
 
 async def test_patch_chronicle_entry_returns_403_for_non_member(
