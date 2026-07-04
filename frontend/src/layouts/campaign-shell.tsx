@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Menu, Settings, Swords, Users } from "lucide-react";
+import { LayoutDashboard, Menu, ScrollText, Settings, Swords, Users } from "lucide-react";
 import { useState } from "react";
 import { campaignQueryOptions } from "@/api/campaigns";
 import { charactersQueryOptions } from "@/api/characters";
+import { chronicleEntriesQueryOptions } from "@/api/chronicle";
 import { itemsQueryOptions } from "@/api/items";
 import { meQueryOptions } from "@/api/me";
 import { NavItem } from "@/components/nav-item";
@@ -29,6 +30,7 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
   const { data: campaign } = useSuspenseQuery(campaignQueryOptions(me.id, slug));
   const { data: characters } = useSuspenseQuery(charactersQueryOptions(slug));
   const { data: items } = useSuspenseQuery(itemsQueryOptions(slug));
+  const { data: chronicleEntries } = useSuspenseQuery(chronicleEntriesQueryOptions(slug));
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const isGm = campaign.role === "gm";
@@ -42,6 +44,13 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         icon={Users}
         label="Characters"
         badge={characters.length}
+      />
+      <NavItem
+        to="/campaigns/$slug/chronicle"
+        params={{ slug }}
+        icon={ScrollText}
+        label="Chronicle"
+        badge={chronicleEntries.length}
       />
       <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Swords} label="Items" badge={items.length} />
       <Separator className="my-2" />

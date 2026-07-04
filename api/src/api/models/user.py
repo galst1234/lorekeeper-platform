@@ -24,7 +24,9 @@ class User(Base):
         server_default=text("gen_random_uuid()"),
         default=uuid.uuid4,
     )
-    auth_methods: Mapped[list[UserAuthMethod]] = relationship("UserAuthMethod", back_populates="user")
+    auth_methods: Mapped[list[UserAuthMethod]] = relationship(
+        "UserAuthMethod", back_populates="user", passive_deletes=True
+    )
     owned_campaigns: Mapped[list[Campaign]] = relationship(
         "Campaign", back_populates="owner", lazy="raise", passive_deletes=True
     )

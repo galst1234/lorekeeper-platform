@@ -1,0 +1,238 @@
+import uuid
+from datetime import datetime
+from typing import Annotated, cast
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic.experimental.missing_sentinel import MISSING
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.auth import get_current_user
+from api.database import get_db
+from api.models import Campaign, ChronicleEntry, User
+from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers.campaigns.dependencies import require_campaign_member
+from api.services import chronicle as chronicle_service
+from api.services.chronicle import EntrySlugConflictError
+
+router = APIRouter(prefix="/chronicle/entries", tags=["Chronicle"])
+
+_NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+_EntrySlugStr = Annotated[
+    str,
+    StringConstraints(
+        min_length=1,
+        max_length=100,
+        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
+    ),
+]
+
+# "new" collides with the frontend's static /chronicle/new route, which would otherwise
+# make an entry with this slug permanently unreachable at its own detail URL.
+_RESERVED_ENTRY_SLUGS = frozenset({"new"})
+
+
+class AuthorResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "display_name": "The Dungeon Master",
+            }
+        }
+    )
+
+    id: uuid.UUID
+    display_name: str
+
+
+class ChronicleEntryResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+                "slug": "the-fall-of-blackspire",
+                "title": "The Fall of Blackspire",
+                "occurred_at": "2024-01-15T19:00:00Z",
+                "body": "The party stormed the keep at dusk.",
+                "created_at": "2024-01-16T02:30:00Z",
+                "updated_at": "2024-01-16T02:30:00Z",
+            }
+        }
+    )
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    occurred_at: datetime
+    body: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChronicleEntryDetailResponse(ChronicleEntryResponse):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+                "slug": "the-fall-of-blackspire",
+                "title": "The Fall of Blackspire",
+                "occurred_at": "2024-01-15T19:00:00Z",
+                "body": "The party stormed the keep at dusk.",
+                "created_at": "2024-01-16T02:30:00Z",
+                "updated_at": "2024-01-16T02:30:00Z",
+                "author": {
+                    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                    "display_name": "The Dungeon Master",
+                },
+            }
+        }
+    )
+
+    author: AuthorResponse | None
+
+
+class CreateChronicleEntryRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "slug": "the-fall-of-blackspire",
+                "title": "The Fall of Blackspire",
+                "occurred_at": "2024-01-15T19:00:00Z",
+                "body": "The party stormed the keep at dusk.",
+            }
+        }
+    )
+
+    slug: _EntrySlugStr
+    title: _NonEmptyStr
+    occurred_at: AwareDatetime
+    body: str | None = None
+
+    @field_validator("slug")
+    @classmethod
+    def _slug_not_reserved(cls, value: str) -> str:
+        if value in _RESERVED_ENTRY_SLUGS:
+            raise ValueError(f'"{value}" is a reserved slug and cannot be used for a chronicle entry')
+        return value
+
+
+class PatchChronicleEntryRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "The Fall of Blackspire, Revised",
+                "body": "Updated write-up.",
+            }
+        }
+    )
+
+    title: _NonEmptyStr | MISSING = MISSING
+    occurred_at: AwareDatetime | MISSING = MISSING
+    body: str | None | MISSING = MISSING
+
+
+def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
+    return ChronicleEntryResponse(
+        id=entry.id,
+        slug=entry.slug,
+        title=entry.title,
+        occurred_at=entry.occurred_at,
+        body=entry.body,
+        created_at=entry.created_at,
+        updated_at=entry.updated_at,
+    )
+
+
+def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
+    author = None
+    if entry.author is not None:
+        # display_name is guaranteed non-null once a user can join a campaign (onboarding requires it).
+        author = AuthorResponse(id=entry.author.id, display_name=cast(str, entry.author.display_name))
+    return ChronicleEntryDetailResponse(
+        id=entry.id,
+        slug=entry.slug,
+        title=entry.title,
+        occurred_at=entry.occurred_at,
+        body=entry.body,
+        created_at=entry.created_at,
+        updated_at=entry.updated_at,
+        author=author,
+    )
+
+
+@router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+async def list_chronicle_entries(
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ChronicleEntryResponse]:
+    entries = await chronicle_service.list_entries(db, campaign.id)
+    return [_to_response(entry) for entry in entries]
+
+
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
+async def create_chronicle_entry(
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    user: Annotated[User, Depends(get_current_user)],
+    body: CreateChronicleEntryRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ChronicleEntryResponse:
+    try:
+        entry = await chronicle_service.create_entry(
+            db,
+            campaign_id=campaign.id,
+            slug=body.slug,
+            title=body.title,
+            occurred_at=body.occurred_at,
+            body=body.body,
+            author_id=user.id,
+        )
+    except EntrySlugConflictError:
+        raise HTTPException(
+            status_code=409, detail="A chronicle entry with that slug already exists in this campaign"
+        ) from None
+    return _to_response(entry)
+
+
+@router.get("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+async def get_chronicle_entry(
+    entry_slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ChronicleEntryDetailResponse:
+    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Chronicle entry not found")
+    return _to_detail_response(entry)
+
+
+@router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+async def patch_chronicle_entry(
+    entry_slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    body: PatchChronicleEntryRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ChronicleEntryResponse:
+    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Chronicle entry not found")
+    updated = await chronicle_service.update_entry(
+        db,
+        entry,
+        title=body.title,
+        occurred_at=body.occurred_at,
+        body=body.body,
+    )
+    return _to_response(updated)
+
+
+@router.delete("/{entry_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+async def delete_chronicle_entry(
+    entry_slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Chronicle entry not found")
+    await chronicle_service.delete_entry(db, entry)
