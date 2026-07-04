@@ -67,4 +67,4 @@ Never manage form field values with plain `useState`.
 
 ## Dialogs over inline forms
 
-All create/edit/delete flows open a `Dialog`. Never use `window.confirm`. Never expand forms inline within a page.
+All create/edit/delete flows open a `Dialog`, or redirect to a dedicated page. Never use `window.confirm`. Never expand forms inline within a page.
