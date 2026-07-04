@@ -27,6 +27,7 @@ import { Route as CampaignsSlugItemsItemSlugRouteImport } from './routes/campaig
 import { Route as CampaignsSlugChronicleNewRouteImport } from './routes/campaigns.$slug.chronicle.new'
 import { Route as CampaignsSlugChronicleEntrySlugRouteImport } from './routes/campaigns.$slug.chronicle.$entrySlug'
 import { Route as CampaignsSlugCharactersCharacterSlugRouteImport } from './routes/campaigns.$slug.characters.$characterSlug'
+import { Route as CampaignsSlugChronicleEntrySlugEditRouteImport } from './routes/campaigns.$slug.chronicle.$entrySlug_.edit'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -125,6 +126,12 @@ const CampaignsSlugCharactersCharacterSlugRoute =
     path: '/characters/$characterSlug',
     getParentRoute: () => CampaignsSlugRoute,
   } as any)
+const CampaignsSlugChronicleEntrySlugEditRoute =
+  CampaignsSlugChronicleEntrySlugEditRouteImport.update({
+    id: '/chronicle/$entrySlug_/edit',
+    path: '/chronicle/$entrySlug/edit',
+    getParentRoute: () => CampaignsSlugRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/$slug/characters/': typeof CampaignsSlugCharactersIndexRoute
   '/campaigns/$slug/chronicle/': typeof CampaignsSlugChronicleIndexRoute
   '/campaigns/$slug/items/': typeof CampaignsSlugItemsIndexRoute
+  '/campaigns/$slug/chronicle/$entrySlug/edit': typeof CampaignsSlugChronicleEntrySlugEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesByTo {
   '/campaigns/$slug/characters': typeof CampaignsSlugCharactersIndexRoute
   '/campaigns/$slug/chronicle': typeof CampaignsSlugChronicleIndexRoute
   '/campaigns/$slug/items': typeof CampaignsSlugItemsIndexRoute
+  '/campaigns/$slug/chronicle/$entrySlug/edit': typeof CampaignsSlugChronicleEntrySlugEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/campaigns/$slug/characters/': typeof CampaignsSlugCharactersIndexRoute
   '/campaigns/$slug/chronicle/': typeof CampaignsSlugChronicleIndexRoute
   '/campaigns/$slug/items/': typeof CampaignsSlugItemsIndexRoute
+  '/campaigns/$slug/chronicle/$entrySlug_/edit': typeof CampaignsSlugChronicleEntrySlugEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug/characters/'
     | '/campaigns/$slug/chronicle/'
     | '/campaigns/$slug/items/'
+    | '/campaigns/$slug/chronicle/$entrySlug/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug/characters'
     | '/campaigns/$slug/chronicle'
     | '/campaigns/$slug/items'
+    | '/campaigns/$slug/chronicle/$entrySlug/edit'
   id:
     | '__root__'
     | '/'
@@ -246,6 +258,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug/characters/'
     | '/campaigns/$slug/chronicle/'
     | '/campaigns/$slug/items/'
+    | '/campaigns/$slug/chronicle/$entrySlug_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -388,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsSlugCharactersCharacterSlugRouteImport
       parentRoute: typeof CampaignsSlugRoute
     }
+    '/campaigns/$slug/chronicle/$entrySlug_/edit': {
+      id: '/campaigns/$slug/chronicle/$entrySlug_/edit'
+      path: '/chronicle/$entrySlug/edit'
+      fullPath: '/campaigns/$slug/chronicle/$entrySlug/edit'
+      preLoaderRoute: typeof CampaignsSlugChronicleEntrySlugEditRouteImport
+      parentRoute: typeof CampaignsSlugRoute
+    }
   }
 }
 
@@ -401,6 +421,7 @@ interface CampaignsSlugRouteChildren {
   CampaignsSlugCharactersIndexRoute: typeof CampaignsSlugCharactersIndexRoute
   CampaignsSlugChronicleIndexRoute: typeof CampaignsSlugChronicleIndexRoute
   CampaignsSlugItemsIndexRoute: typeof CampaignsSlugItemsIndexRoute
+  CampaignsSlugChronicleEntrySlugEditRoute: typeof CampaignsSlugChronicleEntrySlugEditRoute
 }
 
 const CampaignsSlugRouteChildren: CampaignsSlugRouteChildren = {
@@ -414,6 +435,8 @@ const CampaignsSlugRouteChildren: CampaignsSlugRouteChildren = {
   CampaignsSlugCharactersIndexRoute: CampaignsSlugCharactersIndexRoute,
   CampaignsSlugChronicleIndexRoute: CampaignsSlugChronicleIndexRoute,
   CampaignsSlugItemsIndexRoute: CampaignsSlugItemsIndexRoute,
+  CampaignsSlugChronicleEntrySlugEditRoute:
+    CampaignsSlugChronicleEntrySlugEditRoute,
 }
 
 const CampaignsSlugRouteWithChildren = CampaignsSlugRoute._addFileChildren(
