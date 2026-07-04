@@ -76,6 +76,7 @@ async def get_entry_by_slug(
             ChronicleEntry.campaign_id == campaign_id,
             ChronicleEntry.slug == entry_slug,
         )
+        .execution_options(populate_existing=True)
     )
 
 
