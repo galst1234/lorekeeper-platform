@@ -43,7 +43,7 @@ class ChronicleEntry(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    author: Mapped[User | None] = relationship("User", back_populates="chronicle_entries", lazy="raise")
+    author: Mapped[User | None] = relationship("User", lazy="raise")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=text("now()"),
