@@ -9,6 +9,7 @@
     "prebuild": "npm run generate:api",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test": "node --test tests/*.test.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "sync:spec": "node scripts/sync-spec.mjs",

@@ -4,7 +4,6 @@ import { LayoutDashboard, Menu, ScrollText, Settings, Swords, Users } from "luci
 import { useState } from "react";
 import {
   getCampaignOptions,
-  getMeOptions,
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useCurrentUser } from "@/lib/auth";
 
 interface CampaignShellProps {
   slug: string;
@@ -28,7 +28,7 @@ interface CampaignShellProps {
 }
 
 export function CampaignShell({ slug, children }: CampaignShellProps) {
-  const { data: me } = useSuspenseQuery(getMeOptions());
+  const me = useCurrentUser();
   const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug } }));
   const { data: characters } = useSuspenseQuery(listCharactersOptions({ path: { slug } }));
   const { data: items } = useSuspenseQuery(listItemsOptions({ path: { slug } }));

@@ -1,8 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getJoinPreview } from "@/api/generated";
-import { getMeOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { JoinCampaignCard } from "@/components/campaign/join-campaign-card";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
@@ -13,7 +12,7 @@ export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
         search: { redirectToPath: location.pathname + location.searchStr + location.hash },
       });
     }
-    const me = await context.queryClient.fetchQuery(getMeOptions());
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({
         to: "/onboarding",

@@ -1,13 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Scroll } from "lucide-react";
-import { getMeOptions, listCampaignsOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { listCampaignsOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CampaignCard } from "@/components/campaign/campaign-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HomeShell } from "@/layouts/home-shell";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
       context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.fetchQuery(getMeOptions());
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }

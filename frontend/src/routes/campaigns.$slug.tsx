@@ -1,14 +1,13 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import {
   getCampaignOptions,
-  getMeOptions,
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
   listMembersOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { CampaignShell } from "@/layouts/campaign-shell";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/campaigns/$slug")({
   beforeLoad: async ({ context, params }) => {
@@ -16,7 +15,7 @@ export const Route = createFileRoute("/campaigns/$slug")({
       context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.fetchQuery(getMeOptions());
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }

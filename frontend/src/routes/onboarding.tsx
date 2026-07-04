@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getMeOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { OnboardingForm } from "@/components/onboarding/onboarding-form";
-import { doesSessionExist } from "@/lib/auth";
+import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/onboarding")({
   validateSearch: (search: Record<string, unknown>): { redirectToPath?: string } => ({
@@ -12,7 +11,7 @@ export const Route = createFileRoute("/onboarding")({
       context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.ensureQueryData(getMeOptions());
+    const me = await context.queryClient.fetchQuery(getCurrentUserOptions(context.queryClient));
     if (me.display_name !== null) {
       throw redirect({ to: "/" });
     }
