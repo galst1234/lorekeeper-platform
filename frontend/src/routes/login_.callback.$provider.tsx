@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/emailpassword/prebuiltui";
-import { ThirdPartyPreBuiltUI } from "supertokens-auth-react/recipe/thirdparty/prebuiltui";
-import { getRoutingComponent } from "supertokens-auth-react/ui";
-
-const preBuiltUIList = [ThirdPartyPreBuiltUI, EmailPasswordPreBuiltUI];
+import { LoginCallbackPage } from "@/pages/login-callback-page";
 
 export const Route = createFileRoute("/login_/callback/$provider")({
-  component: CallbackPage,
+  component: LoginCallbackPage,
 });
-
-function CallbackPage() {
-  return getRoutingComponent(preBuiltUIList);
-}

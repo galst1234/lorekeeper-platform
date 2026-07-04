@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { CreateCampaignForm } from "@/components/campaign/create-campaign-form";
-import { HomeShell } from "@/layouts/home-shell";
 import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
+import { NewCampaignPage } from "@/pages/new-campaign-page";
 
 export const Route = createFileRoute("/campaigns/new")({
   beforeLoad: async ({ context }) => {
@@ -16,13 +15,3 @@ export const Route = createFileRoute("/campaigns/new")({
   },
   component: NewCampaignPage,
 });
-
-function NewCampaignPage() {
-  return (
-    <HomeShell>
-      <div className="flex justify-center py-12 px-6">
-        <CreateCampaignForm />
-      </div>
-    </HomeShell>
-  );
-}

@@ -43,11 +43,37 @@ npx shadcn@latest add <component>
 
 ### Component hierarchy
 
-Route files are orchestrators: they handle auth guards, data prefetching, and layout composition. Keep them thin. Small, stateless UI directly in a route (a loading skeleton, a single CTA button) is fine.
+Route files (`src/routes/`) are routing config only: `beforeLoad`, `loader`, `validateSearch`, `errorComponent`, `pendingComponent`, and a `component` pointing at a page. They render no JSX of their own.
 
-Extract a feature component (`src/components/`) when:
-- The route's JSX grows complex or mixes data, state, and markup in one place
-- The same UI is reused across routes
+Every route's `component` (and `pendingComponent`/`errorComponent`, when present) is a page component that lives in `src/pages/`, one file per route. A page needs its route's params/search/loader data, so it reads them via `getRouteApi(path)` — pass the exact path string given to `createFileRoute` — instead of importing `Route` from the route file:
+
+```tsx
+// src/pages/campaign-detail-page.tsx
+import { getRouteApi } from "@tanstack/react-router";
+
+const Route = getRouteApi("/campaigns/$slug/");
+
+export function CampaignDetailPage() {
+  const { slug } = Route.useParams();
+  // ...
+}
+```
+
+```tsx
+// src/routes/campaigns.$slug.index.tsx
+import { createFileRoute } from "@tanstack/react-router";
+import { CampaignDetailPage } from "@/pages/campaign-detail-page";
+
+export const Route = createFileRoute("/campaigns/$slug/")({
+  component: CampaignDetailPage,
+});
+```
+
+Layout routes (routes rendering `<Outlet />`, e.g. `__root.tsx`, `campaigns.$slug.tsx`) follow the same rule, but their component lives in `src/layouts/` instead of `src/pages/`, since they wrap children rather than render a leaf page.
+
+Extract a feature component (`src/components/`) out of a page when:
+- The page's JSX grows complex or mixes data, state, and markup in one place
+- The same UI is reused across pages
 - The component owns internal state or mutations
 
 Feature components own a single concern: markup, internal UI state, and mutations.

@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { OnboardingForm } from "@/components/onboarding/onboarding-form";
 import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
+import { OnboardingPage } from "@/pages/onboarding-page";
 
 export const Route = createFileRoute("/onboarding")({
   validateSearch: (search: Record<string, unknown>): { redirectToPath?: string } => ({
@@ -18,12 +18,3 @@ export const Route = createFileRoute("/onboarding")({
   },
   component: OnboardingPage,
 });
-
-function OnboardingPage() {
-  const { redirectToPath } = Route.useSearch();
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <OnboardingForm redirectToPath={redirectToPath} />
-    </div>
-  );
-}

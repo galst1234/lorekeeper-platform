@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { getJoinPreview } from "@/api/generated";
-import { JoinCampaignCard } from "@/components/campaign/join-campaign-card";
 import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
+import { JoinCampaignErrorPage, JoinCampaignPage } from "@/pages/join-campaign-page";
 
 export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
@@ -30,31 +30,6 @@ export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
     }
     return data;
   },
-  errorComponent: ({ error }) => {
-    const isNotFound = error instanceof Error && error.message === "Invite not found";
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center space-y-2">
-          <h1 className="text-xl font-semibold">{isNotFound ? "Invite Not Found" : "Something Went Wrong"}</h1>
-          <p className="text-sm text-muted-foreground">
-            {isNotFound
-              ? "This invite link is invalid or has been revoked."
-              : "An unexpected error occurred. Please try again."}
-          </p>
-        </div>
-      </div>
-    );
-  },
-  component: JoinPage,
+  errorComponent: JoinCampaignErrorPage,
+  component: JoinCampaignPage,
 });
-
-function JoinPage() {
-  const { slug, inviteCode } = Route.useParams();
-  const preview = Route.useLoaderData();
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <JoinCampaignCard campaignName={preview.name} campaignSlug={slug} inviteCode={inviteCode} />
-    </div>
-  );
-}

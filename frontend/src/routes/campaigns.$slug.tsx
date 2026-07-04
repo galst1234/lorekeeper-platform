@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   getCampaignOptions,
   listCharactersOptions,
@@ -6,7 +6,7 @@ import {
   listItemsOptions,
   listMembersOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
-import { CampaignShell } from "@/layouts/campaign-shell";
+import { CampaignLayout } from "@/layouts/campaign-layout";
 import { doesSessionExist, getCurrentUserOptions } from "@/lib/auth";
 
 export const Route = createFileRoute("/campaigns/$slug")({
@@ -28,14 +28,5 @@ export const Route = createFileRoute("/campaigns/$slug")({
     await context.queryClient.ensureQueryData(listChronicleEntriesOptions({ path: { slug: params.slug } }));
     await context.queryClient.ensureQueryData(listMembersOptions({ path: { slug: params.slug } }));
   },
-  component: SlugLayout,
+  component: CampaignLayout,
 });
-
-function SlugLayout() {
-  const { slug } = Route.useParams();
-  return (
-    <CampaignShell slug={slug}>
-      <Outlet key={slug} />
-    </CampaignShell>
-  );
-}
