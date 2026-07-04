@@ -29,7 +29,7 @@ async def list_entries(db: AsyncSession, campaign_id: uuid.UUID) -> list[Chronic
     query = (
         select(ChronicleEntry)
         .where(ChronicleEntry.campaign_id == campaign_id)
-        .order_by(ChronicleEntry.occurred_at.desc(), ChronicleEntry.created_at.desc(), ChronicleEntry.id.desc())
+        .order_by(ChronicleEntry.occurred_at.desc())
     )
     return list(await db.scalars(query))
 

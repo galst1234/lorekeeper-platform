@@ -19,7 +19,7 @@ class ChronicleEntry(Base):
 
     __tablename__ = "chronicle_entries"
     __table_args__ = (
-        Index("ix_chronicle_entries_campaign_id", "campaign_id"),
+        Index("ix_chronicle_entries_campaign_occurred_at", "campaign_id", text("occurred_at DESC")),
         UniqueConstraint("campaign_id", "slug", name=SLUG_UNIQUE_CONSTRAINT),
     )
 
