@@ -4,11 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run generate:api",
     "dev": "vite",
+    "prebuild": "npm run generate:api",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint:fix": "biome check --write .",
+    "generate:api": "openapi-ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -39,6 +42,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
+    "@hey-api/openapi-ts": "0.99.0",
     "@sentry/vite-plugin": "^5.3.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/router-devtools": "^1.167.0",

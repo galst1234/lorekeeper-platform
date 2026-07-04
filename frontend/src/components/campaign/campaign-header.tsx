@@ -5,7 +5,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { type Campaign, deleteCampaign, patchCampaign } from "@/api/campaigns";
+import type { CampaignResponse } from "@/api/generated";
+import {
+  deleteCampaignMutation,
+  getCampaignQueryKey,
+  listCampaignsQueryKey,
+  patchCampaignMutation,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,7 +27,7 @@ const editSchema = z.object({
 type EditFormValues = z.infer<typeof editSchema>;
 
 interface CampaignHeaderProps {
-  campaign: Campaign;
+  campaign: CampaignResponse;
 }
 
 export function CampaignHeader({ campaign }: CampaignHeaderProps) {
@@ -38,10 +44,10 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
   });
 
   const patchMutation = useMutation({
-    mutationFn: (data: { name: string; description: string | null }) =>
-      patchCampaign(campaign.slug, { name: data.name, description: data.description }),
+    ...patchCampaignMutation(),
     onSuccess: async (updated) => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
+      await queryClient.invalidateQueries({ queryKey: listCampaignsQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getCampaignQueryKey({ path: { slug: campaign.slug } }) });
       setEditOpen(false);
       if (updated.slug !== campaign.slug) {
         await router.navigate({ to: "/campaigns/$slug", params: { slug: updated.slug } });
@@ -50,17 +56,20 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCampaign(campaign.slug),
+    ...deleteCampaignMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"], refetchType: "all" });
+      await queryClient.invalidateQueries({ queryKey: listCampaignsQueryKey() });
       await router.navigate({ to: "/", replace: true });
     },
   });
 
   function handleEdit(values: EditFormValues) {
     patchMutation.mutate({
-      name: values.name.trim(),
-      description: values.description.trim() || null,
+      path: { slug: campaign.slug },
+      body: {
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+      },
     });
   }
 
@@ -158,7 +167,7 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
             <Button
               type="button"
               variant="destructive"
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => deleteMutation.mutate({ path: { slug: campaign.slug } })}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? "Deleting…" : "Delete"}

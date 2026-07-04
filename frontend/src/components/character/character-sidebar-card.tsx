@@ -1,9 +1,9 @@
 import { User } from "lucide-react";
-import type { Character } from "@/api/characters";
+import type { CharacterResponse } from "@/api/generated";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface CharacterSidebarCardProps {
-  character: Character;
+  character: CharacterResponse;
 }
 
 function formatRelativeDate(dateString: string): string {

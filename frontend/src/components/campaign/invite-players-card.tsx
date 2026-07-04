@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy, Users } from "lucide-react";
 import { useState } from "react";
-import { generateInvite, revokeInvite } from "@/api/membership";
+import {
+  createInviteMutation,
+  deleteInviteMutation,
+  getCampaignQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,18 +22,18 @@ export function InvitePlayersCard({ campaignSlug, existingInviteCode }: InvitePl
   );
 
   const generateMutation = useMutation({
-    mutationFn: () => generateInvite(campaignSlug),
+    ...createInviteMutation(),
     onSuccess: (data) => {
       setInviteUrl(`${window.location.origin}${data.invite_url}`);
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: getCampaignQueryKey({ path: { slug: campaignSlug } }) });
     },
   });
 
   const revokeMutation = useMutation({
-    mutationFn: () => revokeInvite(campaignSlug),
+    ...deleteInviteMutation(),
     onSuccess: () => {
       setInviteUrl(null);
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: getCampaignQueryKey({ path: { slug: campaignSlug } }) });
     },
   });
 
@@ -56,14 +60,18 @@ export function InvitePlayersCard({ campaignSlug, existingInviteCode }: InvitePl
             <Button
               variant="link"
               className="text-destructive p-0 h-auto text-sm"
-              onClick={() => revokeMutation.mutate()}
+              onClick={() => revokeMutation.mutate({ path: { slug: campaignSlug } })}
               disabled={revokeMutation.isPending}
             >
               {revokeMutation.isPending ? "Revoking…" : "Revoke"}
             </Button>
           </>
         ) : (
-          <Button variant="outline" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => generateMutation.mutate({ path: { slug: campaignSlug } })}
+            disabled={generateMutation.isPending}
+          >
             {generateMutation.isPending ? "Generating…" : "Generate Invite Link"}
           </Button>
         )}

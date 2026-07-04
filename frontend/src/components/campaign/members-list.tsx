@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { membersQueryOptions } from "@/api/membership";
+import { listMembersOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -8,7 +8,7 @@ interface MembersListProps {
 }
 
 export function MembersList({ slug }: MembersListProps) {
-  const { data: members } = useSuspenseQuery(membersQueryOptions(slug));
+  const { data: members } = useSuspenseQuery(listMembersOptions({ path: { slug } }));
 
   return (
     <div>

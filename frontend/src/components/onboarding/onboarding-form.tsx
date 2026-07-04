@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { patchMe } from "@/api/me";
+import { getMeQueryKey, patchMeMutation } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -33,9 +33,9 @@ export function OnboardingForm({ redirectToPath }: OnboardingFormProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: (values: OnboardingFormValues) => patchMe(values.display_name.trim()),
+    ...patchMeMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      await queryClient.invalidateQueries({ queryKey: getMeQueryKey() });
       const safePath = redirectToPath?.startsWith("/") && !redirectToPath.startsWith("//") ? redirectToPath : "/";
       await router.navigate({ to: safePath });
     },
@@ -48,7 +48,10 @@ export function OnboardingForm({ redirectToPath }: OnboardingFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit((v) => mutation.mutate({ body: { display_name: v.display_name.trim() } }))}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="display_name"

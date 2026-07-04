@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { joinCampaign } from "@/api/membership";
+import { joinCampaignMutation } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -16,7 +16,7 @@ export function JoinCampaignCard({ campaignName, campaignSlug, inviteCode }: Joi
   const [error, setError] = useState("");
 
   const joinMutation = useMutation({
-    mutationFn: () => joinCampaign(campaignSlug, inviteCode),
+    ...joinCampaignMutation(),
     onSuccess: async (campaign) => {
       await router.navigate({ to: "/campaigns/$slug", params: { slug: campaign.slug } });
     },
@@ -32,7 +32,10 @@ export function JoinCampaignCard({ campaignName, campaignSlug, inviteCode }: Joi
         <p className="text-sm text-muted-foreground">Click the button below to join this campaign.</p>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex gap-3">
-          <Button onClick={() => joinMutation.mutate()} disabled={joinMutation.isPending}>
+          <Button
+            onClick={() => joinMutation.mutate({ path: { slug: campaignSlug, invite_code: inviteCode } })}
+            disabled={joinMutation.isPending}
+          >
             {joinMutation.isPending ? "Joining…" : "Join Campaign"}
           </Button>
           <Button variant="ghost" asChild>

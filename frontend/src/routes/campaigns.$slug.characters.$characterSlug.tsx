@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { characterQueryOptions } from "@/api/characters";
+import { getCharacterOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CharacterInfo } from "@/components/character/character-info";
 import { CharacterSidebarCard } from "@/components/character/character-sidebar-card";
 
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/campaigns/$slug/characters/$characterSlug
 
 function CharacterDetailPage() {
   const { slug, characterSlug } = Route.useParams();
-  const { data: character } = useSuspenseQuery(characterQueryOptions(slug, characterSlug));
+  const { data: character } = useSuspenseQuery(getCharacterOptions({ path: { slug, character_slug: characterSlug } }));
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">

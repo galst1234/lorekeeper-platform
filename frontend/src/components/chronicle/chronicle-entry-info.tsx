@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { type ChronicleEntryDetail, deleteChronicleEntry } from "@/api/chronicle";
+import type { ChronicleEntryDetailResponse } from "@/api/generated";
+import { deleteChronicleEntryMutation, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -15,7 +16,7 @@ function formatOccurredAt(dateString: string): string {
 }
 
 interface ChronicleEntryInfoProps {
-  entry: ChronicleEntryDetail;
+  entry: ChronicleEntryDetailResponse;
   campaignSlug: string;
 }
 
@@ -25,9 +26,9 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteChronicleEntry(campaignSlug, entry.slug),
+    ...deleteChronicleEntryMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["chronicle-entries", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listChronicleEntriesQueryKey({ path: { slug: campaignSlug } }) });
       await router.navigate({ to: "/campaigns/$slug/chronicle", params: { slug: campaignSlug } });
     },
   });
@@ -84,7 +85,7 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
             <Button
               type="button"
               variant="destructive"
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => deleteMutation.mutate({ path: { slug: campaignSlug, entry_slug: entry.slug } })}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}

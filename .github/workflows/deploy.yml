@@ -84,7 +84,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: .
+          file: frontend/Dockerfile
           push: true
           tags: |
             ghcr.io/galst1234/lorekeeper-platform-frontend:latest

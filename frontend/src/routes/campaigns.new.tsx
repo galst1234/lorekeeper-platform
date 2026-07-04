@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { meQueryOptions } from "@/api/me";
+import { getMeOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CreateCampaignForm } from "@/components/campaign/create-campaign-form";
 import { HomeShell } from "@/layouts/home-shell";
 import { doesSessionExist } from "@/lib/auth";
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/campaigns/new")({
     if (!(await doesSessionExist())) {
       throw redirect({ to: "/login" });
     }
-    const me = await context.queryClient.fetchQuery(meQueryOptions);
+    const me = await context.queryClient.fetchQuery(getMeOptions());
     if (me.display_name === null) {
       throw redirect({ to: "/onboarding" });
     }

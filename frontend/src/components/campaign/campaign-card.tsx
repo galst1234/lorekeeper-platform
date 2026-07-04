@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import type { Campaign } from "@/api/campaigns";
+import type { CampaignResponse } from "@/api/generated";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CampaignCardProps {
-  campaign: Campaign;
+  campaign: CampaignResponse;
 }
 
 export function CampaignCard({ campaign }: CampaignCardProps) {

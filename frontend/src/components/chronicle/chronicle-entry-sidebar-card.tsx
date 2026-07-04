@@ -1,8 +1,8 @@
-import type { ChronicleEntryDetail } from "@/api/chronicle";
+import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ChronicleEntrySidebarCardProps {
-  entry: ChronicleEntryDetail;
+  entry: ChronicleEntryDetailResponse;
 }
 
 function formatRelativeDate(dateString: string): string {

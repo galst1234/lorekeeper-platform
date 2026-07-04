@@ -5,7 +5,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { deleteItem, type Item, patchItem } from "@/api/items";
+import type { ItemResponse } from "@/api/generated";
+import {
+  deleteItemMutation,
+  getItemQueryKey,
+  listItemsQueryKey,
+  patchItemMutation,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -20,7 +26,7 @@ const editSchema = z.object({
 type EditFormValues = z.infer<typeof editSchema>;
 
 interface ItemInfoProps {
-  item: Item;
+  item: ItemResponse;
   campaignSlug: string;
 }
 
@@ -39,21 +45,20 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
   });
 
   const patchMutation = useMutation({
-    mutationFn: (values: EditFormValues) =>
-      patchItem(campaignSlug, item.slug, {
-        name: values.name.trim(),
-        description: values.description.trim() || null,
-      }),
+    ...patchItemMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["items", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listItemsQueryKey({ path: { slug: campaignSlug } }) });
+      await queryClient.invalidateQueries({
+        queryKey: getItemQueryKey({ path: { slug: campaignSlug, item_slug: item.slug } }),
+      });
       setEditOpen(false);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteItem(campaignSlug, item.slug),
+    ...deleteItemMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["items", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listItemsQueryKey({ path: { slug: campaignSlug } }) });
       await router.navigate({ to: "/campaigns/$slug/items", params: { slug: campaignSlug } });
     },
   });
@@ -87,7 +92,15 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
             <DialogTitle>Edit Item</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit((v) => patchMutation.mutate(v))} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit((v) =>
+                patchMutation.mutate({
+                  path: { slug: campaignSlug, item_slug: item.slug },
+                  body: { name: v.name.trim(), description: v.description.trim() || null },
+                })
+              )}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
@@ -153,7 +166,7 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
             <Button
               type="button"
               variant="destructive"
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => deleteMutation.mutate({ path: { slug: campaignSlug, item_slug: item.slug } })}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? "Deleting…" : "Delete"}

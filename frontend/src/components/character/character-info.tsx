@@ -5,7 +5,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { type Character, deleteCharacter, patchCharacter } from "@/api/characters";
+import type { CharacterResponse } from "@/api/generated";
+import {
+  deleteCharacterMutation,
+  getCharacterQueryKey,
+  listCharactersQueryKey,
+  patchCharacterMutation,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +29,7 @@ const editSchema = z.object({
 type EditFormValues = z.infer<typeof editSchema>;
 
 interface CharacterInfoProps {
-  character: Character;
+  character: CharacterResponse;
   campaignSlug: string;
 }
 
@@ -43,22 +49,20 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
   });
 
   const patchMutation = useMutation({
-    mutationFn: (values: EditFormValues) =>
-      patchCharacter(campaignSlug, character.slug, {
-        name: values.name.trim(),
-        character_type: values.character_type,
-        description: values.description.trim() || null,
-      }),
+    ...patchCharacterMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["characters", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listCharactersQueryKey({ path: { slug: campaignSlug } }) });
+      await queryClient.invalidateQueries({
+        queryKey: getCharacterQueryKey({ path: { slug: campaignSlug, character_slug: character.slug } }),
+      });
       setEditOpen(false);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCharacter(campaignSlug, character.slug),
+    ...deleteCharacterMutation(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["characters", campaignSlug] });
+      await queryClient.invalidateQueries({ queryKey: listCharactersQueryKey({ path: { slug: campaignSlug } }) });
       await router.navigate({ to: "/campaigns/$slug/characters", params: { slug: campaignSlug } });
     },
   });
@@ -95,7 +99,19 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
             <DialogTitle>Edit Character</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit((v) => patchMutation.mutate(v))} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit((v) =>
+                patchMutation.mutate({
+                  path: { slug: campaignSlug, character_slug: character.slug },
+                  body: {
+                    name: v.name.trim(),
+                    character_type: v.character_type,
+                    description: v.description.trim() || null,
+                  },
+                })
+              )}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
@@ -182,7 +198,7 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
             <Button
               type="button"
               variant="destructive"
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => deleteMutation.mutate({ path: { slug: campaignSlug, character_slug: character.slug } })}
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? "Deleting…" : "Delete"}

@@ -1,9 +1,9 @@
 import { Swords } from "lucide-react";
-import type { Item } from "@/api/items";
+import type { ItemResponse } from "@/api/generated";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ItemSidebarCardProps {
-  item: Item;
+  item: ItemResponse;
 }
 
 function formatRelativeDate(dateString: string): string {
