@@ -7,6 +7,7 @@ import { doesSessionExist } from "@/lib/auth";
 export const Route = createFileRoute("/campaigns_/$slug/invites/$inviteCode")({
   beforeLoad: async ({ context, location }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({
         to: "/login",
         search: { redirectToPath: location.pathname + location.searchStr + location.hash },

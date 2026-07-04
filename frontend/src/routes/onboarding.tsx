@@ -9,6 +9,7 @@ export const Route = createFileRoute("/onboarding")({
   }),
   beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
     const me = await context.queryClient.ensureQueryData(getMeOptions());

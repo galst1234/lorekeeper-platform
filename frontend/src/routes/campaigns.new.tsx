@@ -7,6 +7,7 @@ import { doesSessionExist } from "@/lib/auth";
 export const Route = createFileRoute("/campaigns/new")({
   beforeLoad: async ({ context }) => {
     if (!(await doesSessionExist())) {
+      context.queryClient.clear();
       throw redirect({ to: "/login" });
     }
     const me = await context.queryClient.fetchQuery(getMeOptions());
