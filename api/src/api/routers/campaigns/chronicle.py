@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, StringConstraints
@@ -137,7 +137,7 @@ def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
     author = None
     if entry.author is not None:
         # display_name is guaranteed non-null once a user can join a campaign (onboarding requires it).
-        author = AuthorResponse(id=entry.author.id, display_name=entry.author.display_name or "")
+        author = AuthorResponse(id=entry.author.id, display_name=cast(str, entry.author.display_name))
     return ChronicleEntryDetailResponse(
         id=entry.id,
         slug=entry.slug,
