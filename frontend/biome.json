@@ -43,7 +43,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/routeTree.gen.ts", "src/api/generated/**"],
+      "includes": ["src/routeTree.gen.ts"],
       "linter": { "enabled": false },
       "formatter": { "enabled": false },
       "assist": { "enabled": false }
