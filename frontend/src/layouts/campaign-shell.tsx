@@ -45,7 +45,6 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         label="Characters"
         badge={characters.length}
       />
-      <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Swords} label="Items" badge={items.length} />
       <NavItem
         to="/campaigns/$slug/chronicle"
         params={{ slug }}
@@ -53,6 +52,7 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         label="Chronicle"
         badge={chronicleEntries.length}
       />
+      <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Swords} label="Items" badge={items.length} />
       <Separator className="my-2" />
       {isGm && <NavItem to="/campaigns/$slug/settings" params={{ slug }} icon={Settings} label="Settings" exact />}
     </>
