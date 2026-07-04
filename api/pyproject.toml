@@ -73,6 +73,7 @@ testpaths = ["tests"]
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "api.models.campaign".msg = "Import models from 'api.models' instead of submodules."
 "api.models.character".msg = "Import models from 'api.models' instead of submodules."
+"api.models.chronicle_entry".msg = "Import models from 'api.models' instead of submodules."
 "api.models.item".msg = "Import models from 'api.models' instead of submodules."
 "api.models.membership".msg = "Import models from 'api.models' instead of submodules."
 "api.models.user".msg = "Import models from 'api.models' instead of submodules."
