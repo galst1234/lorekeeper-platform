@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,10 @@ _EntrySlugStr = Annotated[
         pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
     ),
 ]
+
+# "new" collides with the frontend's static /chronicle/new route, which would otherwise
+# make an entry with this slug permanently unreachable at its own detail URL.
+_RESERVED_ENTRY_SLUGS = frozenset({"new"})
 
 
 class AuthorResponse(BaseModel):
@@ -104,6 +108,13 @@ class CreateChronicleEntryRequest(BaseModel):
     title: _NonEmptyStr
     occurred_at: datetime
     body: str | None = None
+
+    @field_validator("slug")
+    @classmethod
+    def _slug_not_reserved(cls, value: str) -> str:
+        if value in _RESERVED_ENTRY_SLUGS:
+            raise ValueError(f'"{value}" is a reserved slug and cannot be used for a chronicle entry')
+        return value
 
 
 class PatchChronicleEntryRequest(BaseModel):

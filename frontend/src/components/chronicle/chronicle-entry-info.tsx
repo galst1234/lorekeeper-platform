@@ -48,11 +48,11 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
               params={{ slug: campaignSlug, entrySlug: entry.slug }}
               aria-label="Edit chronicle entry"
             >
-              <Pencil data-icon="inline" />
+              <Pencil className="h-4 w-4" />
             </Link>
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label="Delete chronicle entry">
-            <Trash2 data-icon="inline" className="text-destructive" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>

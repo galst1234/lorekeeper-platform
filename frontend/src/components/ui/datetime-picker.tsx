@@ -175,7 +175,7 @@ export const DateTimePicker = forwardRef<HTMLButtonElement, DateTimePickerProps>
           aria-invalid={ariaInvalid}
           disabled={disabled}
         >
-          <Calendar data-icon="inline-start" />
+          <Calendar className="h-4 w-4" />
           <span className="truncate">{formatDisplayValue(value)}</span>
         </Button>
 
@@ -193,11 +193,11 @@ export const DateTimePicker = forwardRef<HTMLButtonElement, DateTimePickerProps>
                 onClick={() => changeMonth(-1)}
                 aria-label="Previous month"
               >
-                <ChevronLeft data-icon="inline" />
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <p className="text-sm font-medium">{monthLabel(visibleMonth)}</p>
               <Button type="button" variant="ghost" size="icon" onClick={() => changeMonth(1)} aria-label="Next month">
-                <ChevronRight data-icon="inline" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
 
@@ -234,7 +234,7 @@ export const DateTimePicker = forwardRef<HTMLButtonElement, DateTimePickerProps>
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-              <Clock data-icon="inline-start" className="text-muted-foreground" />
+              <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
               <Input
                 type="time"
                 name={name}

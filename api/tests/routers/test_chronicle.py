@@ -167,6 +167,20 @@ async def test_create_chronicle_entry_invalid_slug_rejected(
     assert response.status_code == 422
 
 
+async def test_create_chronicle_entry_reserved_slug_rejected(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-cr-reserved", email="rt-chr-cr-reserved@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0006")
+    ac = campaigns_authenticated_client("rt-chr-cr-reserved")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={"slug": "new", "title": "New Entry", "occurred_at": "2024-01-15T19:00:00Z"},
+    )
+    assert response.status_code == 422
+
+
 async def test_create_chronicle_entry_slug_conflict_returns_409(
     campaigns_authenticated_client: Callable[[str], AsyncClient],
     db: AsyncSession,

@@ -36,7 +36,8 @@ const editorSchema = z.object({
     .string()
     .trim()
     .min(1, "Slug is required")
-    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens"),
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens")
+    .refine((value) => value !== "new", '"new" is a reserved slug'),
   occurredAt: z.string().min(1, "Session date is required"),
   body: z.string(),
 });
