@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { type ChronicleEntryDetail, deleteChronicleEntry, patchChronicleEntry } from "@/api/chronicle";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -123,9 +124,9 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
                 name="occurredAt"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session date</FormLabel>
+                    <FormLabel>Session date and time</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <DateTimePicker {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

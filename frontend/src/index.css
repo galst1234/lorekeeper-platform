@@ -87,4 +87,38 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  textarea {
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 60%, transparent) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  textarea::-webkit-scrollbar {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  textarea::-webkit-scrollbar-thumb {
+    background-clip: content-box;
+    background-color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+    border: 0.3rem solid transparent;
+    border-radius: 999px;
+  }
+
+  textarea::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+
+  textarea::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  textarea::-webkit-resizer {
+    background: transparent;
+  }
 }

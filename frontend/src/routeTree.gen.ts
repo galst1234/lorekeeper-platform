@@ -24,6 +24,7 @@ import { Route as CampaignsSlugChronicleIndexRouteImport } from './routes/campai
 import { Route as CampaignsSlugCharactersIndexRouteImport } from './routes/campaigns.$slug.characters.index'
 import { Route as CampaignsSlugInvitesInviteCodeRouteImport } from './routes/campaigns_.$slug.invites.$inviteCode'
 import { Route as CampaignsSlugItemsItemSlugRouteImport } from './routes/campaigns.$slug.items.$itemSlug'
+import { Route as CampaignsSlugChronicleNewRouteImport } from './routes/campaigns.$slug.chronicle.new'
 import { Route as CampaignsSlugChronicleEntrySlugRouteImport } from './routes/campaigns.$slug.chronicle.$entrySlug'
 import { Route as CampaignsSlugCharactersCharacterSlugRouteImport } from './routes/campaigns.$slug.characters.$characterSlug'
 
@@ -106,6 +107,12 @@ const CampaignsSlugItemsItemSlugRoute =
     path: '/items/$itemSlug',
     getParentRoute: () => CampaignsSlugRoute,
   } as any)
+const CampaignsSlugChronicleNewRoute =
+  CampaignsSlugChronicleNewRouteImport.update({
+    id: '/chronicle/new',
+    path: '/chronicle/new',
+    getParentRoute: () => CampaignsSlugRoute,
+  } as any)
 const CampaignsSlugChronicleEntrySlugRoute =
   CampaignsSlugChronicleEntrySlugRouteImport.update({
     id: '/chronicle/$entrySlug',
@@ -132,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
   '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterSlugRoute
   '/campaigns/$slug/chronicle/$entrySlug': typeof CampaignsSlugChronicleEntrySlugRoute
+  '/campaigns/$slug/chronicle/new': typeof CampaignsSlugChronicleNewRoute
   '/campaigns/$slug/items/$itemSlug': typeof CampaignsSlugItemsItemSlugRoute
   '/campaigns/$slug/invites/$inviteCode': typeof CampaignsSlugInvitesInviteCodeRoute
   '/campaigns/$slug/characters/': typeof CampaignsSlugCharactersIndexRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/campaigns/$slug': typeof CampaignsSlugIndexRoute
   '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterSlugRoute
   '/campaigns/$slug/chronicle/$entrySlug': typeof CampaignsSlugChronicleEntrySlugRoute
+  '/campaigns/$slug/chronicle/new': typeof CampaignsSlugChronicleNewRoute
   '/campaigns/$slug/items/$itemSlug': typeof CampaignsSlugItemsItemSlugRoute
   '/campaigns/$slug/invites/$inviteCode': typeof CampaignsSlugInvitesInviteCodeRoute
   '/campaigns/$slug/characters': typeof CampaignsSlugCharactersIndexRoute
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
   '/campaigns/$slug/characters/$characterSlug': typeof CampaignsSlugCharactersCharacterSlugRoute
   '/campaigns/$slug/chronicle/$entrySlug': typeof CampaignsSlugChronicleEntrySlugRoute
+  '/campaigns/$slug/chronicle/new': typeof CampaignsSlugChronicleNewRoute
   '/campaigns/$slug/items/$itemSlug': typeof CampaignsSlugItemsItemSlugRoute
   '/campaigns_/$slug/invites/$inviteCode': typeof CampaignsSlugInvitesInviteCodeRoute
   '/campaigns/$slug/characters/': typeof CampaignsSlugCharactersIndexRoute
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug/'
     | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns/$slug/chronicle/$entrySlug'
+    | '/campaigns/$slug/chronicle/new'
     | '/campaigns/$slug/items/$itemSlug'
     | '/campaigns/$slug/invites/$inviteCode'
     | '/campaigns/$slug/characters/'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug'
     | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns/$slug/chronicle/$entrySlug'
+    | '/campaigns/$slug/chronicle/new'
     | '/campaigns/$slug/items/$itemSlug'
     | '/campaigns/$slug/invites/$inviteCode'
     | '/campaigns/$slug/characters'
@@ -228,6 +240,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug/'
     | '/campaigns/$slug/characters/$characterSlug'
     | '/campaigns/$slug/chronicle/$entrySlug'
+    | '/campaigns/$slug/chronicle/new'
     | '/campaigns/$slug/items/$itemSlug'
     | '/campaigns_/$slug/invites/$inviteCode'
     | '/campaigns/$slug/characters/'
@@ -354,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsSlugItemsItemSlugRouteImport
       parentRoute: typeof CampaignsSlugRoute
     }
+    '/campaigns/$slug/chronicle/new': {
+      id: '/campaigns/$slug/chronicle/new'
+      path: '/chronicle/new'
+      fullPath: '/campaigns/$slug/chronicle/new'
+      preLoaderRoute: typeof CampaignsSlugChronicleNewRouteImport
+      parentRoute: typeof CampaignsSlugRoute
+    }
     '/campaigns/$slug/chronicle/$entrySlug': {
       id: '/campaigns/$slug/chronicle/$entrySlug'
       path: '/chronicle/$entrySlug'
@@ -376,6 +396,7 @@ interface CampaignsSlugRouteChildren {
   CampaignsSlugIndexRoute: typeof CampaignsSlugIndexRoute
   CampaignsSlugCharactersCharacterSlugRoute: typeof CampaignsSlugCharactersCharacterSlugRoute
   CampaignsSlugChronicleEntrySlugRoute: typeof CampaignsSlugChronicleEntrySlugRoute
+  CampaignsSlugChronicleNewRoute: typeof CampaignsSlugChronicleNewRoute
   CampaignsSlugItemsItemSlugRoute: typeof CampaignsSlugItemsItemSlugRoute
   CampaignsSlugCharactersIndexRoute: typeof CampaignsSlugCharactersIndexRoute
   CampaignsSlugChronicleIndexRoute: typeof CampaignsSlugChronicleIndexRoute
@@ -388,6 +409,7 @@ const CampaignsSlugRouteChildren: CampaignsSlugRouteChildren = {
   CampaignsSlugCharactersCharacterSlugRoute:
     CampaignsSlugCharactersCharacterSlugRoute,
   CampaignsSlugChronicleEntrySlugRoute: CampaignsSlugChronicleEntrySlugRoute,
+  CampaignsSlugChronicleNewRoute: CampaignsSlugChronicleNewRoute,
   CampaignsSlugItemsItemSlugRoute: CampaignsSlugItemsItemSlugRoute,
   CampaignsSlugCharactersIndexRoute: CampaignsSlugCharactersIndexRoute,
   CampaignsSlugChronicleIndexRoute: CampaignsSlugChronicleIndexRoute,
