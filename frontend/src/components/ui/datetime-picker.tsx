@@ -1,22 +1,18 @@
-import { Calendar, ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { type CSSProperties, forwardRef, type HTMLAttributes, useEffect, useMemo, useRef, useState } from "react";
+import { Calendar as CalendarIcon, Clock } from "lucide-react";
+import { forwardRef, type HTMLAttributes, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-interface DateTimePickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onBlur" | "onChange"> {
+interface DateTimePickerProps extends Omit<HTMLAttributes<HTMLButtonElement>, "onBlur" | "onChange"> {
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
   name?: string;
   disabled?: boolean;
 }
-
-const weekdayLabels = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const calendarGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-} satisfies CSSProperties;
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -36,10 +32,6 @@ function combineDateTime(date: string, time: string): string {
   return `${date}T${time || "00:00"}`;
 }
 
-function monthLabel(date: Date): string {
-  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
 function formatDisplayValue(value: string): string {
   const { date, time } = splitDateTime(value);
   if (!date) return "Select date and time";
@@ -54,223 +46,53 @@ function formatDisplayValue(value: string): string {
   });
 }
 
-type MonthDay = {
-  key: string;
-  date: Date | null;
-};
-
-function buildMonthDays(month: Date): MonthDay[] {
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth();
-  const firstDay = new Date(year, monthIndex, 1);
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const days: MonthDay[] = Array.from({ length: firstDay.getDay() }, (_, dayOffset) => ({
-    key: `leading-${year}-${monthIndex}-${dayOffset}`,
-    date: null,
-  }));
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    days.push({
-      key: `${year}-${monthIndex}-${day}`,
-      date: new Date(year, monthIndex, day),
-    });
-  }
-
-  while (days.length % 7 !== 0) {
-    days.push({
-      key: `trailing-${year}-${monthIndex}-${days.length}`,
-      date: null,
-    });
-  }
-
-  return days;
-}
-
 export const DateTimePicker = forwardRef<HTMLButtonElement, DateTimePickerProps>(
-  (
-    {
-      value,
-      onChange,
-      onBlur,
-      name,
-      disabled,
-      className,
-      id,
-      "aria-describedby": ariaDescribedBy,
-      "aria-invalid": ariaInvalid,
-      ...props
-    },
-    ref
-  ) => {
-    const rootRef = useRef<HTMLDivElement>(null);
+  ({ value, onChange, onBlur, name, disabled, className, id, ...props }, ref) => {
     const [open, setOpen] = useState(false);
     const { date, time } = splitDateTime(value);
-    const selectedDate = useMemo(() => (date ? new Date(`${date}T${time}`) : null), [date, time]);
-    const [visibleMonth, setVisibleMonth] = useState(() =>
-      selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1) : new Date()
-    );
-    const monthDays = useMemo(() => buildMonthDays(visibleMonth), [visibleMonth]);
-    const today = toDateValue(new Date());
+    const selectedDate = useMemo(() => (date ? new Date(`${date}T${time}`) : undefined), [date, time]);
 
-    useEffect(() => {
-      if (selectedDate) {
-        setVisibleMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
-      }
-    }, [selectedDate]);
-
-    useEffect(() => {
-      if (!open) return;
-
-      function handlePointerDown(event: PointerEvent) {
-        if (!rootRef.current?.contains(event.target as Node)) {
-          setOpen(false);
-          onBlur?.();
-        }
-      }
-
-      function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === "Escape") {
-          setOpen(false);
-          onBlur?.();
-        }
-      }
-
-      document.addEventListener("pointerdown", handlePointerDown);
-      document.addEventListener("keydown", handleKeyDown);
-
-      return () => {
-        document.removeEventListener("pointerdown", handlePointerDown);
-        document.removeEventListener("keydown", handleKeyDown);
-      };
-    }, [onBlur, open]);
-
-    function changeMonth(offset: number) {
-      setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    function handleSelect(nextDate: Date | undefined) {
+      onChange(nextDate ? combineDateTime(toDateValue(nextDate), time) : "");
     }
 
-    function selectDate(nextDate: Date) {
-      onChange(combineDateTime(toDateValue(nextDate), time));
-    }
-
-    function selectToday() {
-      const now = new Date();
-      const nextValue = combineDateTime(toDateValue(now), `${pad(now.getHours())}:${pad(now.getMinutes())}`);
-      onChange(nextValue);
-      setVisibleMonth(now);
+    function handleOpenChange(nextOpen: boolean) {
+      setOpen(nextOpen);
+      if (!nextOpen) onBlur?.();
     }
 
     return (
-      <div ref={rootRef} className={cn("relative", className)} {...props}>
-        <Button
-          id={id}
-          ref={ref}
-          type="button"
-          variant="outline"
-          className={cn("w-full justify-start px-3 font-normal", !date && "text-muted-foreground")}
-          onClick={() => setOpen((current) => !current)}
-          onBlur={onBlur}
-          aria-describedby={ariaDescribedBy}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          aria-invalid={ariaInvalid}
-          disabled={disabled}
-        >
-          <Calendar className="h-4 w-4" />
-          <span className="truncate">{formatDisplayValue(value)}</span>
-        </Button>
-
-        {open && (
-          <div
-            className="absolute left-0 top-full mt-2 w-80 max-w-full rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md"
-            role="dialog"
-            aria-label="Choose date and time"
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            ref={ref}
+            type="button"
+            variant="outline"
+            className={cn("w-full justify-start px-3 font-normal", !date && "text-muted-foreground", className)}
+            disabled={disabled}
+            {...props}
           >
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => changeMonth(-1)}
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <p className="text-sm font-medium">{monthLabel(visibleMonth)}</p>
-              <Button type="button" variant="ghost" size="icon" onClick={() => changeMonth(1)} aria-label="Next month">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="mt-3 gap-1 text-center text-xs text-muted-foreground" style={calendarGridStyle}>
-              {weekdayLabels.map((weekday) => (
-                <div key={weekday} className="py-1">
-                  {weekday}
-                </div>
-              ))}
-            </div>
-
-            <div className="gap-1" style={calendarGridStyle}>
-              {monthDays.map((day) => {
-                const dayValue = day.date ? toDateValue(day.date) : "";
-                const selected = dayValue && dayValue === date;
-                const current = dayValue && dayValue === today;
-
-                return day.date ? (
-                  <Button
-                    key={dayValue}
-                    type="button"
-                    variant={selected ? "default" : "ghost"}
-                    size="icon"
-                    className={cn("h-9 w-full", current && !selected && "border border-input")}
-                    onClick={() => selectDate(day.date)}
-                    aria-pressed={!!selected}
-                  >
-                    {day.date.getDate()}
-                  </Button>
-                ) : (
-                  <div key={day.key} className="h-9" />
-                );
-              })}
-            </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <Input
-                type="time"
-                name={name}
-                value={time}
-                onBlur={onBlur}
-                onChange={(event) => onChange(combineDateTime(date || toDateValue(visibleMonth), event.target.value))}
-                aria-label="Time"
-                aria-invalid={ariaInvalid}
-                disabled={disabled}
-                step={60}
-              />
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1">
-                <Button type="button" variant="ghost" size="sm" onClick={selectToday}>
-                  Today
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => onChange("")}>
-                  Clear
-                </Button>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setOpen(false);
-                  onBlur?.();
-                }}
-              >
-                Done
-              </Button>
-            </div>
+            <CalendarIcon className="h-4 w-4" />
+            <span className="truncate">{formatDisplayValue(value)}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-3" align="start">
+          <Calendar mode="single" selected={selectedDate} onSelect={handleSelect} autoFocus />
+          <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+            <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Input
+              type="time"
+              name={name}
+              value={time}
+              onChange={(event) => onChange(combineDateTime(date || toDateValue(new Date()), event.target.value))}
+              aria-label="Time"
+              disabled={disabled}
+              step={60}
+            />
           </div>
-        )}
-      </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 );
