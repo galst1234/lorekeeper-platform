@@ -1,9 +1,8 @@
 FROM node:22-alpine AS builder
-WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
+WORKDIR /app
+COPY package.json package-lock.json ./
 RUN npm ci
-COPY frontend/. .
-COPY api/openapi.json /app/api/openapi.json
+COPY . .
 ARG SENTRY_RELEASE
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 RUN --mount=type=secret,id=SENTRY_URL \
@@ -18,8 +17,8 @@ RUN --mount=type=secret,id=SENTRY_URL \
 
 FROM nginx:alpine
 RUN apk add --no-cache openssl curl
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
-COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
-COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 ENTRYPOINT ["/docker-entrypoint.sh"]
