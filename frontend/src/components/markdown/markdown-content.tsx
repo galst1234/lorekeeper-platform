@@ -15,12 +15,12 @@ export function MarkdownContent({ content, campaignSlug, className }: MarkdownCo
   const resolver = useEntityResolver(campaignSlug);
 
   const components: Components = {
-    p: ({ children }) => <p className="mb-4 leading-7 text-foreground last:mb-0">{children}</p>,
-    h1: ({ children }) => <h1 className="mb-4 mt-6 text-2xl font-bold text-foreground first:mt-0">{children}</h1>,
-    h2: ({ children }) => <h2 className="mb-3 mt-6 text-xl font-bold text-foreground first:mt-0">{children}</h2>,
-    h3: ({ children }) => <h3 className="mb-2 mt-4 text-lg font-semibold text-foreground first:mt-0">{children}</h3>,
-    ul: ({ children }) => <ul className="mb-4 list-disc space-y-1 pl-6 text-foreground">{children}</ul>,
-    ol: ({ children }) => <ol className="mb-4 list-decimal space-y-1 pl-6 text-foreground">{children}</ol>,
+    p: ({ children }) => <p className="mb-4 leading-7 last:mb-0">{children}</p>,
+    h1: ({ children }) => <h1 className="mb-4 mt-6 text-2xl font-bold first:mt-0">{children}</h1>,
+    h2: ({ children }) => <h2 className="mb-3 mt-6 text-xl font-bold first:mt-0">{children}</h2>,
+    h3: ({ children }) => <h3 className="mb-2 mt-4 text-lg font-semibold first:mt-0">{children}</h3>,
+    ul: ({ children }) => <ul className="mb-4 list-disc space-y-1 pl-6">{children}</ul>,
+    ol: ({ children }) => <ol className="mb-4 list-decimal space-y-1 pl-6">{children}</ol>,
     li: ({ children }) => <li>{children}</li>,
     blockquote: ({ children }) => (
       <blockquote className="mb-4 border-l-2 border-border pl-4 italic text-muted-foreground">{children}</blockquote>
