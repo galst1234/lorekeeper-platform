@@ -42,7 +42,7 @@ CI (`.github/workflows/ci.yml`) path-filters per project and runs: Ruff + Ty + P
 
 **The frontend API client is generated, not handwritten.** `frontend/src/api/generated/` (hey-api, gitignored) is produced from `api/openapi.json` by `npm run generate:api`. Backend route/schema changes require regenerating `api/openapi.json` (`uv run python scripts/export_openapi_schema.py` in `api/`) before the frontend client will reflect them — CI enforces this is committed and in sync.
 
-**Entity linking spans both stacks.** Free-text fields (character/item descriptions, chronicle entry bodies) support an inline directive syntax (e.g. `:character[label]{slug}`) parsed via `remark-directive` on the frontend (`frontend/src/components/markdown/`). `useEntityResolver` (`use-entity-resolver.ts`) fetches a campaign's characters/items/chronicle entries and resolves directive slugs to display names/links client-side — there is no backend-side entity-reference resolution or validation.
+**Entity linking spans both stacks.** Free-text fields (character/item descriptions, chronicle entry bodies) support an inline directive syntax (e.g. `:character[slug]{label="..."}`, with the label attribute optional) parsed via `remark-directive` on the frontend (`frontend/src/components/markdown/`). `useEntityResolver` (`use-entity-resolver.ts`) fetches a campaign's characters/items/chronicle entries and resolves directive slugs to display names/links client-side — there is no backend-side entity-reference resolution or validation.
 
 **Auth** is SuperTokens end-to-end: `api/src/api/supertokens.py` configures the backend recipe, `frontend/src/lib/auth.ts` configures the frontend SDK, and `get_current_user` (`api/src/api/auth.py`) is the FastAPI dependency gating authenticated routes.
 
