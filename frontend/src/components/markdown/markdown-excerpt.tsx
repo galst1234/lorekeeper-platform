@@ -9,7 +9,15 @@ import { useEntityResolver } from "@/components/markdown/use-entity-resolver";
 
 const EXCERPT_MAX_LENGTH = 200;
 
-const BLOCK_NODE_TYPES = new Set(["paragraph", "heading", "listItem", "blockquote", "tableRow", "thematicBreak"]);
+const BLOCK_NODE_TYPES = new Set([
+  "paragraph",
+  "heading",
+  "listItem",
+  "blockquote",
+  "tableRow",
+  "thematicBreak",
+  "code",
+]);
 
 function toPlainText(
   // biome-ignore lint/suspicious/noExplicitAny: mdast tree shape comes from remark-parse, which has no exported node type
@@ -22,7 +30,7 @@ function toPlainText(
     if (BLOCK_NODE_TYPES.has(node.type) && parts.length > 0) {
       parts.push(" ");
     }
-    if (node.type === "text") {
+    if (node.type === "text" || node.type === "inlineCode" || node.type === "code") {
       parts.push(node.value);
       return;
     }
