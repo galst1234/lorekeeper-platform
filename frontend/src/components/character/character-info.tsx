@@ -12,13 +12,14 @@ import {
   listCharactersQueryKey,
   patchCharacterMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 const editSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -86,7 +87,11 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
 
       <div className="mt-4">
         {character.description ? (
-          <p className="text-muted-foreground">{character.description}</p>
+          <MarkdownContent
+            content={character.description}
+            campaignSlug={campaignSlug}
+            className="text-muted-foreground"
+          />
         ) : (
           <p className="text-muted-foreground italic">No description yet.</p>
         )}
@@ -153,7 +158,7 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} {...field} />
+                      <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={campaignSlug} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

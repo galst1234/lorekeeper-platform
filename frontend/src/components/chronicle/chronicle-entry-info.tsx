@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { deleteChronicleEntryMutation, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -60,7 +61,7 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
 
       <div className="mt-6">
         {entry.body ? (
-          <p className="whitespace-pre-wrap leading-7 text-foreground">{entry.body}</p>
+          <MarkdownContent content={entry.body} campaignSlug={campaignSlug} />
         ) : (
           <p className="text-muted-foreground italic">No write-up yet.</p>
         )}

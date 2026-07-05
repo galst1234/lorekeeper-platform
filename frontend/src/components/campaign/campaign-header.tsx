@@ -12,12 +12,13 @@ import {
   listCampaignsQueryKey,
   patchCampaignMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
 const editSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -92,7 +93,13 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
         )}
       </div>
 
-      {campaign.description !== null && <p className="mt-2 text-muted-foreground">{campaign.description}</p>}
+      {campaign.description !== null && (
+        <MarkdownContent
+          content={campaign.description}
+          campaignSlug={campaign.slug}
+          className="mt-2 text-muted-foreground"
+        />
+      )}
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -122,7 +129,7 @@ export function CampaignHeader({ campaign }: CampaignHeaderProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} {...field} />
+                      <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={campaign.slug} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

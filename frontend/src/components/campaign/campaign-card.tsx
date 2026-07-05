@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { CampaignResponse } from "@/api/generated";
+import { MarkdownExcerpt } from "@/components/markdown/markdown-excerpt";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -21,7 +22,14 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         </CardHeader>
         <CardContent className="pb-2">
           {campaign.description ? (
-            <p className="text-sm text-muted-foreground line-clamp-2">{campaign.description}</p>
+            <MarkdownExcerpt
+              content={campaign.description}
+              // Home page lists many campaigns at once; resolving entity links here would
+              // fire a full characters/items/chronicle-entries fetch per card. Directives
+              // just show their raw slug/label instead of a resolved name in this context.
+              campaignSlug=""
+              className="text-sm text-muted-foreground line-clamp-2"
+            />
           ) : (
             <p className="text-sm text-muted-foreground italic">No description.</p>
           )}
