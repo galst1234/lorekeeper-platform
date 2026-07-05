@@ -24,6 +24,9 @@ interface MarkdownEditorProps {
   campaignSlug: string | undefined;
   onBlur?: () => void;
   name?: string;
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
   className?: string;
   textareaClassName?: string;
 }
@@ -34,6 +37,9 @@ export function MarkdownEditor({
   campaignSlug,
   onBlur,
   name,
+  id,
+  "aria-describedby": ariaDescribedby,
+  "aria-invalid": ariaInvalid,
   className,
   textareaClassName,
 }: MarkdownEditorProps) {
@@ -193,6 +199,9 @@ export function MarkdownEditor({
           <Textarea
             ref={textareaRef}
             name={name}
+            id={id}
+            aria-describedby={ariaDescribedby}
+            aria-invalid={ariaInvalid}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onBlur={onBlur}

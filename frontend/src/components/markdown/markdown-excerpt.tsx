@@ -9,6 +9,8 @@ import { useEntityResolver } from "@/components/markdown/use-entity-resolver";
 
 const EXCERPT_MAX_LENGTH = 200;
 
+const BLOCK_NODE_TYPES = new Set(["paragraph", "heading", "listItem", "blockquote", "tableRow", "thematicBreak"]);
+
 function toPlainText(
   // biome-ignore lint/suspicious/noExplicitAny: mdast tree shape comes from remark-parse, which has no exported node type
   tree: any,
@@ -17,6 +19,9 @@ function toPlainText(
   const parts: string[] = [];
   // biome-ignore lint/suspicious/noExplicitAny: see above
   visit(tree, (node: any) => {
+    if (BLOCK_NODE_TYPES.has(node.type) && parts.length > 0) {
+      parts.push(" ");
+    }
     if (node.type === "text") {
       parts.push(node.value);
       return;

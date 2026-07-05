@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import { EntityLinkRenderer } from "@/components/markdown/entity-link-renderer";
@@ -56,7 +57,10 @@ export function MarkdownContent({ content, campaignSlug, className }: MarkdownCo
 
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkDirective, remarkEntityDirectives]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkDirective, remarkEntityDirectives]}
+        components={components}
+      >
         {content}
       </ReactMarkdown>
     </div>
