@@ -24,7 +24,10 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           {campaign.description ? (
             <MarkdownExcerpt
               content={campaign.description}
-              campaignSlug={campaign.slug}
+              // Home page lists many campaigns at once; resolving entity links here would
+              // fire a full characters/items/chronicle-entries fetch per card. Directives
+              // just show their raw slug/label instead of a resolved name in this context.
+              campaignSlug=""
               className="text-sm text-muted-foreground line-clamp-2"
             />
           ) : (
