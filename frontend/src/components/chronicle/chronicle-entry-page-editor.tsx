@@ -7,11 +7,11 @@ import { z } from "zod";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { createChronicleEntry, patchChronicleEntry } from "@/api/generated";
 import { getChronicleEntryQueryKey, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { datetimeLocalToIso, toDatetimeLocalValue } from "@/lib/datetime";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -212,7 +212,13 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
               <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
                 <FormLabel>Content</FormLabel>
                 <FormControl>
-                  <Textarea className="min-h-[16rem] flex-1 leading-7" {...field} />
+                  <MarkdownEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    campaignSlug={campaignSlug}
+                    className="flex min-h-0 flex-1 flex-col"
+                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

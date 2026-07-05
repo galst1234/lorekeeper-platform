@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Plus, ScrollText } from "lucide-react";
 import { listChronicleEntriesOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownExcerpt } from "@/components/markdown/markdown-excerpt";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -52,7 +53,13 @@ export function ChronicleSection({ slug }: ChronicleSectionProps) {
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
-                {entry.body && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{entry.body}</p>}
+                {entry.body && (
+                  <MarkdownExcerpt
+                    content={entry.body}
+                    campaignSlug={slug}
+                    className="text-sm text-muted-foreground mt-2 line-clamp-2"
+                  />
+                )}
               </Link>
             </Card>
           ))}
