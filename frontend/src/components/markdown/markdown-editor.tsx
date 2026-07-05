@@ -195,7 +195,10 @@ export function MarkdownEditor({
             onChange={(e) => onChange(e.target.value)}
             onBlur={onBlur}
             rows={6}
-            className={cn("resize-y rounded-none border-0 focus-visible:ring-0", textareaClassName)}
+            className={cn(
+              "resize-y rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+              textareaClassName
+            )}
           />
         </TabsContent>
         <TabsContent value="preview" className="m-0 min-h-[8rem] p-3">
