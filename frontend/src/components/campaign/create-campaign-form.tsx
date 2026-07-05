@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createCampaignMutation, listCampaignsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toSlugLabel } from "@/lib/utils";
 
 const createSchema = z.object({
@@ -115,7 +115,7 @@ export function CreateCampaignForm() {
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} {...field} />
+                    <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={undefined} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
