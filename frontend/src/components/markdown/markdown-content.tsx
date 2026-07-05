@@ -38,6 +38,18 @@ export function MarkdownContent({ content, campaignSlug, className }: MarkdownCo
         {children}
       </a>
     ),
+    // Render as a click-through link instead of an <img>: there's no image upload yet, so any
+    // src is an arbitrary external URL that would otherwise auto-fetch for every viewer.
+    img: ({ src, alt }) => (
+      <a
+        href={typeof src === "string" ? src : undefined}
+        target="_blank"
+        rel="noreferrer"
+        className="text-primary underline underline-offset-2 hover:no-underline"
+      >
+        {alt || src}
+      </a>
+    ),
     table: ({ children }) => <table className="mb-4 w-full border-collapse text-sm">{children}</table>,
     th: ({ children }) => (
       <th className="border border-border bg-muted px-2 py-1 text-left font-semibold">{children}</th>
