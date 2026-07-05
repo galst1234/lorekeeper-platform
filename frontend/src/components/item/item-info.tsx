@@ -12,11 +12,12 @@ import {
   listItemsQueryKey,
   patchItemMutation,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
 const editSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
@@ -79,7 +80,7 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
 
       <div className="mt-4">
         {item.description ? (
-          <p className="text-muted-foreground">{item.description}</p>
+          <MarkdownContent content={item.description} campaignSlug={campaignSlug} className="text-muted-foreground" />
         ) : (
           <p className="text-muted-foreground italic">No description yet.</p>
         )}
@@ -121,7 +122,7 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} {...field} />
+                      <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={campaignSlug} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

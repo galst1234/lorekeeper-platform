@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createItemMutation, listItemsOptions, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils";
 
 function toItemSlug(name: string): string {
@@ -168,7 +168,7 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea rows={2} {...field} />
+                      <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={slug} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
