@@ -10,12 +10,12 @@ import {
   listCharactersOptions,
   listCharactersQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { getErrorMessage } from "@/lib/utils";
 
 function toCharacterSlug(name: string): string {
@@ -185,7 +185,7 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea rows={2} {...field} />
+                      <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={slug} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
