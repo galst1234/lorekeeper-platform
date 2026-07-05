@@ -26,7 +26,12 @@ const GROUP_ORDER: EntityDirectiveType[] = ["character", "item", "entry"];
 
 export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: EntityLinkPickerProps) {
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Link an entity"
+      description="Search characters, items, and chronicle entries to link."
+    >
       <CommandInput placeholder="Search characters, items, chronicle entries…" />
       <CommandList>
         <CommandEmpty>No entities found.</CommandEmpty>
