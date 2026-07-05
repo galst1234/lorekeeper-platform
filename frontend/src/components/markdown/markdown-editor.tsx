@@ -47,12 +47,14 @@ export function MarkdownEditor({
   }
 
   function applyEdit(edit: { value: string; selectionStart: number; selectionEnd: number }) {
+    const scrollTop = textareaRef.current?.scrollTop;
     onChange(edit.value);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
       el.focus();
       el.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+      if (scrollTop !== undefined) el.scrollTop = scrollTop;
     });
   }
 
