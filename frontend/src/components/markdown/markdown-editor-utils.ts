@@ -31,7 +31,9 @@ export function wrapSelection(
 
 function lineBounds(value: string, selection: Selection): { lineStart: number; lineEnd: number } {
   const lineStart = value.lastIndexOf("\n", selection.start - 1) + 1;
-  const nextBreak = value.indexOf("\n", selection.end);
+  const searchFrom =
+    selection.end > selection.start && value[selection.end - 1] === "\n" ? selection.end - 1 : selection.end;
+  const nextBreak = value.indexOf("\n", searchFrom);
   const lineEnd = nextBreak === -1 ? value.length : nextBreak;
   return { lineStart, lineEnd };
 }
