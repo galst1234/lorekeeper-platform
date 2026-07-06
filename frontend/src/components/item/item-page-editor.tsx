@@ -12,7 +12,7 @@ import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getErrorMessage } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 type ItemPageEditorProps =
   | { mode: "create"; campaignSlug: string }
@@ -138,41 +138,43 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input {...field} autoFocus />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {!isEditing && (
+          <div className={cn("grid grid-cols-1 gap-4", !isEditing && "md:grid-cols-2")}>
             <FormField
               control={form.control}
-              name="slug"
+              name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug</FormLabel>
+                  <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      onChange={(event) => {
-                        setSlugEdited(true);
-                        field.onChange(event);
-                      }}
-                    />
+                    <Input {...field} autoFocus />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          )}
+
+            {!isEditing && (
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={(event) => {
+                          setSlugEdited(true);
+                          field.onChange(event);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
 
           <FormField
             control={form.control}

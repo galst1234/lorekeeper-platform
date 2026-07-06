@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getErrorMessage } from "@/lib/utils";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 type CharacterPageEditorProps =
   | { mode: "create"; campaignSlug: string }
@@ -147,7 +147,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className={cn("grid grid-cols-1 gap-4", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}>
             <FormField
               control={form.control}
               name="name"
@@ -182,29 +182,28 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 </FormItem>
               )}
             />
+            {!isEditing && (
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={(event) => {
+                          setSlugEdited(true);
+                          field.onChange(event);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
-
-          {!isEditing && (
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Slug</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      onChange={(event) => {
-                        setSlugEdited(true);
-                        field.onChange(event);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
 
           <FormField
             control={form.control}

@@ -55,7 +55,7 @@ export function CreateCampaignForm() {
   });
 
   return (
-    <PageContainer>
+    <PageContainer className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
       <Link to="/" className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground">
         ← Back to Campaigns
       </Link>
@@ -75,51 +75,59 @@ export function CreateCampaignForm() {
               },
             })
           )}
-          className="flex flex-col gap-6"
+          className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input {...field} autoFocus />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="slug_label"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>URL Slug</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    onChange={(e) => {
-                      setSlugEdited(true);
-                      field.onChange(e);
-                    }}
-                  />
-                </FormControl>
-                <FormDescription>
-                  A unique suffix will be appended — e.g. <code>{field.value || "my-campaign"}-xxxxxxxx</code>
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} autoFocus />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="slug_label"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL Slug</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      onChange={(e) => {
+                        setSlugEdited(true);
+                        field.onChange(e);
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    A unique suffix will be appended — e.g. <code>{field.value || "my-campaign"}-xxxxxxxx</code>
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={undefined} />
+                  <MarkdownEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    campaignSlug={undefined}
+                    className="flex min-h-0 flex-1 flex-col"
+                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

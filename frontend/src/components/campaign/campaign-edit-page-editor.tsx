@@ -53,7 +53,7 @@ export function CampaignEditPageEditor({ campaign }: CampaignEditPageEditorProps
   });
 
   return (
-    <PageContainer>
+    <PageContainer className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
       <Link
         to="/campaigns/$slug"
         params={{ slug: campaign.slug }}
@@ -67,7 +67,10 @@ export function CampaignEditPageEditor({ campaign }: CampaignEditPageEditorProps
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))} className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
+          className="flex min-h-0 flex-1 flex-col gap-6"
+        >
           <FormField
             control={form.control}
             name="name"
@@ -86,10 +89,16 @@ export function CampaignEditPageEditor({ campaign }: CampaignEditPageEditorProps
             control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={campaign.slug} />
+                  <MarkdownEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    campaignSlug={campaign.slug}
+                    className="flex min-h-0 flex-1 flex-col"
+                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
