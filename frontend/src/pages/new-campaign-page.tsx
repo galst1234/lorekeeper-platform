@@ -1,12 +1,13 @@
 import { CreateCampaignForm } from "@/components/campaign/create-campaign-form";
+import { PageContainer } from "@/components/layout/page-container";
 import { HomeShell } from "@/layouts/home-shell";
 
 export function NewCampaignPage() {
   return (
     <HomeShell>
-      <div className="flex justify-center py-12 px-6">
+      <PageContainer className="flex justify-center">
         <CreateCampaignForm />
-      </div>
+      </PageContainer>
     </HomeShell>
   );
 }
