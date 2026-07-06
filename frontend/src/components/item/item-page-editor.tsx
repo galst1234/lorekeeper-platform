@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
+import { Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { ItemResponse } from "@/api/generated";
-import { createItem, patchItem } from "@/api/generated";
+import { createItem, deleteItemImage, patchItem, uploadItemImage } from "@/api/generated";
 import { getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,8 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   const defaultValues = useMemo(() => (item ? editDefaultValues(item) : createDefaultValues()), [item]);
 
@@ -70,30 +74,48 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
 
   const saveMutation = useMutation({
     mutationFn: async (values: EditorFormValues) => {
-      if (item) {
-        const { data } = await patchItem({
-          path: { slug: campaignSlug, item_slug: item.slug },
-          body: {
-            name: values.name.trim(),
-            description: values.description.trim() || null,
-          },
-          throwOnError: true,
-        });
-        return data;
-      }
+      const savedItem = item
+        ? (
+            await patchItem({
+              path: { slug: campaignSlug, item_slug: item.slug },
+              body: {
+                name: values.name.trim(),
+                description: values.description.trim() || null,
+              },
+              throwOnError: true,
+            })
+          ).data
+        : (
+            await createItem({
+              path: { slug: campaignSlug },
+              body: {
+                name: values.name.trim(),
+                slug: values.slug.trim(),
+                description: values.description.trim() || undefined,
+              },
+              throwOnError: true,
+            })
+          ).data;
 
-      const { data } = await createItem({
-        path: { slug: campaignSlug },
-        body: {
-          name: values.name.trim(),
-          slug: values.slug.trim(),
-          description: values.description.trim() || undefined,
-        },
-        throwOnError: true,
-      });
-      return data;
+      try {
+        if (pendingImageFile) {
+          await uploadItemImage({
+            path: { slug: campaignSlug, item_slug: savedItem.slug },
+            body: { file: pendingImageFile },
+            throwOnError: true,
+          });
+        } else if (imageRemoved) {
+          await deleteItemImage({
+            path: { slug: campaignSlug, item_slug: savedItem.slug },
+            throwOnError: true,
+          });
+        }
+        return { savedItem, imageUploadFailed: false };
+      } catch {
+        return { savedItem, imageUploadFailed: true };
+      }
     },
-    onSuccess: async (savedItem) => {
+    onSuccess: async ({ savedItem, imageUploadFailed }) => {
       await queryClient.invalidateQueries({ queryKey: listItemsQueryKey({ path: { slug: campaignSlug } }) });
       if (item) {
         await queryClient.invalidateQueries({
@@ -103,6 +125,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
       await router.navigate({
         to: "/campaigns/$slug/items/$itemSlug",
         params: { slug: campaignSlug, itemSlug: savedItem.slug },
+        state: imageUploadFailed ? { imageUploadFailed: true } : undefined,
       });
     },
   });
@@ -138,42 +161,57 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className={cn("grid grid-cols-1 gap-4", !isEditing && "md:grid-cols-2")}>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoFocus />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[12rem_1fr]">
+            <EntityImageField
+              imageUrl={imageRemoved ? null : (item?.image_url ?? null)}
+              placeholderIcon={Swords}
+              onFileSelected={(file) => {
+                setPendingImageFile(file);
+                setImageRemoved(false);
+              }}
+              onRemove={() => {
+                setPendingImageFile(null);
+                setImageRemoved(true);
+              }}
             />
 
-            {!isEditing && (
+            <div className={cn("grid grid-cols-1 gap-4 content-start", !isEditing && "md:grid-cols-2")}>
               <FormField
                 control={form.control}
-                name="slug"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Slug</FormLabel>
+                    <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        onChange={(event) => {
-                          setSlugEdited(true);
-                          field.onChange(event);
-                        }}
-                      />
+                      <Input {...field} autoFocus />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
+
+              {!isEditing && (
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Slug</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          onChange={(event) => {
+                            setSlugEdited(true);
+                            field.onChange(event);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
           </div>
 
           <FormField

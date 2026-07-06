@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
+import { User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CharacterResponse } from "@/api/generated";
-import { createCharacter, patchCharacter } from "@/api/generated";
+import { createCharacter, deleteCharacterImage, patchCharacter, uploadCharacterImage } from "@/api/generated";
 import { getCharacterQueryKey, listCharactersQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
@@ -59,6 +61,8 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
 
   const defaultValues = useMemo(() => (character ? editDefaultValues(character) : createDefaultValues()), [character]);
 
@@ -77,32 +81,50 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
 
   const saveMutation = useMutation({
     mutationFn: async (values: EditorFormValues) => {
-      if (character) {
-        const { data } = await patchCharacter({
-          path: { slug: campaignSlug, character_slug: character.slug },
-          body: {
-            name: values.name.trim(),
-            character_type: values.character_type,
-            description: values.description.trim() || null,
-          },
-          throwOnError: true,
-        });
-        return data;
-      }
+      const savedCharacter = character
+        ? (
+            await patchCharacter({
+              path: { slug: campaignSlug, character_slug: character.slug },
+              body: {
+                name: values.name.trim(),
+                character_type: values.character_type,
+                description: values.description.trim() || null,
+              },
+              throwOnError: true,
+            })
+          ).data
+        : (
+            await createCharacter({
+              path: { slug: campaignSlug },
+              body: {
+                name: values.name.trim(),
+                slug: values.slug.trim(),
+                character_type: values.character_type,
+                description: values.description.trim() || undefined,
+              },
+              throwOnError: true,
+            })
+          ).data;
 
-      const { data } = await createCharacter({
-        path: { slug: campaignSlug },
-        body: {
-          name: values.name.trim(),
-          slug: values.slug.trim(),
-          character_type: values.character_type,
-          description: values.description.trim() || undefined,
-        },
-        throwOnError: true,
-      });
-      return data;
+      try {
+        if (pendingImageFile) {
+          await uploadCharacterImage({
+            path: { slug: campaignSlug, character_slug: savedCharacter.slug },
+            body: { file: pendingImageFile },
+            throwOnError: true,
+          });
+        } else if (imageRemoved) {
+          await deleteCharacterImage({
+            path: { slug: campaignSlug, character_slug: savedCharacter.slug },
+            throwOnError: true,
+          });
+        }
+        return { savedCharacter, imageUploadFailed: false };
+      } catch {
+        return { savedCharacter, imageUploadFailed: true };
+      }
     },
-    onSuccess: async (savedCharacter) => {
+    onSuccess: async ({ savedCharacter, imageUploadFailed }) => {
       await queryClient.invalidateQueries({ queryKey: listCharactersQueryKey({ path: { slug: campaignSlug } }) });
       if (character) {
         await queryClient.invalidateQueries({
@@ -112,6 +134,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
       await router.navigate({
         to: "/campaigns/$slug/characters/$characterSlug",
         params: { slug: campaignSlug, characterSlug: savedCharacter.slug },
+        state: imageUploadFailed ? { imageUploadFailed: true } : undefined,
       });
     },
   });
@@ -147,62 +170,79 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className={cn("grid grid-cols-1 gap-4", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoFocus />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[12rem_1fr]">
+            <EntityImageField
+              imageUrl={imageRemoved ? null : (character?.image_url ?? null)}
+              placeholderIcon={User}
+              onFileSelected={(file) => {
+                setPendingImageFile(file);
+                setImageRemoved(false);
+              }}
+              onRemove={() => {
+                setPendingImageFile(null);
+                setImageRemoved(true);
+              }}
             />
-            {!isEditing && (
+
+            <div
+              className={cn("grid grid-cols-1 gap-4 content-start", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}
+            >
               <FormField
                 control={form.control}
-                name="slug"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Slug</FormLabel>
+                    <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        onChange={(event) => {
-                          setSlugEdited(true);
-                          field.onChange(event);
-                        }}
-                      />
+                      <Input {...field} autoFocus />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-            <FormField
-              control={form.control}
-              name="character_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pc">PC</SelectItem>
-                      <SelectItem value="npc">NPC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+              {!isEditing && (
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Slug</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          onChange={(event) => {
+                            setSlugEdited(true);
+                            field.onChange(event);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
+              <FormField
+                control={form.control}
+                name="character_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="pc">PC</SelectItem>
+                        <SelectItem value="npc">NPC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
 
           <FormField
