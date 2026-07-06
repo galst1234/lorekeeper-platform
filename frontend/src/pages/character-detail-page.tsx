@@ -3,6 +3,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { getCharacterOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CharacterInfo } from "@/components/character/character-info";
 import { CharacterSidebarCard } from "@/components/character/character-sidebar-card";
+import { PageContainer } from "@/components/layout/page-container";
 
 const Route = getRouteApi("/campaigns/$slug/characters/$characterSlug");
 
@@ -11,7 +12,7 @@ export function CharacterDetailPage() {
   const { data: character } = useSuspenseQuery(getCharacterOptions({ path: { slug, character_slug: characterSlug } }));
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <PageContainer>
       <Link
         to="/campaigns/$slug/characters"
         params={{ slug }}
@@ -28,6 +29,6 @@ export function CharacterDetailPage() {
           <CharacterSidebarCard character={character} />
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

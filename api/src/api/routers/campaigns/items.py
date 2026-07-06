@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.database import get_db
 from api.models import Campaign, Item
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import items as item_service
 from api.services.items import ItemSlugConflictError
@@ -17,14 +18,6 @@ from api.services.items import ItemSlugConflictError
 router = APIRouter(prefix="/items", tags=["Items"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-_ItemSlugStr = Annotated[
-    str,
-    StringConstraints(
-        min_length=1,
-        max_length=100,
-        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
-    ),
-]
 
 
 class ItemResponse(BaseModel):
@@ -49,7 +42,7 @@ class ItemResponse(BaseModel):
     updated_at: datetime
 
 
-class CreateItemRequest(BaseModel):
+class CreateItemRequest(NonReservedSlugModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -60,7 +53,6 @@ class CreateItemRequest(BaseModel):
         }
     )
 
-    slug: _ItemSlugStr
     name: _NonEmptyStr
     description: str | None = None
 

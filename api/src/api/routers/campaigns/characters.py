@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.database import get_db
 from api.models import Campaign, Character, CharacterType
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
@@ -17,14 +18,6 @@ from api.services.characters import CharacterSlugConflictError
 router = APIRouter(prefix="/characters", tags=["Characters"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-_CharacterSlugStr = Annotated[
-    str,
-    StringConstraints(
-        min_length=1,
-        max_length=100,
-        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
-    ),
-]
 
 
 class CharacterResponse(BaseModel):
@@ -51,7 +44,7 @@ class CharacterResponse(BaseModel):
     updated_at: datetime
 
 
-class CreateCharacterRequest(BaseModel):
+class CreateCharacterRequest(NonReservedSlugModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -63,7 +56,6 @@ class CreateCharacterRequest(BaseModel):
         }
     )
 
-    slug: _CharacterSlugStr
     name: _NonEmptyStr
     character_type: CharacterType
     description: str | None = None

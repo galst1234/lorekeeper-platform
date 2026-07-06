@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { createChronicleEntry, patchChronicleEntry } from "@/api/generated";
 import { getChronicleEntryQueryKey, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -126,7 +127,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
   const isEditing = mode === "edit";
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-6 py-8">
+    <PageContainer className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
       {entry ? (
         <Link
           to="/campaigns/$slug/chronicle/$entrySlug"
@@ -247,6 +248,6 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
           </div>
         </form>
       </Form>
-    </div>
+    </PageContainer>
   );
 }

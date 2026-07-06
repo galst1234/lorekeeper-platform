@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createCampaignMutation, listCampaignsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toSlugLabel } from "@/lib/utils";
@@ -55,11 +55,15 @@ export function CreateCampaignForm() {
   });
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>Create Campaign</CardTitle>
-        <CardDescription>Set up a new campaign for your group.</CardDescription>
-      </CardHeader>
+    <PageContainer className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
+      <Link to="/" className="mb-6 inline-block text-sm text-muted-foreground hover:text-foreground">
+        ← Back to Campaigns
+      </Link>
+
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Create Campaign</h1>
+      </div>
+
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit((v) =>
@@ -71,8 +75,9 @@ export function CreateCampaignForm() {
               },
             })
           )}
+          className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
               name="name"
@@ -80,7 +85,7 @@ export function CreateCampaignForm() {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} autoFocus />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -108,31 +113,39 @@ export function CreateCampaignForm() {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <MarkdownEditor value={field.value} onChange={field.onChange} campaignSlug={undefined} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {mutation.isError && <p className="text-sm text-destructive">Something went wrong. Please try again.</p>}
-          </CardContent>
-          <CardFooter className="flex gap-2 justify-end">
+          </div>
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <MarkdownEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    campaignSlug={undefined}
+                    className="flex min-h-0 flex-1 flex-col"
+                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {mutation.isError && <p className="text-sm text-destructive">Something went wrong. Please try again.</p>}
+
+          <div className="flex items-center justify-end gap-2">
             <Button type="button" variant="ghost" asChild>
               <Link to="/">Cancel</Link>
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? "Creating…" : "Create Campaign"}
             </Button>
-          </CardFooter>
+          </div>
         </form>
       </Form>
-    </Card>
+    </PageContainer>
   );
 }

@@ -3,6 +3,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { getChronicleEntryOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { ChronicleEntryInfo } from "@/components/chronicle/chronicle-entry-info";
 import { ChronicleEntrySidebarCard } from "@/components/chronicle/chronicle-entry-sidebar-card";
+import { PageContainer } from "@/components/layout/page-container";
 
 const Route = getRouteApi("/campaigns/$slug/chronicle/$entrySlug");
 
@@ -11,7 +12,7 @@ export function ChronicleEntryDetailPage() {
   const { data: entry } = useSuspenseQuery(getChronicleEntryOptions({ path: { slug, entry_slug: entrySlug } }));
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-8">
+    <PageContainer>
       <Link
         to="/campaigns/$slug/chronicle"
         params={{ slug }}
@@ -28,6 +29,6 @@ export function ChronicleEntryDetailPage() {
           <ChronicleEntrySidebarCard entry={entry} />
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
