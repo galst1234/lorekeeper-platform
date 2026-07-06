@@ -19,6 +19,7 @@ import { Route as CampaignsSlugRouteImport } from './routes/campaigns.$slug'
 import { Route as CampaignsSlugIndexRouteImport } from './routes/campaigns.$slug.index'
 import { Route as LoginCallbackProviderRouteImport } from './routes/login_.callback.$provider'
 import { Route as CampaignsSlugSettingsRouteImport } from './routes/campaigns.$slug.settings'
+import { Route as CampaignsSlugEditRouteImport } from './routes/campaigns.$slug.edit'
 import { Route as CampaignsSlugItemsIndexRouteImport } from './routes/campaigns.$slug.items.index'
 import { Route as CampaignsSlugChronicleIndexRouteImport } from './routes/campaigns.$slug.chronicle.index'
 import { Route as CampaignsSlugCharactersIndexRouteImport } from './routes/campaigns.$slug.characters.index'
@@ -81,6 +82,11 @@ const LoginCallbackProviderRoute = LoginCallbackProviderRouteImport.update({
 const CampaignsSlugSettingsRoute = CampaignsSlugSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => CampaignsSlugRoute,
+} as any)
+const CampaignsSlugEditRoute = CampaignsSlugEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
   getParentRoute: () => CampaignsSlugRoute,
 } as any)
 const CampaignsSlugItemsIndexRoute = CampaignsSlugItemsIndexRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/$slug': typeof CampaignsSlugRouteWithChildren
   '/campaigns/new': typeof CampaignsNewRoute
   '/login/reset-password': typeof LoginResetPasswordRoute
+  '/campaigns/$slug/edit': typeof CampaignsSlugEditRoute
   '/campaigns/$slug/settings': typeof CampaignsSlugSettingsRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/campaigns/new': typeof CampaignsNewRoute
   '/login/reset-password': typeof LoginResetPasswordRoute
+  '/campaigns/$slug/edit': typeof CampaignsSlugEditRoute
   '/campaigns/$slug/settings': typeof CampaignsSlugSettingsRoute
   '/login/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug': typeof CampaignsSlugIndexRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/campaigns/$slug': typeof CampaignsSlugRouteWithChildren
   '/campaigns/new': typeof CampaignsNewRoute
   '/login_/reset-password': typeof LoginResetPasswordRoute
+  '/campaigns/$slug/edit': typeof CampaignsSlugEditRoute
   '/campaigns/$slug/settings': typeof CampaignsSlugSettingsRoute
   '/login_/callback/$provider': typeof LoginCallbackProviderRoute
   '/campaigns/$slug/': typeof CampaignsSlugIndexRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug'
     | '/campaigns/new'
     | '/login/reset-password'
+    | '/campaigns/$slug/edit'
     | '/campaigns/$slug/settings'
     | '/login/callback/$provider'
     | '/campaigns/$slug/'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/campaigns/new'
     | '/login/reset-password'
+    | '/campaigns/$slug/edit'
     | '/campaigns/$slug/settings'
     | '/login/callback/$provider'
     | '/campaigns/$slug'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/campaigns/$slug'
     | '/campaigns/new'
     | '/login_/reset-password'
+    | '/campaigns/$slug/edit'
     | '/campaigns/$slug/settings'
     | '/login_/callback/$provider'
     | '/campaigns/$slug/'
@@ -396,6 +408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsSlugSettingsRouteImport
       parentRoute: typeof CampaignsSlugRoute
     }
+    '/campaigns/$slug/edit': {
+      id: '/campaigns/$slug/edit'
+      path: '/edit'
+      fullPath: '/campaigns/$slug/edit'
+      preLoaderRoute: typeof CampaignsSlugEditRouteImport
+      parentRoute: typeof CampaignsSlugRoute
+    }
     '/campaigns/$slug/items/': {
       id: '/campaigns/$slug/items/'
       path: '/items'
@@ -491,6 +510,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface CampaignsSlugRouteChildren {
+  CampaignsSlugEditRoute: typeof CampaignsSlugEditRoute
   CampaignsSlugSettingsRoute: typeof CampaignsSlugSettingsRoute
   CampaignsSlugIndexRoute: typeof CampaignsSlugIndexRoute
   CampaignsSlugCharactersCharacterSlugRoute: typeof CampaignsSlugCharactersCharacterSlugRoute
@@ -508,6 +528,7 @@ interface CampaignsSlugRouteChildren {
 }
 
 const CampaignsSlugRouteChildren: CampaignsSlugRouteChildren = {
+  CampaignsSlugEditRoute: CampaignsSlugEditRoute,
   CampaignsSlugSettingsRoute: CampaignsSlugSettingsRoute,
   CampaignsSlugIndexRoute: CampaignsSlugIndexRoute,
   CampaignsSlugCharactersCharacterSlugRoute:
