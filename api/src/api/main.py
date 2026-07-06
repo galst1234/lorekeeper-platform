@@ -1,5 +1,6 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from supertokens_python import get_all_cors_headers
 from supertokens_python.framework.fastapi import get_middleware
@@ -8,6 +9,7 @@ from api.config import settings
 from api.observability import setup_observability
 from api.routers import campaigns as campaigns_router
 from api.routers import me as me_router
+from api.storage import get_image_storage
 from api.supertokens import init_supertokens
 
 setup_observability()
@@ -38,6 +40,9 @@ router = APIRouter(prefix="/api/v1", generate_unique_id_function=lambda route: r
 router.include_router(me_router.router)
 router.include_router(campaigns_router.router)
 app.include_router(router)
+
+get_image_storage()  # ensures the upload directory exists before StaticFiles mounts it
+app.mount("/media", StaticFiles(directory=settings.image_upload_dir), name="media")
 
 
 @app.get("/health", tags=["Health"], include_in_schema=False)
