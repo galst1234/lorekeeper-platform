@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from asyncpg import UniqueViolationError
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Character, CharacterType
 from api.storage import ImageStorage
+
+logger = logging.getLogger(__name__)
 
 
 class CharacterSlugConflictError(Exception):
@@ -100,7 +103,10 @@ async def delete_character(db: AsyncSession, character: Character, storage: Imag
     await db.delete(character)
     await db.commit()
     if image_key is not None:
-        await storage.delete(image_key)
+        try:
+            await storage.delete(image_key)
+        except OSError:
+            logger.warning("Failed to delete image %s for deleted character %s", image_key, character.id)
 
 
 async def set_character_image(
@@ -111,7 +117,10 @@ async def set_character_image(
     await db.commit()
     await db.refresh(character)
     if old_key is not None:
-        await storage.delete(old_key)
+        try:
+            await storage.delete(old_key)
+        except OSError:
+            logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character
 
 
@@ -121,5 +130,8 @@ async def clear_character_image(db: AsyncSession, character: Character, storage:
     await db.commit()
     await db.refresh(character)
     if old_key is not None:
-        await storage.delete(old_key)
+        try:
+            await storage.delete(old_key)
+        except OSError:
+            logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character

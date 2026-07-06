@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from asyncpg import UniqueViolationError
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Item
 from api.storage import ImageStorage
+
+logger = logging.getLogger(__name__)
 
 
 class ItemSlugConflictError(Exception):
@@ -89,7 +92,10 @@ async def delete_item(db: AsyncSession, item: Item, storage: ImageStorage) -> No
     await db.delete(item)
     await db.commit()
     if image_key is not None:
-        await storage.delete(image_key)
+        try:
+            await storage.delete(image_key)
+        except OSError:
+            logger.warning("Failed to delete image %s for deleted item %s", image_key, item.id)
 
 
 async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, storage: ImageStorage) -> Item:
@@ -98,7 +104,10 @@ async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, stora
     await db.commit()
     await db.refresh(item)
     if old_key is not None:
-        await storage.delete(old_key)
+        try:
+            await storage.delete(old_key)
+        except OSError:
+            logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item
 
 
@@ -108,5 +117,8 @@ async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) 
     await db.commit()
     await db.refresh(item)
     if old_key is not None:
-        await storage.delete(old_key)
+        try:
+            await storage.delete(old_key)
+        except OSError:
+            logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item
