@@ -286,3 +286,168 @@ async def test_delete_item_player_member_can_delete(
     ac = campaigns_authenticated_client("rt-itm-del-player")
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}")
     assert response.status_code == 204
+
+
+# --- Image ---
+
+
+async def test_upload_item_image_returns_200_with_image_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-img-200", email="rt-item-img-200@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtii0001")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-img-200")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("sword.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image_url"] is not None
+    assert data["image_url"].startswith("/media/")
+
+
+async def test_upload_item_image_rejects_invalid_content_type(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-img-badtype", email="rt-item-img-badtype@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtii0002")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-img-badtype")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("notes.txt", b"not an image", "text/plain")},
+    )
+    assert response.status_code == 400
+
+
+async def test_upload_item_image_rejects_oversized_file(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-img-big", email="rt-item-img-big@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtii0003")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-img-big")
+    oversized_content = b"x" * (5 * 1024 * 1024 + 1)
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("sword.jpg", oversized_content, "image/jpeg")},
+    )
+    assert response.status_code == 400
+
+
+async def test_upload_item_image_replaces_existing_and_changes_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-img-replace", email="rt-item-img-replace@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtii0004")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-img-replace")
+    first = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("first.jpg", b"first-bytes", "image/jpeg")},
+    )
+    first_url = first.json()["image_url"]
+    second = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("second.png", b"second-bytes", "image/png")},
+    )
+    assert second.status_code == 200
+    assert second.json()["image_url"] != first_url
+
+
+async def test_upload_item_image_returns_403_for_non_member(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-item-img-own", email="rt-item-img-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtii0005")
+    item = await make_item(db, campaign_id=campaign.id)
+    await make_user(db, supertokens_user_id="rt-item-img-403", email="rt-item-img-403@test.com")
+    ac = campaigns_authenticated_client("rt-item-img-403")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("sword.jpg", b"bytes", "image/jpeg")},
+    )
+    assert response.status_code == 403
+
+
+async def test_upload_item_image_returns_404_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-img-404", email="rt-item-img-404@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtii0006")
+    ac = campaigns_authenticated_client("rt-item-img-404")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/nonexistent-item/image",
+        files={"file": ("sword.jpg", b"bytes", "image/jpeg")},
+    )
+    assert response.status_code == 404
+
+
+# --- Delete image ---
+
+
+async def test_delete_item_image_returns_204_and_clears_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-imgdel-204", email="rt-item-imgdel-204@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtiid001")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-imgdel-204")
+    await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("sword.jpg", b"bytes", "image/jpeg")},
+    )
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image")
+    assert response.status_code == 204
+    get_response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}")
+    assert get_response.json()["image_url"] is None
+
+
+async def test_delete_item_image_with_no_existing_image_returns_204(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-imgdel-noop", email="rt-item-imgdel-noop@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtiid002")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-imgdel-noop")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image")
+    assert response.status_code == 204
+
+
+async def test_delete_item_image_returns_403_for_non_member(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-item-imgdel-own", email="rt-item-imgdel-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtiid003")
+    item = await make_item(db, campaign_id=campaign.id)
+    await make_user(db, supertokens_user_id="rt-item-imgdel-403", email="rt-item-imgdel-403@test.com")
+    ac = campaigns_authenticated_client("rt-item-imgdel-403")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image")
+    assert response.status_code == 403
+
+
+async def test_delete_item_also_removes_image_file(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-item-del-img", email="rt-item-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtidi001")
+    item = await make_item(db, campaign_id=campaign.id, slug="sword", name="Sword")
+    ac = campaigns_authenticated_client("rt-item-del-img")
+    await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}/image",
+        files={"file": ("sword.jpg", b"bytes", "image/jpeg")},
+    )
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}")
+    assert response.status_code == 204

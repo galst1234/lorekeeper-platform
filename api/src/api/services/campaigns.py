@@ -1,3 +1,4 @@
+import logging
 import secrets
 import string
 import uuid
@@ -11,9 +12,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models import Campaign, CampaignMember, MemberRole, User
+from api.models import Campaign, CampaignMember, Character, Item, MemberRole, User
+from api.storage import ImageStorage
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -113,9 +117,28 @@ async def update_campaign(
     return campaign
 
 
-async def delete_campaign(db: AsyncSession, campaign: Campaign) -> None:
+async def delete_campaign(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
+    character_keys = [
+        key
+        for key in await db.scalars(
+            select(Character.image_key).where(Character.campaign_id == campaign.id, Character.image_key.is_not(None))
+        )
+        if key is not None
+    ]
+    item_keys = [
+        key
+        for key in await db.scalars(
+            select(Item.image_key).where(Item.campaign_id == campaign.id, Item.image_key.is_not(None))
+        )
+        if key is not None
+    ]
     await db.delete(campaign)
     await db.commit()
+    for key in [*character_keys, *item_keys]:
+        try:
+            await storage.delete(key)
+        except OSError:
+            logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
 
 
 def _generate_invite_code() -> str:

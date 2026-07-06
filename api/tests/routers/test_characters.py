@@ -302,3 +302,168 @@ async def test_delete_character_player_member_can_delete(
     ac = campaigns_authenticated_client("rt-chr-del-player")
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}")
     assert response.status_code == 204
+
+
+# --- Image ---
+
+
+async def test_upload_character_image_returns_200_with_image_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-img-200", email="rt-chr-img-200@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0001")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-img-200")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("portrait.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image_url"] is not None
+    assert data["image_url"].startswith("/media/")
+
+
+async def test_upload_character_image_rejects_invalid_content_type(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-img-badtype", email="rt-chr-img-badtype@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0002")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-img-badtype")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("notes.txt", b"not an image", "text/plain")},
+    )
+    assert response.status_code == 400
+
+
+async def test_upload_character_image_rejects_oversized_file(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-img-big", email="rt-chr-img-big@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0003")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-img-big")
+    oversized_content = b"x" * (5 * 1024 * 1024 + 1)
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("portrait.jpg", oversized_content, "image/jpeg")},
+    )
+    assert response.status_code == 400
+
+
+async def test_upload_character_image_replaces_existing_and_changes_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-img-replace", email="rt-chr-img-replace@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0004")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-img-replace")
+    first = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("first.jpg", b"first-bytes", "image/jpeg")},
+    )
+    first_url = first.json()["image_url"]
+    second = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("second.png", b"second-bytes", "image/png")},
+    )
+    assert second.status_code == 200
+    assert second.json()["image_url"] != first_url
+
+
+async def test_upload_character_image_returns_403_for_non_member(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-img-own", email="rt-chr-img-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtci0005")
+    character = await make_character(db, campaign_id=campaign.id)
+    await make_user(db, supertokens_user_id="rt-chr-img-403", email="rt-chr-img-403@test.com")
+    ac = campaigns_authenticated_client("rt-chr-img-403")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
+    )
+    assert response.status_code == 403
+
+
+async def test_upload_character_image_returns_404_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-img-404", email="rt-chr-img-404@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0006")
+    ac = campaigns_authenticated_client("rt-chr-img-404")
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/nonexistent-character/image",
+        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
+    )
+    assert response.status_code == 404
+
+
+# --- Delete image ---
+
+
+async def test_delete_character_image_returns_204_and_clears_url(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-imgdel-204", email="rt-chr-imgdel-204@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcid001")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-imgdel-204")
+    await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
+    )
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+    assert response.status_code == 204
+    get_response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}")
+    assert get_response.json()["image_url"] is None
+
+
+async def test_delete_character_image_with_no_existing_image_returns_204(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-imgdel-noop", email="rt-chr-imgdel-noop@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcid002")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-imgdel-noop")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+    assert response.status_code == 204
+
+
+async def test_delete_character_image_returns_403_for_non_member(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-imgdel-own", email="rt-chr-imgdel-own@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcid003")
+    character = await make_character(db, campaign_id=campaign.id)
+    await make_user(db, supertokens_user_id="rt-chr-imgdel-403", email="rt-chr-imgdel-403@test.com")
+    ac = campaigns_authenticated_client("rt-chr-imgdel-403")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+    assert response.status_code == 403
+
+
+async def test_delete_character_also_removes_image_file(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-del-img", email="rt-chr-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcdi001")
+    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
+    ac = campaigns_authenticated_client("rt-chr-del-img")
+    await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
+    )
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}")
+    assert response.status_code == 204

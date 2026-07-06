@@ -17,6 +17,7 @@ from api.routers.campaigns.dependencies import (
     require_campaign_owner,
 )
 from api.services import campaigns as campaign_service
+from api.storage import ImageStorage, get_image_storage
 
 router = APIRouter(prefix="/campaigns")
 detail_router = APIRouter(prefix="/{slug}")
@@ -165,5 +166,6 @@ async def patch_campaign(
 async def delete_campaign(
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    await campaign_service.delete_campaign(db, campaign)
+    await campaign_service.delete_campaign(db, campaign, storage)

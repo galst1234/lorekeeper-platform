@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator, Callable
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -84,10 +85,11 @@ def authenticated_client(client: tuple[AsyncClient, FastAPI]) -> Callable[[str],
 
 
 @pytest.fixture
-async def campaigns_client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
+async def campaigns_client(db: AsyncSession, tmp_path: Path) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
     from supertokens_python.framework.fastapi import get_middleware
 
     from api.routers import campaigns as campaigns_router
+    from api.storage import LocalDiskStorage, get_image_storage
     from api.supertokens import init_supertokens
 
     global _supertokens_initialized
@@ -102,6 +104,7 @@ async def campaigns_client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient
     inner_app.add_middleware(get_middleware())
     inner_app.include_router(campaigns_router.router, prefix="/api/v1")
     inner_app.dependency_overrides[get_db] = override_get_db
+    inner_app.dependency_overrides[get_image_storage] = lambda: LocalDiskStorage(root=str(tmp_path / "uploads"))
 
     async with AsyncClient(transport=ASGITransport(app=inner_app), base_url="http://test") as ac:
         yield ac, inner_app

@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Item
+from api.storage import ImageStorage
 
 
 class ItemSlugConflictError(Exception):
@@ -83,6 +84,29 @@ async def update_item(
     return item
 
 
-async def delete_item(db: AsyncSession, item: Item) -> None:
+async def delete_item(db: AsyncSession, item: Item, storage: ImageStorage) -> None:
+    image_key = item.image_key
     await db.delete(item)
     await db.commit()
+    if image_key is not None:
+        await storage.delete(image_key)
+
+
+async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, storage: ImageStorage) -> Item:
+    old_key = item.image_key
+    item.image_key = new_image_key
+    await db.commit()
+    await db.refresh(item)
+    if old_key is not None:
+        await storage.delete(old_key)
+    return item
+
+
+async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) -> Item:
+    old_key = item.image_key
+    item.image_key = None
+    await db.commit()
+    await db.refresh(item)
+    if old_key is not None:
+        await storage.delete(old_key)
+    return item

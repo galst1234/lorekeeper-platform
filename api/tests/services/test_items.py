@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services import items as item_service
 from api.services.items import ItemSlugConflictError
+from api.storage import LocalDiskStorage
 from tests.helpers import make_campaign, make_item, make_user
 
 # --- list_items ---
@@ -180,11 +183,58 @@ async def test_update_item_missing_fields_unchanged(db: AsyncSession) -> None:
 # --- delete_item ---
 
 
-async def test_delete_item_removes_record(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-itm-del-ok", email="svc-itm-del-ok@test.com")
+async def test_delete_item_removes_record(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-item-del-ok", email="svc-item-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="itmd0001")
     item = await make_item(db, campaign_id=campaign.id)
     item_slug = item.slug
-    await item_service.delete_item(db, item)
+    storage = LocalDiskStorage(root=str(tmp_path))
+    await item_service.delete_item(db, item, storage)
     result = await item_service.get_item_by_slug(db, campaign.id, item_slug)
     assert result is None
+
+
+async def test_delete_item_removes_image_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-item-del-img", email="svc-item-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="itmd0002")
+    item = await make_item(db, campaign_id=campaign.id)
+    storage = LocalDiskStorage(root=str(tmp_path))
+    key = await storage.save(b"item-bytes", "image/png")
+    item.image_key = key
+    await db.commit()
+    await item_service.delete_item(db, item, storage)
+    assert not (tmp_path / key).exists()
+
+
+async def test_set_item_image_sets_key(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-item-img-set", email="svc-item-img-set@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="itmi0001")
+    item = await make_item(db, campaign_id=campaign.id)
+    storage = LocalDiskStorage(root=str(tmp_path))
+    updated = await item_service.set_item_image(db, item, "new-key.png", storage)
+    assert updated.image_key == "new-key.png"
+
+
+async def test_set_item_image_deletes_old_file_after_replacing(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-item-img-replace", email="svc-item-img-replace@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="itmi0002")
+    item = await make_item(db, campaign_id=campaign.id)
+    storage = LocalDiskStorage(root=str(tmp_path))
+    old_key = await storage.save(b"old-bytes", "image/png")
+    item.image_key = old_key
+    await db.commit()
+    await item_service.set_item_image(db, item, "new-key.png", storage)
+    assert not (tmp_path / old_key).exists()
+
+
+async def test_clear_item_image_clears_key_and_deletes_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-item-img-clear", email="svc-item-img-clear@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="itmi0003")
+    item = await make_item(db, campaign_id=campaign.id)
+    storage = LocalDiskStorage(root=str(tmp_path))
+    key = await storage.save(b"item-bytes", "image/png")
+    item.image_key = key
+    await db.commit()
+    updated = await item_service.clear_item_image(db, item, storage)
+    assert updated.image_key is None
+    assert not (tmp_path / key).exists()

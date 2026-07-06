@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Character, CharacterType
+from api.storage import ImageStorage
 
 
 class CharacterSlugConflictError(Exception):
@@ -94,6 +95,31 @@ async def update_character(
     return character
 
 
-async def delete_character(db: AsyncSession, character: Character) -> None:
+async def delete_character(db: AsyncSession, character: Character, storage: ImageStorage) -> None:
+    image_key = character.image_key
     await db.delete(character)
     await db.commit()
+    if image_key is not None:
+        await storage.delete(image_key)
+
+
+async def set_character_image(
+    db: AsyncSession, character: Character, new_image_key: str, storage: ImageStorage
+) -> Character:
+    old_key = character.image_key
+    character.image_key = new_image_key
+    await db.commit()
+    await db.refresh(character)
+    if old_key is not None:
+        await storage.delete(old_key)
+    return character
+
+
+async def clear_character_image(db: AsyncSession, character: Character, storage: ImageStorage) -> Character:
+    old_key = character.image_key
+    character.image_key = None
+    await db.commit()
+    await db.refresh(character)
+    if old_key is not None:
+        await storage.delete(old_key)
+    return character
