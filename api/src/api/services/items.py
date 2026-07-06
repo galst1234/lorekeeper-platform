@@ -94,7 +94,7 @@ async def delete_item(db: AsyncSession, item: Item, storage: ImageStorage) -> No
     if image_key is not None:
         try:
             await storage.delete(image_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete image %s for deleted item %s", image_key, item.id)
 
 
@@ -109,7 +109,7 @@ async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, stora
     if old_key is not None:
         try:
             await storage.delete(old_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item
 
@@ -125,6 +125,6 @@ async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) 
     if old_key is not None:
         try:
             await storage.delete(old_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item

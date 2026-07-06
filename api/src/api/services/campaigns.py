@@ -137,7 +137,7 @@ async def delete_campaign(db: AsyncSession, campaign: Campaign, storage: ImageSt
     for key in [*character_keys, *item_keys]:
         try:
             await storage.delete(key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
 
 

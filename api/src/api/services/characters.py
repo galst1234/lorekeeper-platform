@@ -105,7 +105,7 @@ async def delete_character(db: AsyncSession, character: Character, storage: Imag
     if image_key is not None:
         try:
             await storage.delete(image_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete image %s for deleted character %s", image_key, character.id)
 
 
@@ -122,7 +122,7 @@ async def set_character_image(
     if old_key is not None:
         try:
             await storage.delete(old_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character
 
@@ -138,6 +138,6 @@ async def clear_character_image(db: AsyncSession, character: Character, storage:
     if old_key is not None:
         try:
             await storage.delete(old_key)
-        except OSError:
+        except Exception:
             logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character
