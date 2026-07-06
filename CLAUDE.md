@@ -12,7 +12,7 @@ Three independent projects, each with its own dependency manifest and lockfile:
 - `api/` — FastAPI backend: SQLAlchemy async/asyncpg + Alembic migrations, SuperTokens auth. `uv` + Python >=3.14.
 - `agent/` — separate FastAPI service for agent tooling. `uv` + Python >=3.14.
 
-Nested `CLAUDE.md` (and their linked `AGENTS.md`) files exist closer to the code they govern and take precedence for their subtree — notably `frontend/CLAUDE.md` (component/page conventions), `api/src/api/routers/CLAUDE.md` (router package structure, OpenAPI documentation requirements), `api/src/api/models/CLAUDE.md` (model registration), and `api/migrations/CLAUDE.md` (Alembic migration rules).
+Nested `CLAUDE.md` (and their linked `AGENTS.md`) files exist closer to the code they govern and take precedence for their subtree — notably `frontend/CLAUDE.md` (component/page conventions), `api/tests/CLAUDE.md` (router and service test conventions), `api/src/api/routers/CLAUDE.md` (router package structure, OpenAPI documentation requirements), `api/src/api/models/CLAUDE.md` (model registration), and `api/migrations/CLAUDE.md` (Alembic migration rules).
 Each `CLAUDE.md` file has a `AGENTS.md` symlink next to it for other agents to read.
 
 ## Commands
