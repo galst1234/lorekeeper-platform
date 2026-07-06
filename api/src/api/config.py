@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     discord_client_id: str = ""
     discord_client_secret: str = ""
     account_linking_require_verification: bool = False
+    image_upload_dir: str = "./.data/uploads"
+    image_max_size_bytes: int = 5 * 1024 * 1024  # 5MB
 
     open_observe_url: str = ""
     open_observe_api_key: str = ""
