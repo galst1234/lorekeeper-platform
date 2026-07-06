@@ -101,6 +101,20 @@ async def test_create_item_invalid_slug_rejected(
     assert response.status_code == 422
 
 
+async def test_create_item_reserved_slug_rejected(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-itm-cr-reserved", email="rt-itm-cr-reserved@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtic0007")
+    ac = campaigns_authenticated_client("rt-itm-cr-reserved")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/items",
+        json={"slug": "new", "name": "New Item"},
+    )
+    assert response.status_code == 422
+
+
 async def test_create_item_slug_conflict_returns_409(
     campaigns_authenticated_client: Callable[[str], AsyncClient],
     db: AsyncSession,
