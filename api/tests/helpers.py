@@ -143,3 +143,65 @@ async def make_member(
     db.add(member)
     await db.flush()
     return member
+
+
+# --- In-memory builders (never persisted) ---
+#
+# For solitary router tests: the object is only read by the route/mocked
+# service layer in-process, never queried back from a database. Use the
+# `make_*` factories above instead when a test needs the row to actually
+# exist for a real query (sociable service tests, e.g.).
+
+
+def build_campaign(*, slug_label: str = "test-campaign", slug_id: str = "aabbccdd") -> Campaign:
+    return Campaign(
+        id=uuid.uuid4(), owner_id=uuid.uuid4(), name="Test Campaign", slug_label=slug_label, slug_id=slug_id
+    )
+
+
+def build_character(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Character",
+    slug: str | None = None,
+    character_type: CharacterType = CharacterType.PC,
+    description: str | None = None,
+    image_key: str | None = None,
+) -> Character:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Character(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        character_type=character_type,
+        description=description,
+        image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_item(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Item",
+    slug: str | None = None,
+    description: str | None = None,
+    image_key: str | None = None,
+) -> Item:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Item(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        description=description,
+        image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )

@@ -1,9 +1,16 @@
 from collections.abc import Callable
+from unittest.mock import ANY
 
+import pytest
+from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
+from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.helpers import make_campaign, make_character, make_member, make_user
+from api.models import Campaign
+from api.routers.campaigns.dependencies import require_campaign_member
+from api.storage import ImageStorage, get_image_storage
+from tests.helpers import build_campaign, build_character, make_campaign, make_character, make_member, make_user
 
 # --- List ---
 
@@ -304,166 +311,238 @@ async def test_delete_character_player_member_can_delete(
     assert response.status_code == 204
 
 
-# --- Image ---
+# --- Image (solitary — see tests/CLAUDE.md) ---
+
+
+def _allow_member(inner_app: FastAPI, campaign: Campaign) -> None:
+    inner_app.dependency_overrides[require_campaign_member] = lambda: campaign
+
+
+def _forbid_member(inner_app: FastAPI) -> None:
+    def _raise() -> Campaign:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    inner_app.dependency_overrides[require_campaign_member] = _raise
+
+
+@pytest.fixture
+def image_client(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> tuple[AsyncClient, FastAPI, ImageStorage]:
+    ac, inner_app = campaigns_client
+    storage = mocker.create_autospec(ImageStorage, instance=True)
+    inner_app.dependency_overrides[get_image_storage] = lambda: storage
+    return ac, inner_app, storage
 
 
 async def test_upload_character_image_returns_200_with_image_url(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-img-200", email="rt-chr-img-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0001")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-img-200")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
+    updated = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="new-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_set = mocker.patch("api.services.characters.set_character_image", return_value=updated)
+    storage.save.return_value = "new-key.jpg"
+    storage.url_for.return_value = "/media/new-key.jpg"
+
     response = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
         files={"file": ("portrait.jpg", b"fake-jpeg-bytes", "image/jpeg")},
     )
+
     assert response.status_code == 200
-    data = response.json()
-    assert data["image_url"] is not None
-    assert data["image_url"].startswith("/media/")
+    assert response.json()["image_url"] == "/media/new-key.jpg"
+    storage.save.assert_awaited_once_with(b"fake-jpeg-bytes", "image/jpeg")
+    mock_set.assert_awaited_once_with(ANY, character, "new-key.jpg", storage)
 
 
 async def test_upload_character_image_rejects_invalid_content_type(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-img-badtype", email="rt-chr-img-badtype@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0002")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-img-badtype")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_set = mocker.patch("api.services.characters.set_character_image")
+
     response = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
         files={"file": ("notes.txt", b"not an image", "text/plain")},
     )
+
     assert response.status_code == 400
+    storage.save.assert_not_called()
+    mock_set.assert_not_called()
 
 
 async def test_upload_character_image_rejects_oversized_file(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-img-big", email="rt-chr-img-big@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0003")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-img-big")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_set = mocker.patch("api.services.characters.set_character_image")
     oversized_content = b"x" * (5 * 1024 * 1024 + 1)
+
     response = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
         files={"file": ("portrait.jpg", oversized_content, "image/jpeg")},
     )
+
     assert response.status_code == 400
+    storage.save.assert_not_called()
+    mock_set.assert_not_called()
 
 
 async def test_upload_character_image_replaces_existing_and_changes_url(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-img-replace", email="rt-chr-img-replace@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0004")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-img-replace")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="old-key.jpg")
+    first_updated = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="first-key.jpg")
+    second_updated = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="second-key.png")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mocker.patch("api.services.characters.set_character_image", side_effect=[first_updated, second_updated])
+    storage.save.side_effect = ["first-key.jpg", "second-key.png"]
+    storage.url_for.side_effect = lambda key: f"/media/{key}"
+
     first = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
         files={"file": ("first.jpg", b"first-bytes", "image/jpeg")},
     )
-    first_url = first.json()["image_url"]
     second = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
         files={"file": ("second.png", b"second-bytes", "image/png")},
     )
+
     assert second.status_code == 200
-    assert second.json()["image_url"] != first_url
+    assert second.json()["image_url"] != first.json()["image_url"]
 
 
 async def test_upload_character_image_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-img-own", email="rt-chr-img-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtci0005")
-    character = await make_character(db, campaign_id=campaign.id)
-    await make_user(db, supertokens_user_id="rt-chr-img-403", email="rt-chr-img-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-img-403")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug")
+    mock_set = mocker.patch("api.services.characters.set_character_image")
+
     response = await ac.put(
-        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
+        f"/api/v1/campaigns/{campaign.slug}/characters/aria/image",
         files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
     )
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    storage.save.assert_not_called()
 
 
 async def test_upload_character_image_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-img-404", email="rt-chr-img-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtci0006")
-    ac = campaigns_authenticated_client("rt-chr-img-404")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
+    mock_set = mocker.patch("api.services.characters.set_character_image")
+
     response = await ac.put(
         f"/api/v1/campaigns/{campaign.slug}/characters/nonexistent-character/image",
         files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
     )
+
     assert response.status_code == 404
+    storage.save.assert_not_called()
+    mock_set.assert_not_called()
 
 
-# --- Delete image ---
+# --- Delete image (solitary — see tests/CLAUDE.md) ---
 
 
 async def test_delete_character_image_returns_204_and_clears_url(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-imgdel-204", email="rt-chr-imgdel-204@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcid001")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-imgdel-204")
-    await ac.put(
-        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
-        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
-    )
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="existing-key.jpg")
+    cleared = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key=None)
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_clear = mocker.patch("api.services.characters.clear_character_image", return_value=cleared)
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+
     assert response.status_code == 204
-    get_response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}")
-    assert get_response.json()["image_url"] is None
+    mock_clear.assert_awaited_once_with(ANY, character, storage)
 
 
 async def test_delete_character_image_with_no_existing_image_returns_204(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-imgdel-noop", email="rt-chr-imgdel-noop@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcid002")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-imgdel-noop")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_clear = mocker.patch("api.services.characters.clear_character_image", return_value=character)
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+
     assert response.status_code == 204
+    mock_clear.assert_awaited_once_with(ANY, character, storage)
 
 
 async def test_delete_character_image_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-imgdel-own", email="rt-chr-imgdel-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcid003")
-    character = await make_character(db, campaign_id=campaign.id)
-    await make_user(db, supertokens_user_id="rt-chr-imgdel-403", email="rt-chr-imgdel-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-imgdel-403")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image")
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug")
+    mock_clear = mocker.patch("api.services.characters.clear_character_image")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/aria/image")
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_clear.assert_not_called()
+    assert storage.save.await_count == 0
 
 
 async def test_delete_character_also_removes_image_file(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-del-img", email="rt-chr-del-img@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcdi001")
-    character = await make_character(db, campaign_id=campaign.id, slug="aria", name="Aria")
-    ac = campaigns_authenticated_client("rt-chr-del-img")
-    await ac.put(
-        f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}/image",
-        files={"file": ("portrait.jpg", b"bytes", "image/jpeg")},
-    )
+    # File deletion itself is proven by the service-layer test (tests/services/test_characters.py);
+    # this only proves the route delegates the right character/storage to the function that owns it.
+    ac, inner_app, storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria", image_key="existing-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_delete = mocker.patch("api.services.characters.delete_character")
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/{character.slug}")
+
     assert response.status_code == 204
+    mock_delete.assert_awaited_once_with(ANY, character, storage)
