@@ -115,7 +115,10 @@ async def set_character_image(
     old_key = character.image_key
     character.image_key = new_image_key
     await db.commit()
-    await db.refresh(character)
+    try:
+        await db.refresh(character)
+    except Exception:
+        logger.warning("Failed to refresh character %s after image update", character.id)
     if old_key is not None:
         try:
             await storage.delete(old_key)
@@ -128,7 +131,10 @@ async def clear_character_image(db: AsyncSession, character: Character, storage:
     old_key = character.image_key
     character.image_key = None
     await db.commit()
-    await db.refresh(character)
+    try:
+        await db.refresh(character)
+    except Exception:
+        logger.warning("Failed to refresh character %s after image update", character.id)
     if old_key is not None:
         try:
             await storage.delete(old_key)

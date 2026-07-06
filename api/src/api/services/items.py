@@ -102,7 +102,10 @@ async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, stora
     old_key = item.image_key
     item.image_key = new_image_key
     await db.commit()
-    await db.refresh(item)
+    try:
+        await db.refresh(item)
+    except Exception:
+        logger.warning("Failed to refresh item %s after image update", item.id)
     if old_key is not None:
         try:
             await storage.delete(old_key)
@@ -115,7 +118,10 @@ async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) 
     old_key = item.image_key
     item.image_key = None
     await db.commit()
-    await db.refresh(item)
+    try:
+        await db.refresh(item)
+    except Exception:
+        logger.warning("Failed to refresh item %s after image update", item.id)
     if old_key is not None:
         try:
             await storage.delete(old_key)
