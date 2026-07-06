@@ -161,27 +161,6 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="character_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pc">PC</SelectItem>
-                      <SelectItem value="npc">NPC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             {!isEditing && (
               <FormField
                 control={form.control}
@@ -203,6 +182,27 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 )}
               />
             )}
+            <FormField
+              control={form.control}
+              name="character_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="pc">PC</SelectItem>
+                      <SelectItem value="npc">NPC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <FormField
