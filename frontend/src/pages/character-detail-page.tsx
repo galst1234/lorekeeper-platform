@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { getRouteApi, Link, useRouter } from "@tanstack/react-router";
 import { getCharacterOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { CharacterInfo } from "@/components/character/character-info";
 import { CharacterSidebarCard } from "@/components/character/character-sidebar-card";
@@ -10,6 +10,8 @@ const Route = getRouteApi("/campaigns/$slug/characters/$characterSlug");
 export function CharacterDetailPage() {
   const { slug, characterSlug } = Route.useParams();
   const { data: character } = useSuspenseQuery(getCharacterOptions({ path: { slug, character_slug: characterSlug } }));
+  const router = useRouter();
+  const imageUploadFailed = Boolean(router.state.location.state.imageUploadFailed);
 
   return (
     <PageContainer>
@@ -20,6 +22,10 @@ export function CharacterDetailPage() {
       >
         ← Back to Characters
       </Link>
+
+      {imageUploadFailed && (
+        <p className="text-sm text-destructive mb-4">Image failed to upload — try again from the edit page.</p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2">
