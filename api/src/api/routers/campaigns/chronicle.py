@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from api.auth import get_current_user
 from api.database import get_db
 from api.models import Campaign, ChronicleEntry, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import chronicle as chronicle_service
 from api.services.chronicle import EntrySlugConflictError
@@ -18,18 +19,6 @@ from api.services.chronicle import EntrySlugConflictError
 router = APIRouter(prefix="/chronicle/entries", tags=["Chronicle"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-_EntrySlugStr = Annotated[
-    str,
-    StringConstraints(
-        min_length=1,
-        max_length=100,
-        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*\z",
-    ),
-]
-
-# "new" collides with the frontend's static /chronicle/new route, which would otherwise
-# make an entry with this slug permanently unreachable at its own detail URL.
-_RESERVED_ENTRY_SLUGS = frozenset({"new"})
 
 
 class AuthorResponse(BaseModel):
@@ -92,7 +81,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
     author: AuthorResponse | None
 
 
-class CreateChronicleEntryRequest(BaseModel):
+class CreateChronicleEntryRequest(NonReservedSlugModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -104,17 +93,9 @@ class CreateChronicleEntryRequest(BaseModel):
         }
     )
 
-    slug: _EntrySlugStr
     title: _NonEmptyStr
     occurred_at: AwareDatetime
     body: str | None = None
-
-    @field_validator("slug")
-    @classmethod
-    def _slug_not_reserved(cls, value: str) -> str:
-        if value in _RESERVED_ENTRY_SLUGS:
-            raise ValueError(f'"{value}" is a reserved slug and cannot be used for a chronicle entry')
-        return value
 
 
 class PatchChronicleEntryRequest(BaseModel):
