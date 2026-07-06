@@ -3,6 +3,7 @@ import { getRouteApi, Link } from "@tanstack/react-router";
 import { getItemOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { ItemInfo } from "@/components/item/item-info";
 import { ItemSidebarCard } from "@/components/item/item-sidebar-card";
+import { PageContainer } from "@/components/layout/page-container";
 
 const Route = getRouteApi("/campaigns/$slug/items/$itemSlug");
 
@@ -11,7 +12,7 @@ export function ItemDetailPage() {
   const { data: item } = useSuspenseQuery(getItemOptions({ path: { slug, item_slug: itemSlug } }));
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <PageContainer>
       <Link
         to="/campaigns/$slug/items"
         params={{ slug }}
@@ -28,6 +29,6 @@ export function ItemDetailPage() {
           <ItemSidebarCard item={item} />
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
