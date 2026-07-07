@@ -130,9 +130,9 @@ async def _clear_campaign_images(db: AsyncSession, campaign: Campaign, image_sto
 
 
 async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
-    await _clear_campaign_images(db, campaign, image_storage)
     await db.delete(campaign)
     await db.commit()
+    await _clear_campaign_images(db, campaign, image_storage)
 
 
 def _generate_invite_code() -> str:
