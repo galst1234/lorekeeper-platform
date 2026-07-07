@@ -12,7 +12,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
-from api.models import Campaign, CampaignMember, Character, Item, MemberRole, User
+from api.models import Campaign, CampaignMember, MemberRole, User
+from api.services import characters as character_service
+from api.services import items as item_service
 from api.storage import ImageStorage
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
@@ -117,28 +119,20 @@ async def update_campaign(
     return campaign
 
 
-async def delete_campaign(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
-    character_keys = [
-        key
-        for key in await db.scalars(
-            select(Character.image_key).where(Character.campaign_id == campaign.id, Character.image_key.is_not(None))
-        )
-        if key is not None
-    ]
-    item_keys = [
-        key
-        for key in await db.scalars(
-            select(Item.image_key).where(Item.campaign_id == campaign.id, Item.image_key.is_not(None))
-        )
-        if key is not None
-    ]
-    await db.delete(campaign)
-    await db.commit()
+async def _clear_campaign_images(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
+    character_keys = await character_service.list_character_image_keys(db, campaign.id)
+    item_keys = await item_service.list_item_image_keys(db, campaign.id)
     for key in [*character_keys, *item_keys]:
         try:
             await storage.delete(key)
         except Exception:
             logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
+
+
+async def delete_campaign(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
+    await _clear_campaign_images(db, campaign, storage)
+    await db.delete(campaign)
+    await db.commit()
 
 
 def _generate_invite_code() -> str:

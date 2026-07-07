@@ -98,6 +98,16 @@ async def delete_item(db: AsyncSession, item: Item, storage: ImageStorage) -> No
             logger.warning("Failed to delete image %s for deleted item %s", image_key, item.id)
 
 
+async def list_item_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    return [
+        key
+        for key in await db.scalars(
+            select(Item.image_key).where(Item.campaign_id == campaign_id, Item.image_key.is_not(None))
+        )
+        if key is not None
+    ]
+
+
 async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, storage: ImageStorage) -> Item:
     old_key = item.image_key
     item.image_key = new_image_key

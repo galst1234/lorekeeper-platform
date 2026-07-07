@@ -109,6 +109,16 @@ async def delete_character(db: AsyncSession, character: Character, storage: Imag
             logger.warning("Failed to delete image %s for deleted character %s", image_key, character.id)
 
 
+async def list_character_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    return [
+        key
+        for key in await db.scalars(
+            select(Character.image_key).where(Character.campaign_id == campaign_id, Character.image_key.is_not(None))
+        )
+        if key is not None
+    ]
+
+
 async def set_character_image(
     db: AsyncSession, character: Character, new_image_key: str, storage: ImageStorage
 ) -> Character:
