@@ -126,9 +126,6 @@ async def _collect_campaign_image_keys(db: AsyncSession, campaign_id: uuid.UUID)
 
 
 async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
-    # Collect keys before the delete: the campaign's characters/items are removed by the FK
-    # cascade when db.commit() runs below, so querying for their image keys afterward would
-    # always find nothing.
     image_keys = await _collect_campaign_image_keys(db, campaign.id)
     await db.delete(campaign)
     await db.commit()
