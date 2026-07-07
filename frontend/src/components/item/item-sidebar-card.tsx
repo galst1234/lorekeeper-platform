@@ -21,8 +21,12 @@ export function ItemSidebarCard({ item }: ItemSidebarCardProps) {
   return (
     <Card className="sticky top-6">
       <CardContent className="pt-6 space-y-4">
-        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
-          <Swords className="h-12 w-12 text-muted-foreground" />
+        <div className="aspect-square w-full overflow-hidden rounded-md bg-muted flex items-center justify-center">
+          {item.image_url ? (
+            <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Swords className="h-12 w-12 text-muted-foreground" />
+          )}
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Last updated</p>

@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from asyncpg import UniqueViolationError
@@ -7,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Character, CharacterType
+from api.storage import ImageStorage
+
+logger = logging.getLogger(__name__)
 
 
 class CharacterSlugConflictError(Exception):
@@ -94,6 +98,56 @@ async def update_character(
     return character
 
 
-async def delete_character(db: AsyncSession, character: Character) -> None:
+async def delete_character(db: AsyncSession, character: Character, image_storage: ImageStorage) -> None:
+    image_key = character.image_key
     await db.delete(character)
     await db.commit()
+    if image_key is not None:
+        try:
+            await image_storage.delete(image_key)
+        except Exception:
+            logger.warning("Failed to delete image %s for deleted character %s", image_key, character.id)
+
+
+async def list_character_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    return [
+        key
+        for key in await db.scalars(
+            select(Character.image_key).where(Character.campaign_id == campaign_id, Character.image_key.is_not(None))
+        )
+        if key is not None
+    ]
+
+
+async def set_character_image(
+    db: AsyncSession, character: Character, new_image_key: str, image_storage: ImageStorage
+) -> Character:
+    old_key = character.image_key
+    character.image_key = new_image_key
+    await db.commit()
+    try:
+        await db.refresh(character)
+    except Exception:
+        logger.warning("Failed to refresh character %s after image update", character.id)
+    if old_key is not None:
+        try:
+            await image_storage.delete(old_key)
+        except Exception:
+            logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
+    return character
+
+
+async def clear_character_image(db: AsyncSession, character: Character, image_storage: ImageStorage) -> Character:
+    old_key = character.image_key
+    character.image_key = None
+    await db.commit()
+    try:
+        await db.refresh(character)
+    except Exception:
+        logger.warning("Failed to refresh character %s after image update", character.id)
+    if old_key is not None:
+        try:
+            await image_storage.delete(old_key)
+        except Exception:
+            logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
+    return character

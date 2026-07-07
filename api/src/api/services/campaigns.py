@@ -1,3 +1,4 @@
+import logging
 import secrets
 import string
 import uuid
@@ -12,8 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
 from api.models import Campaign, CampaignMember, MemberRole, User
+from api.services import characters as character_service
+from api.services import items as item_service
+from api.storage import ImageStorage
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -113,9 +119,21 @@ async def update_campaign(
     return campaign
 
 
-async def delete_campaign(db: AsyncSession, campaign: Campaign) -> None:
+async def _collect_campaign_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    character_keys = await character_service.list_character_image_keys(db, campaign_id)
+    item_keys = await item_service.list_item_image_keys(db, campaign_id)
+    return [*character_keys, *item_keys]
+
+
+async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
+    image_keys = await _collect_campaign_image_keys(db, campaign.id)
     await db.delete(campaign)
     await db.commit()
+    for key in image_keys:
+        try:
+            await image_storage.delete(key)
+        except Exception:
+            logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
 
 
 def _generate_invite_code() -> str:

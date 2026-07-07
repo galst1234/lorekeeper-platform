@@ -1,8 +1,11 @@
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import CharacterType
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
+from api.storage import LocalDiskStorage
 from tests.helpers import make_campaign, make_character, make_user
 
 # --- list_characters ---
@@ -203,11 +206,64 @@ async def test_update_character_missing_fields_unchanged(db: AsyncSession) -> No
 # --- delete_character ---
 
 
-async def test_delete_character_removes_record(db: AsyncSession) -> None:
+async def test_delete_character_removes_record(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-chr-del-ok", email="svc-chr-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrd0001")
     character = await make_character(db, campaign_id=campaign.id)
     character_slug = character.slug
-    await character_service.delete_character(db, character)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    await character_service.delete_character(db, character, image_storage)
     result = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     assert result is None
+
+
+async def test_delete_character_removes_image_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-chr-del-img", email="svc-chr-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="chrd0002")
+    character = await make_character(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"portrait-bytes", "image/jpeg")
+    character.image_key = key
+    await db.commit()
+    await character_service.delete_character(db, character, image_storage)
+    assert not (tmp_path / key).exists()
+
+
+# --- set_character_image ---
+
+
+async def test_set_character_image_sets_key(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-chr-img-set", email="svc-chr-img-set@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0001")
+    character = await make_character(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    updated = await character_service.set_character_image(db, character, "new-key.jpg", image_storage)
+    assert updated.image_key == "new-key.jpg"
+
+
+async def test_set_character_image_deletes_old_file_after_replacing(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-chr-img-replace", email="svc-chr-img-replace@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0002")
+    character = await make_character(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    old_key = await image_storage.save(b"old-bytes", "image/jpeg")
+    character.image_key = old_key
+    await db.commit()
+    await character_service.set_character_image(db, character, "new-key.jpg", image_storage)
+    assert not (tmp_path / old_key).exists()
+
+
+# --- clear_character_image ---
+
+
+async def test_clear_character_image_clears_key_and_deletes_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-chr-img-clear", email="svc-chr-img-clear@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0003")
+    character = await make_character(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"portrait-bytes", "image/jpeg")
+    character.image_key = key
+    await db.commit()
+    updated = await character_service.clear_character_image(db, character, image_storage)
+    assert updated.image_key is None
+    assert not (tmp_path / key).exists()

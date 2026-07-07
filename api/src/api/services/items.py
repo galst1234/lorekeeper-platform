@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from asyncpg import UniqueViolationError
@@ -7,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import Item
+from api.storage import ImageStorage
+
+logger = logging.getLogger(__name__)
 
 
 class ItemSlugConflictError(Exception):
@@ -83,6 +87,54 @@ async def update_item(
     return item
 
 
-async def delete_item(db: AsyncSession, item: Item) -> None:
+async def delete_item(db: AsyncSession, item: Item, image_storage: ImageStorage) -> None:
+    image_key = item.image_key
     await db.delete(item)
     await db.commit()
+    if image_key is not None:
+        try:
+            await image_storage.delete(image_key)
+        except Exception:
+            logger.warning("Failed to delete image %s for deleted item %s", image_key, item.id)
+
+
+async def list_item_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    return [
+        key
+        for key in await db.scalars(
+            select(Item.image_key).where(Item.campaign_id == campaign_id, Item.image_key.is_not(None))
+        )
+        if key is not None
+    ]
+
+
+async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, image_storage: ImageStorage) -> Item:
+    old_key = item.image_key
+    item.image_key = new_image_key
+    await db.commit()
+    try:
+        await db.refresh(item)
+    except Exception:
+        logger.warning("Failed to refresh item %s after image update", item.id)
+    if old_key is not None:
+        try:
+            await image_storage.delete(old_key)
+        except Exception:
+            logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
+    return item
+
+
+async def clear_item_image(db: AsyncSession, item: Item, image_storage: ImageStorage) -> Item:
+    old_key = item.image_key
+    item.image_key = None
+    await db.commit()
+    try:
+        await db.refresh(item)
+    except Exception:
+        logger.warning("Failed to refresh item %s after image update", item.id)
+    if old_key is not None:
+        try:
+            await image_storage.delete(old_key)
+        except Exception:
+            logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
+    return item

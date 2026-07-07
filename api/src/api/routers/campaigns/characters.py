@@ -2,18 +2,20 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.config import settings
 from api.database import get_db
 from api.models import Campaign, Character, CharacterType
-from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
+from api.storage import ALLOWED_IMAGE_CONTENT_TYPES, ImageStorage, get_image_storage
 
 router = APIRouter(prefix="/characters", tags=["Characters"])
 
@@ -29,6 +31,7 @@ class CharacterResponse(BaseModel):
                 "name": "Elara Moonwhisper",
                 "character_type": "pc",
                 "description": "A wise elven druid from the Emerald Enclave.",
+                "image_url": "/media/3f9c1e2a-3b7e-4a2e-9b1a-9d6a2b0e5c11.jpg",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
             }
@@ -40,6 +43,7 @@ class CharacterResponse(BaseModel):
     name: str
     character_type: CharacterType
     description: str | None
+    image_url: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -77,13 +81,14 @@ class PatchCharacterRequest(BaseModel):
     description: str | None | MISSING = MISSING
 
 
-def _to_response(character: Character) -> CharacterResponse:
+def _to_response(character: Character, image_storage: ImageStorage) -> CharacterResponse:
     return CharacterResponse(
         id=character.id,
         slug=character.slug,
         name=character.name,
         character_type=character.character_type,
         description=character.description,
+        image_url=image_storage.url_for(character.image_key) if character.image_key else None,
         created_at=character.created_at,
         updated_at=character.updated_at,
     )
@@ -93,10 +98,11 @@ def _to_response(character: Character) -> CharacterResponse:
 async def list_characters(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
     character_type: CharacterType | None = None,
 ) -> list[CharacterResponse]:
     characters = await character_service.list_characters(db, campaign.id, character_type)
-    return [_to_response(character) for character in characters]
+    return [_to_response(character, image_storage) for character in characters]
 
 
 @router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
@@ -104,6 +110,7 @@ async def create_character(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> CharacterResponse:
     try:
         character = await character_service.create_character(
@@ -118,7 +125,7 @@ async def create_character(
         raise HTTPException(
             status_code=409, detail="A character with that slug already exists in this campaign"
         ) from None
-    return _to_response(character)
+    return _to_response(character, image_storage)
 
 
 @router.get("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
@@ -126,11 +133,12 @@ async def get_character(
     character_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> CharacterResponse:
     character = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
-    return _to_response(character)
+    return _to_response(character, image_storage)
 
 
 @router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
@@ -139,6 +147,7 @@ async def patch_character(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: PatchCharacterRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> CharacterResponse:
     character = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     if character is None:
@@ -150,7 +159,7 @@ async def patch_character(
         character_type=body.character_type,
         description=body.description,
     )
-    return _to_response(updated)
+    return _to_response(updated, image_storage)
 
 
 @router.delete("/{character_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
@@ -158,8 +167,47 @@ async def delete_character(
     character_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
     character = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
-    await character_service.delete_character(db, character)
+    await character_service.delete_character(db, character, image_storage)
+
+
+@router.put("/{character_slug}/image", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | INVALID_IMAGE)
+async def upload_character_image(
+    character_slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
+    file: Annotated[UploadFile, File()],
+) -> CharacterResponse:
+    character = await character_service.get_character_by_slug(db, campaign.id, character_slug)
+    if character is None:
+        raise HTTPException(status_code=404, detail="Character not found")
+    if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported image type")
+    content = await file.read(settings.image_max_size_bytes + 1)
+    if len(content) > settings.image_max_size_bytes:
+        raise HTTPException(status_code=400, detail="Image exceeds maximum size")
+    new_key = await image_storage.save(content, file.content_type)
+    try:
+        updated = await character_service.set_character_image(db, character, new_key, image_storage)
+    except Exception:
+        await image_storage.delete(new_key)
+        raise
+    return _to_response(updated, image_storage)
+
+
+@router.delete("/{character_slug}/image", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+async def delete_character_image(
+    character_slug: str,
+    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
+) -> None:
+    character = await character_service.get_character_by_slug(db, campaign.id, character_slug)
+    if character is None:
+        raise HTTPException(status_code=404, detail="Character not found")
+    await character_service.clear_character_image(db, character, image_storage)

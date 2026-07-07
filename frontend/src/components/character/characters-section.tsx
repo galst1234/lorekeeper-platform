@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, User } from "lucide-react";
 import { listCharactersOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { Card } from "@/components/ui/card";
 
@@ -26,16 +26,23 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
         <div className="space-y-2">
           {filtered.map((character) => (
             <Card key={character.id} className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <Link
-                  to="/campaigns/$slug/characters/$characterSlug"
-                  params={{ slug, characterSlug: character.slug }}
-                  className="font-medium hover:underline"
-                >
-                  {character.name}
-                </Link>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
+              <Link
+                to="/campaigns/$slug/characters/$characterSlug"
+                params={{ slug, characterSlug: character.slug }}
+                className="flex items-center gap-3"
+              >
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
+                  {character.image_url ? (
+                    <img src={character.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex flex-1 items-center justify-between min-w-0">
+                  <span className="font-medium hover:underline truncate">{character.name}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </Link>
             </Card>
           ))}
         </div>

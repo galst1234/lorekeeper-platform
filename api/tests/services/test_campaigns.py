@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.models import Campaign, MemberRole
 from api.services import campaigns as campaign_service
 from api.services.campaigns import _parse_slug_id
-from tests.helpers import make_campaign, make_user
+from api.storage import LocalDiskStorage
+from tests.helpers import make_campaign, make_character, make_item, make_user
 
 # --- _parse_slug_id ---
 
@@ -188,12 +190,34 @@ async def test_update_campaign_missing_fields_not_updated(db: AsyncSession) -> N
 # --- delete_campaign ---
 
 
-async def test_delete_campaign_removes_record(db: AsyncSession) -> None:
+async def test_delete_campaign_removes_record(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-del-ok", email="svc-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="del00001")
-    await campaign_service.delete_campaign(db, campaign)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    await campaign_service.delete_campaign(db, campaign, image_storage)
     result = await campaign_service.get_campaign_by_slug(db, "test-campaign-del00001")
     assert result is None
+
+
+async def test_delete_campaign_removes_character_and_item_images(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-camp-del-img", email="svc-camp-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="campd001")
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+
+    character = await make_character(db, campaign_id=campaign.id)
+    character_key = await image_storage.save(b"char-bytes", "image/jpeg")
+    character.image_key = character_key
+
+    item = await make_item(db, campaign_id=campaign.id)
+    item_key = await image_storage.save(b"item-bytes", "image/png")
+    item.image_key = item_key
+
+    await db.commit()
+
+    await campaign_service.delete_campaign(db, campaign, image_storage)
+
+    assert not (tmp_path / character_key).exists()
+    assert not (tmp_path / item_key).exists()
 
 
 # --- create_campaign retry logic (mocked DB) ---
