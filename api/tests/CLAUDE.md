@@ -47,7 +47,3 @@ A service test verifies real business logic against real infrastructure: the `db
 - `mocker.patch(...)` auto-detects `async def` targets and returns an `AsyncMock` (Python 3.8+); no need for `new_callable=AsyncMock`.
 - `mocker.create_autospec(SomeProtocol, instance=True)` correctly mixes `AsyncMock` for async methods and `MagicMock` for sync ones on the same object — the right choice for `ImageStorage`, which has both.
 - FastAPI dependency overrides (`app.dependency_overrides[dep] = ...`) are the mechanism for anything wired through `Depends(...)` (storage, permission checks, DB session). Direct service-layer calls aren't DI'd — use `mocker.patch` for those instead.
-
-## Migration status
-
-Router tests predating the entity-image-uploads feature (character/item/campaign CRUD, chronicle, members, invites) still use the old sociable style (`campaigns_authenticated_client`, real `make_*` DB rows) — that's a known gap, not a pattern to copy for new tests. Migrate them opportunistically; new router tests must follow the solitary style above.
