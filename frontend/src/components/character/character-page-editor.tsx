@@ -12,8 +12,10 @@ import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, getErrorMessage } from "@/lib/utils";
 
@@ -170,100 +172,109 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-[12rem_1fr]">
-            <EntityImageField
-              imageUrl={imageRemoved ? null : (character?.image_url ?? null)}
-              placeholderIcon={User}
-              onFileSelected={(file) => {
-                setPendingImageFile(file);
-                setImageRemoved(false);
-              }}
-              onRemove={() => {
-                setPendingImageFile(null);
-                setImageRemoved(true);
-              }}
-            />
-
-            <div
-              className={cn("grid grid-cols-1 gap-4 content-start", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}
-            >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} autoFocus />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {!isEditing && (
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="flex min-h-0 flex-col gap-6 md:col-span-2">
+              <div
+                className={cn("grid grid-cols-1 gap-4 content-start", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}
+              >
                 <FormField
                   control={form.control}
-                  name="slug"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Slug</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          onChange={(event) => {
-                            setSlugEdited(true);
-                            field.onChange(event);
-                          }}
-                        />
+                        <Input {...field} autoFocus />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
+                {!isEditing && (
+                  <FormField
+                    control={form.control}
+                    name="slug"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Slug</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            onChange={(event) => {
+                              setSlugEdited(true);
+                              field.onChange(event);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                <FormField
+                  control={form.control}
+                  name="character_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pc">PC</SelectItem>
+                          <SelectItem value="npc">NPC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="character_type"
+                name="description"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pc">PC</SelectItem>
-                        <SelectItem value="npc">NPC</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <MarkdownEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        campaignSlug={campaignSlug}
+                        className="flex min-h-0 flex-1 flex-col"
+                        textareaClassName="min-h-[16rem] flex-1 leading-7"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </div>
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <MarkdownEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    campaignSlug={campaignSlug}
-                    className="flex min-h-0 flex-1 flex-col"
-                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+            <div className="sticky top-6 space-y-2">
+              <Label>Image</Label>
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <EntityImageField
+                    imageUrl={imageRemoved ? null : (character?.image_url ?? null)}
+                    placeholderIcon={User}
+                    onFileSelected={(file) => {
+                      setPendingImageFile(file);
+                      setImageRemoved(false);
+                    }}
+                    onRemove={() => {
+                      setPendingImageFile(null);
+                      setImageRemoved(true);
+                    }}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {saveMutation.isError && (
             <p className="text-sm text-destructive">
