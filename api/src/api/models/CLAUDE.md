@@ -1,5 +1,19 @@
 # Claude Code Instructions
 
+## Campaign lore entities
+
+All campaign-related lore entities — characters, items, chronicle entries, locations, and any future additions — are **campaign-scoped only**:
+
+- **One table per entity** with a required `campaign_id` foreign key to `campaigns.id` (`ondelete="CASCADE"`).
+- **Slug unique per campaign** — `UniqueConstraint("campaign_id", "slug", ...)`, not per user or globally.
+- **No standalone rows** — lore does not exist outside a campaign.
+- **No junction or link tables** — do not split canonical records and campaign associations into separate tables.
+- **Hard delete** — removing an entity from a campaign deletes the row; there is no unlink/preserve-canonical pattern.
+
+Reference implementation: `api/src/api/models/item.py` (service: `services/items.py`, router: `routers/campaigns/items.py`).
+
+**Not campaign lore** (different rules apply): `User`, `Campaign`, `CampaignMember`, `UserAuthMethod`. These are account/campaign-structure models, not per-campaign content.
+
 ## Adding a new SQLAlchemy model file
 
 When adding a new model file under `src/api/models/`:
