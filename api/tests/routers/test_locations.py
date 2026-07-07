@@ -23,7 +23,6 @@ async def test_list_locations_returns_200(
     assert len(data) == 1
     assert data[0]["name"] == "Tavern"
     assert data[0]["slug"] == "tavern"
-    assert data[0]["is_active"] is True
 
 
 async def test_list_locations_returns_403_for_non_member(
@@ -36,40 +35,6 @@ async def test_list_locations_returns_403_for_non_member(
     ac = campaigns_authenticated_client("rt-loc-list-403")
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations")
     assert response.status_code == 403
-
-
-async def test_list_locations_filters_active_only(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-list-active", email="rt-loc-list-active@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtll0003")
-    await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", is_active=True)
-    await make_location(db, campaign_id=campaign.id, slug="dungeon", name="Dungeon", is_active=False)
-    ac = campaigns_authenticated_client("rt-loc-list-active")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations", params={"active_only": "true"})
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["slug"] == "tavern"
-    assert data[0]["is_active"] is True
-
-
-async def test_list_locations_includes_inactive_by_default(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-list-both", email="rt-loc-list-both@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtll0004")
-    await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", is_active=True)
-    await make_location(db, campaign_id=campaign.id, slug="dungeon", name="Dungeon", is_active=False)
-    ac = campaigns_authenticated_client("rt-loc-list-both")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 2
-    slugs = {row["slug"] for row in data}
-    assert slugs == {"tavern", "dungeon"}
 
 
 # --- Create ---
@@ -91,7 +56,6 @@ async def test_create_location_returns_201(
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
     assert data["description"] is None
-    assert data["is_active"] is True
 
 
 async def test_create_location_returns_403_for_non_member(
@@ -182,7 +146,6 @@ async def test_create_location_player_member_can_create(
     assert response.status_code == 201
     data = response.json()
     assert data["description"] is None
-    assert data["is_active"] is True
 
 
 async def test_get_location_returns_200(
@@ -253,7 +216,6 @@ async def test_patch_location_returns_200(
         slug="tavern",
         name="Tavern",
         description="Original",
-        is_active=True,
     )
     ac = campaigns_authenticated_client("rt-loc-patch-200")
     response = await ac.patch(
@@ -261,14 +223,12 @@ async def test_patch_location_returns_200(
         json={
             "name": "Rebuilt Tavern",
             "description": "Updated description",
-            "is_active": False,
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
-    assert data["is_active"] is False
 
 
 async def test_patch_location_returns_403_for_non_member(

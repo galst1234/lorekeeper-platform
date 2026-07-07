@@ -12,7 +12,6 @@ import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { cn, getErrorDetail, getErrorMessage } from "@/lib/utils";
 
 type LocationPageEditorProps =
@@ -36,13 +35,12 @@ const editorSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens")
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
-  is_active: z.boolean(),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "", is_active: true };
+  return { name: "", slug: "", description: "" };
 }
 
 function isSlugConflictError(error: unknown): boolean {
@@ -55,7 +53,6 @@ function editDefaultValues(location: LocationResponse): EditorFormValues {
     name: location.name,
     slug: location.slug,
     description: location.description ?? "",
-    is_active: location.is_active,
   };
 }
 
@@ -89,7 +86,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
           body: {
             name: values.name.trim(),
             description: values.description.trim() || null,
-            is_active: values.is_active,
           },
           throwOnError: true,
         });
@@ -102,7 +98,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
           name: values.name.trim(),
           slug: values.slug.trim(),
           description: values.description.trim() || undefined,
-          is_active: values.is_active,
         },
         throwOnError: true,
       });
@@ -217,20 +212,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
                     textareaClassName="min-h-[16rem] flex-1 leading-7"
                   />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="is_active"
-            render={({ field }) => (
-              <FormItem className="flex items-center gap-3">
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-                <FormLabel className="!mt-0">Active</FormLabel>
                 <FormMessage />
               </FormItem>
             )}

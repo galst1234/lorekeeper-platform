@@ -28,7 +28,6 @@ class LocationResponse(BaseModel):
                 "slug": "moonlit-tavern",
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
-                "is_active": True,
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
             }
@@ -39,7 +38,6 @@ class LocationResponse(BaseModel):
     slug: str
     name: str
     description: str | None
-    is_active: bool
     created_at: datetime
     updated_at: datetime
 
@@ -51,14 +49,12 @@ class CreateLocationRequest(NonReservedSlugModel):
                 "slug": "moonlit-tavern",
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
-                "is_active": True,
             }
         }
     )
 
     name: _NonEmptyStr
     description: str | None = None
-    is_active: bool = True
 
 
 class PatchLocationRequest(BaseModel):
@@ -67,14 +63,12 @@ class PatchLocationRequest(BaseModel):
             "example": {
                 "name": "Moonlit Tavern, Rebuilt",
                 "description": "Rebuilt after the fire.",
-                "is_active": False,
             }
         }
     )
 
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
-    is_active: bool | MISSING = MISSING
 
 
 def _to_response(location: Location) -> LocationResponse:
@@ -83,7 +77,6 @@ def _to_response(location: Location) -> LocationResponse:
         slug=location.slug,
         name=location.name,
         description=location.description,
-        is_active=location.is_active,
         created_at=location.created_at,
         updated_at=location.updated_at,
     )
@@ -93,9 +86,8 @@ def _to_response(location: Location) -> LocationResponse:
 async def list_locations(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    active_only: bool = False,
 ) -> list[LocationResponse]:
-    locations = await location_service.list_locations(db, campaign.id, active_only=active_only)
+    locations = await location_service.list_locations(db, campaign.id)
     return [_to_response(location) for location in locations]
 
 
@@ -112,7 +104,6 @@ async def create_location(
             slug=body.slug,
             name=body.name,
             description=body.description,
-            is_active=body.is_active,
         )
     except LocationSlugConflictError:
         raise HTTPException(
@@ -149,7 +140,6 @@ async def patch_location(
         location,
         name=body.name,
         description=body.description,
-        is_active=body.is_active,
     )
     return _to_response(updated)
 

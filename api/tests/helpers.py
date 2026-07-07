@@ -140,7 +140,6 @@ async def make_location(
     name: str = "Tavern",
     slug: str | None = None,
     description: str | None = None,
-    is_active: bool = True,
 ) -> Location:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -149,7 +148,6 @@ async def make_location(
         slug=slug,
         name=name,
         description=description,
-        is_active=is_active,
     )
     db.add(location)
     await db.flush()

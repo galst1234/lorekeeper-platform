@@ -6,11 +6,10 @@ const Route = getRouteApi("/campaigns/$slug/locations/");
 
 export function LocationsPage() {
   const { slug } = Route.useParams();
-  const { active_only: activeOnly } = Route.useSearch();
 
   return (
     <PageContainer className="space-y-8">
-      <LocationsSection slug={slug} activeOnly={activeOnly} />
+      <LocationsSection slug={slug} />
     </PageContainer>
   );
 }

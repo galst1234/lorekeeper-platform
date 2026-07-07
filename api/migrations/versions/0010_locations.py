@@ -2,7 +2,7 @@
 
 Revision ID: 0010
 Revises: 0009
-Create Date: 2026-07-07 22:14:27.641538
+Create Date: 2026-07-07 22:17:21.681288
 
 """
 
@@ -26,7 +26,6 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),

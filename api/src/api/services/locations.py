@@ -23,14 +23,8 @@ def _is_slug_conflict(exc: BaseException) -> bool:
     )
 
 
-async def list_locations(
-    db: AsyncSession,
-    campaign_id: uuid.UUID,
-    active_only: bool = False,
-) -> list[Location]:
+async def list_locations(db: AsyncSession, campaign_id: uuid.UUID) -> list[Location]:
     query = select(Location).where(Location.campaign_id == campaign_id).order_by(Location.name.asc())
-    if active_only:
-        query = query.where(Location.is_active.is_(True))
     return list(await db.scalars(query))
 
 
@@ -40,14 +34,12 @@ async def create_location(
     slug: str,
     name: str,
     description: str | None,
-    is_active: bool = True,
 ) -> Location:
     location = Location(
         campaign_id=campaign_id,
         slug=slug,
         name=name,
         description=description,
-        is_active=is_active,
     )
     try:
         db.add(location)
@@ -81,14 +73,11 @@ async def update_location(
     *,
     name: str | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
-    is_active: bool | MISSING = MISSING,
 ) -> Location:
     if name is not MISSING:
         location.name = name
     if description is not MISSING:
         location.description = description
-    if is_active is not MISSING:
-        location.is_active = is_active
     await db.commit()
     await db.refresh(location)
     return location

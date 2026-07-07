@@ -5,7 +5,6 @@ import { useState } from "react";
 import type { LocationResponse } from "@/api/generated";
 import { deleteLocationMutation, listLocationsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -30,10 +29,7 @@ export function LocationInfo({ location, campaignSlug }: LocationInfoProps) {
   return (
     <div>
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold">{location.name}</h1>
-          {!location.is_active && <Badge variant="secondary">Inactive</Badge>}
-        </div>
+        <h1 className="text-3xl font-bold">{location.name}</h1>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" asChild aria-label="Edit location">
             <Link

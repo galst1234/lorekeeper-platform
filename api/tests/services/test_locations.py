@@ -45,17 +45,6 @@ async def test_list_locations_excludes_other_campaign(db: AsyncSession) -> None:
     assert result == []
 
 
-async def test_list_locations_filters_active_only(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-loc-list-active", email="svc-loc-list-active@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0004")
-    await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", is_active=True)
-    await make_location(db, campaign_id=campaign.id, slug="dungeon", name="Dungeon", is_active=False)
-    result = await location_service.list_locations(db, campaign.id, active_only=True)
-    assert len(result) == 1
-    assert result[0].slug == "tavern"
-    assert result[0].is_active is True
-
-
 # --- create_location ---
 
 
@@ -68,12 +57,10 @@ async def test_create_location_persists(db: AsyncSession) -> None:
         slug="moonlit-tavern",
         name="Moonlit Tavern",
         description="A cozy inn.",
-        is_active=True,
     )
     assert location.slug == "moonlit-tavern"
     assert location.name == "Moonlit Tavern"
     assert location.description == "A cozy inn."
-    assert location.is_active is True
     assert location.campaign_id == campaign.id
     assert location.id is not None
 
@@ -179,14 +166,6 @@ async def test_update_location_description(db: AsyncSession) -> None:
     assert updated.description == "New description"
 
 
-async def test_update_location_is_active(db: AsyncSession) -> None:
-    user = await make_user(db, supertokens_user_id="svc-loc-upd-active", email="svc-loc-upd-active@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0003")
-    location = await make_location(db, campaign_id=campaign.id, is_active=True)
-    updated = await location_service.update_location(db, location, is_active=False)
-    assert updated.is_active is False
-
-
 async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-upd-miss", email="svc-loc-upd-miss@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0004")
@@ -195,12 +174,10 @@ async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> Non
         campaign_id=campaign.id,
         name="Keep Me",
         description="Also keep",
-        is_active=True,
     )
     updated = await location_service.update_location(db, location, description="Changed")
     assert updated.name == "Keep Me"
     assert updated.description == "Changed"
-    assert updated.is_active is True
 
 
 # --- delete_location ---

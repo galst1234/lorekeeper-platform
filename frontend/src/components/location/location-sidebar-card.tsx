@@ -1,6 +1,5 @@
 import { MapPin } from "lucide-react";
 import type { LocationResponse } from "@/api/generated";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface LocationSidebarCardProps {
@@ -24,14 +23,6 @@ export function LocationSidebarCard({ location }: LocationSidebarCardProps) {
       <CardContent className="pt-6 space-y-4">
         <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
           <MapPin className="h-12 w-12 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Status</p>
-          {location.is_active ? (
-            <p className="text-xs text-muted-foreground">Active</p>
-          ) : (
-            <Badge variant="secondary">Inactive</Badge>
-          )}
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Last updated</p>
