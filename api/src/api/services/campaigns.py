@@ -119,20 +119,24 @@ async def update_campaign(
     return campaign
 
 
-async def _clear_campaign_images(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
-    character_keys = await character_service.list_character_image_keys(db, campaign.id)
-    item_keys = await item_service.list_item_image_keys(db, campaign.id)
-    for key in [*character_keys, *item_keys]:
+async def _collect_campaign_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
+    character_keys = await character_service.list_character_image_keys(db, campaign_id)
+    item_keys = await item_service.list_item_image_keys(db, campaign_id)
+    return [*character_keys, *item_keys]
+
+
+async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
+    # Collect keys before the delete: the campaign's characters/items are removed by the FK
+    # cascade when db.commit() runs below, so querying for their image keys afterward would
+    # always find nothing.
+    image_keys = await _collect_campaign_image_keys(db, campaign.id)
+    await db.delete(campaign)
+    await db.commit()
+    for key in image_keys:
         try:
             await image_storage.delete(key)
         except Exception:
             logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
-
-
-async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
-    await db.delete(campaign)
-    await db.commit()
-    await _clear_campaign_images(db, campaign, image_storage)
 
 
 def _generate_invite_code() -> str:
