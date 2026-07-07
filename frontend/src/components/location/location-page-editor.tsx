@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, getErrorMessage } from "@/lib/utils";
+import { cn, getErrorDetail, getErrorMessage } from "@/lib/utils";
 
 type LocationPageEditorProps =
   | { mode: "create"; campaignSlug: string }
@@ -45,6 +45,11 @@ type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
   return { name: "", slug: "", description: "", notes: "", is_active: true };
+}
+
+function isSlugConflictError(error: unknown): boolean {
+  const detail = getErrorDetail(error);
+  return detail?.toLowerCase().includes("slug") ?? false;
 }
 
 function editDefaultValues(location: LocationResponse): EditorFormValues {
@@ -123,6 +128,13 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
         to: "/campaigns/$slug/locations/$locationSlug",
         params: { slug: campaignSlug, locationSlug: savedLocation.slug },
       });
+    },
+    onError: (error) => {
+      if (mode === "create" && isSlugConflictError(error)) {
+        form.setError("slug", {
+          message: getErrorDetail(error) ?? "This slug is already in use",
+        });
+      }
     },
   });
 
@@ -243,7 +255,7 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
             )}
           />
 
-          {saveMutation.isError && (
+          {saveMutation.isError && !form.formState.errors.slug && (
             <p className="text-sm text-destructive">
               {getErrorMessage(saveMutation.error, "Failed to save location.")}
             </p>
