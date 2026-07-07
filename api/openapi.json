@@ -1111,8 +1111,8 @@
         "tags": [
           "Locations"
         ],
-        "summary": "List Campaign Locations",
-        "operationId": "list_campaign_locations",
+        "summary": "List Locations",
+        "operationId": "list_locations",
         "parameters": [
           {
             "name": "slug",
@@ -1144,7 +1144,7 @@
                   "items": {
                     "$ref": "#/components/schemas/LocationResponse"
                   },
-                  "title": "Response List Campaign Locations"
+                  "title": "Response List Locations"
                 }
               }
             }
@@ -1174,8 +1174,8 @@
         "tags": [
           "Locations"
         ],
-        "summary": "Create Campaign Location",
-        "operationId": "create_campaign_location",
+        "summary": "Create Location",
+        "operationId": "create_location",
         "parameters": [
           {
             "name": "slug",
@@ -1238,8 +1238,8 @@
         "tags": [
           "Locations"
         ],
-        "summary": "Get Campaign Location",
-        "operationId": "get_campaign_location",
+        "summary": "Get Location",
+        "operationId": "get_location",
         "parameters": [
           {
             "name": "location_slug",
@@ -1296,8 +1296,8 @@
         "tags": [
           "Locations"
         ],
-        "summary": "Patch Campaign Location",
-        "operationId": "patch_campaign_location",
+        "summary": "Patch Location",
+        "operationId": "patch_location",
         "parameters": [
           {
             "name": "location_slug",
@@ -1364,8 +1364,8 @@
         "tags": [
           "Locations"
         ],
-        "summary": "Unlink Campaign Location",
-        "operationId": "unlink_campaign_location",
+        "summary": "Delete Location",
+        "operationId": "delete_location",
         "parameters": [
           {
             "name": "location_slug",
@@ -2447,11 +2447,6 @@
             ],
             "title": "Notes"
           },
-          "added_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Added At"
-          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2471,13 +2466,11 @@
           "description",
           "is_active",
           "notes",
-          "added_at",
           "created_at",
           "updated_at"
         ],
         "title": "LocationResponse",
         "example": {
-          "added_at": "2024-01-15T10:00:00Z",
           "created_at": "2024-01-15T10:00:00Z",
           "description": "A cozy inn on the edge of the Whisperwood.",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
@@ -2698,6 +2691,22 @@
       },
       "PatchLocationRequest": {
         "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -2717,7 +2726,9 @@
         "type": "object",
         "title": "PatchLocationRequest",
         "example": {
+          "description": "Rebuilt after the fire.",
           "is_active": false,
+          "name": "Moonlit Tavern, Rebuilt",
           "notes": "Abandoned after the dragon attack."
         }
       },

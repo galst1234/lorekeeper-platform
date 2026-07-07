@@ -7,18 +7,13 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth import get_current_user
 from api.database import get_db
-from api.models import Campaign, User
+from api.models import Campaign, Location
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
-from api.services import campaign_locations as location_service
-from api.services.campaign_locations import (
-    LinkedLocation,
-    LocationAlreadyLinkedError,
-    LocationSlugConflictError,
-)
+from api.services import locations as location_service
+from api.services.locations import LocationSlugConflictError
 
 router = APIRouter(prefix="/locations", tags=["Locations"])
 
@@ -35,7 +30,6 @@ class LocationResponse(BaseModel):
                 "description": "A cozy inn on the edge of the Whisperwood.",
                 "is_active": True,
                 "notes": "Party rested here after Session 3.",
-                "added_at": "2024-01-15T10:00:00Z",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
             }
@@ -48,7 +42,6 @@ class LocationResponse(BaseModel):
     description: str | None
     is_active: bool
     notes: str | None
-    added_at: datetime
     created_at: datetime
     updated_at: datetime
 
@@ -76,94 +69,94 @@ class PatchLocationRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "name": "Moonlit Tavern, Rebuilt",
+                "description": "Rebuilt after the fire.",
                 "is_active": False,
                 "notes": "Abandoned after the dragon attack.",
             }
         }
     )
 
+    name: _NonEmptyStr | MISSING = MISSING
+    description: str | None | MISSING = MISSING
     is_active: bool | MISSING = MISSING
     notes: str | None | MISSING = MISSING
 
 
-def _to_response(linked: LinkedLocation) -> LocationResponse:
+def _to_response(location: Location) -> LocationResponse:
     return LocationResponse(
-        id=linked.id,
-        slug=linked.slug,
-        name=linked.name,
-        description=linked.description,
-        is_active=linked.is_active,
-        notes=linked.notes,
-        added_at=linked.added_at,
-        created_at=linked.created_at,
-        updated_at=linked.updated_at,
+        id=location.id,
+        slug=location.slug,
+        name=location.name,
+        description=location.description,
+        is_active=location.is_active,
+        notes=location.notes,
+        created_at=location.created_at,
+        updated_at=location.updated_at,
     )
 
 
 @router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
-async def list_campaign_locations(
+async def list_locations(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     active_only: bool = False,
 ) -> list[LocationResponse]:
-    locations = await location_service.list_campaign_locations(db, campaign.id, active_only=active_only)
+    locations = await location_service.list_locations(db, campaign.id, active_only=active_only)
     return [_to_response(location) for location in locations]
 
 
 @router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
-async def create_campaign_location(
+async def create_location(
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: CreateLocationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(get_current_user)],
 ) -> LocationResponse:
     try:
-        linked = await location_service.create_and_link(
+        location = await location_service.create_location(
             db,
             campaign_id=campaign.id,
-            owner_id=user.id,
             slug=body.slug,
             name=body.name,
             description=body.description,
-            notes=body.notes,
             is_active=body.is_active,
+            notes=body.notes,
         )
     except LocationSlugConflictError:
-        raise HTTPException(status_code=409, detail="A location with that slug already exists") from None
-    except LocationAlreadyLinkedError:
         raise HTTPException(
             status_code=409,
-            detail="This location is already linked to the campaign",
+            detail="A location with that slug already exists in this campaign",
         ) from None
-    return _to_response(linked)
+    return _to_response(location)
 
 
 @router.get("/{location_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
-async def get_campaign_location(
+async def get_location(
     location_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LocationResponse:
-    linked = await location_service.get_linked_location_by_slug(db, campaign.id, location_slug)
-    if linked is None:
+    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
-    return _to_response(linked)
+    return _to_response(location)
 
 
 @router.patch("/{location_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
-async def patch_campaign_location(
+async def patch_location(
     location_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     body: PatchLocationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LocationResponse:
-    linked = await location_service.get_linked_location_by_slug(db, campaign.id, location_slug)
-    if linked is None:
+    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
-    updated = await location_service.update_campaign_location(
+    updated = await location_service.update_location(
         db,
-        campaign.id,
-        location_slug,
+        location,
+        name=body.name,
+        description=body.description,
         is_active=body.is_active,
         notes=body.notes,
     )
@@ -171,12 +164,12 @@ async def patch_campaign_location(
 
 
 @router.delete("/{location_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
-async def unlink_campaign_location(
+async def delete_location(
     location_slug: str,
     campaign: Annotated[Campaign, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    linked = await location_service.get_linked_location_by_slug(db, campaign.id, location_slug)
-    if linked is None:
+    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
-    await location_service.unlink_campaign_location(db, campaign.id, location_slug)
+    await location_service.delete_location(db, location)

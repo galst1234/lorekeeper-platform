@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models import (
     Campaign,
-    CampaignLocation,
     CampaignMember,
     Character,
     CharacterType,
@@ -137,39 +136,24 @@ async def make_chronicle_entry(
 async def make_location(
     db: AsyncSession,
     *,
-    owner_id: uuid.UUID,
+    campaign_id: uuid.UUID,
     slug: str = "tavern",
     name: str = "Tavern",
     description: str | None = None,
+    is_active: bool = True,
+    notes: str | None = None,
 ) -> Location:
     location = Location(
-        owner_id=owner_id,
+        campaign_id=campaign_id,
         slug=slug,
         name=name,
         description=description,
+        is_active=is_active,
+        notes=notes,
     )
     db.add(location)
     await db.flush()
     return location
-
-
-async def link_location(
-    db: AsyncSession,
-    *,
-    campaign_id: uuid.UUID,
-    location_id: uuid.UUID,
-    is_active: bool = True,
-    notes: str | None = None,
-) -> CampaignLocation:
-    campaign_location = CampaignLocation(
-        campaign_id=campaign_id,
-        location_id=location_id,
-        is_active=is_active,
-        notes=notes,
-    )
-    db.add(campaign_location)
-    await db.flush()
-    return campaign_location
 
 
 async def make_member(
