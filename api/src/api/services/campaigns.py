@@ -119,18 +119,18 @@ async def update_campaign(
     return campaign
 
 
-async def _clear_campaign_images(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
+async def _clear_campaign_images(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
     character_keys = await character_service.list_character_image_keys(db, campaign.id)
     item_keys = await item_service.list_item_image_keys(db, campaign.id)
     for key in [*character_keys, *item_keys]:
         try:
-            await storage.delete(key)
+            await image_storage.delete(key)
         except Exception:
             logger.warning("Failed to delete orphaned image %s for campaign %s", key, campaign.id)
 
 
-async def delete_campaign(db: AsyncSession, campaign: Campaign, storage: ImageStorage) -> None:
-    await _clear_campaign_images(db, campaign, storage)
+async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:
+    await _clear_campaign_images(db, campaign, image_storage)
     await db.delete(campaign)
     await db.commit()
 

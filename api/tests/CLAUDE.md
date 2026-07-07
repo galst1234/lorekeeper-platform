@@ -20,21 +20,21 @@ async def test_upload_character_image_returns_200_with_image_url(
     image_client: tuple[AsyncClient, FastAPI, ImageStorage],
     mocker: MockerFixture,
 ) -> None:
-    ac, inner_app, storage = image_client
+    ac, inner_app, image_storage = image_client
     campaign = build_campaign()
     character = build_character(campaign_id=campaign.id, slug="aria")
     updated = build_character(campaign_id=campaign.id, slug="aria", image_key="new-key.jpg")
     _allow_member(inner_app, campaign)
     mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
     mock_set = mocker.patch("api.services.characters.set_character_image", return_value=updated)
-    storage.save.return_value = "new-key.jpg"
-    storage.url_for.return_value = "/media/new-key.jpg"
+    image_storage.save.return_value = "new-key.jpg"
+    image_storage.url_for.return_value = "/media/new-key.jpg"
 
     response = await ac.put(f"/api/v1/campaigns/{campaign.slug}/characters/aria/image", files=...)
 
     assert response.status_code == 200
     assert response.json()["image_url"] == "/media/new-key.jpg"
-    mock_set.assert_awaited_once_with(ANY, character, "new-key.jpg", storage)
+    mock_set.assert_awaited_once_with(ANY, character, "new-key.jpg", image_storage)
 ```
 
 ## `tests/services/` — sociable tests

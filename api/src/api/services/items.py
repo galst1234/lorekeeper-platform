@@ -87,13 +87,13 @@ async def update_item(
     return item
 
 
-async def delete_item(db: AsyncSession, item: Item, storage: ImageStorage) -> None:
+async def delete_item(db: AsyncSession, item: Item, image_storage: ImageStorage) -> None:
     image_key = item.image_key
     await db.delete(item)
     await db.commit()
     if image_key is not None:
         try:
-            await storage.delete(image_key)
+            await image_storage.delete(image_key)
         except Exception:
             logger.warning("Failed to delete image %s for deleted item %s", image_key, item.id)
 
@@ -108,7 +108,7 @@ async def list_item_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list
     ]
 
 
-async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, storage: ImageStorage) -> Item:
+async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, image_storage: ImageStorage) -> Item:
     old_key = item.image_key
     item.image_key = new_image_key
     await db.commit()
@@ -118,13 +118,13 @@ async def set_item_image(db: AsyncSession, item: Item, new_image_key: str, stora
         logger.warning("Failed to refresh item %s after image update", item.id)
     if old_key is not None:
         try:
-            await storage.delete(old_key)
+            await image_storage.delete(old_key)
         except Exception:
             logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item
 
 
-async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) -> Item:
+async def clear_item_image(db: AsyncSession, item: Item, image_storage: ImageStorage) -> Item:
     old_key = item.image_key
     item.image_key = None
     await db.commit()
@@ -134,7 +134,7 @@ async def clear_item_image(db: AsyncSession, item: Item, storage: ImageStorage) 
         logger.warning("Failed to refresh item %s after image update", item.id)
     if old_key is not None:
         try:
-            await storage.delete(old_key)
+            await image_storage.delete(old_key)
         except Exception:
             logger.warning("Failed to delete old image %s for item %s", old_key, item.id)
     return item

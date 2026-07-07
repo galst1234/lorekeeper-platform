@@ -166,6 +166,6 @@ async def patch_campaign(
 async def delete_campaign(
     campaign: Annotated[Campaign, Depends(require_campaign_owner)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    storage: Annotated[ImageStorage, Depends(get_image_storage)],
+    image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    await campaign_service.delete_campaign(db, campaign, storage)
+    await campaign_service.delete_campaign(db, campaign, image_storage)

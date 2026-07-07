@@ -98,13 +98,13 @@ async def update_character(
     return character
 
 
-async def delete_character(db: AsyncSession, character: Character, storage: ImageStorage) -> None:
+async def delete_character(db: AsyncSession, character: Character, image_storage: ImageStorage) -> None:
     image_key = character.image_key
     await db.delete(character)
     await db.commit()
     if image_key is not None:
         try:
-            await storage.delete(image_key)
+            await image_storage.delete(image_key)
         except Exception:
             logger.warning("Failed to delete image %s for deleted character %s", image_key, character.id)
 
@@ -120,7 +120,7 @@ async def list_character_image_keys(db: AsyncSession, campaign_id: uuid.UUID) ->
 
 
 async def set_character_image(
-    db: AsyncSession, character: Character, new_image_key: str, storage: ImageStorage
+    db: AsyncSession, character: Character, new_image_key: str, image_storage: ImageStorage
 ) -> Character:
     old_key = character.image_key
     character.image_key = new_image_key
@@ -131,13 +131,13 @@ async def set_character_image(
         logger.warning("Failed to refresh character %s after image update", character.id)
     if old_key is not None:
         try:
-            await storage.delete(old_key)
+            await image_storage.delete(old_key)
         except Exception:
             logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character
 
 
-async def clear_character_image(db: AsyncSession, character: Character, storage: ImageStorage) -> Character:
+async def clear_character_image(db: AsyncSession, character: Character, image_storage: ImageStorage) -> Character:
     old_key = character.image_key
     character.image_key = None
     await db.commit()
@@ -147,7 +147,7 @@ async def clear_character_image(db: AsyncSession, character: Character, storage:
         logger.warning("Failed to refresh character %s after image update", character.id)
     if old_key is not None:
         try:
-            await storage.delete(old_key)
+            await image_storage.delete(old_key)
         except Exception:
             logger.warning("Failed to delete old image %s for character %s", old_key, character.id)
     return character

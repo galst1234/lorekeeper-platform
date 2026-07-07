@@ -211,8 +211,8 @@ async def test_delete_character_removes_record(db: AsyncSession, tmp_path: Path)
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrd0001")
     character = await make_character(db, campaign_id=campaign.id)
     character_slug = character.slug
-    storage = LocalDiskStorage(root=str(tmp_path))
-    await character_service.delete_character(db, character, storage)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    await character_service.delete_character(db, character, image_storage)
     result = await character_service.get_character_by_slug(db, campaign.id, character_slug)
     assert result is None
 
@@ -221,11 +221,11 @@ async def test_delete_character_removes_image_file(db: AsyncSession, tmp_path: P
     user = await make_user(db, supertokens_user_id="svc-chr-del-img", email="svc-chr-del-img@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chrd0002")
     character = await make_character(db, campaign_id=campaign.id)
-    storage = LocalDiskStorage(root=str(tmp_path))
-    key = await storage.save(b"portrait-bytes", "image/jpeg")
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"portrait-bytes", "image/jpeg")
     character.image_key = key
     await db.commit()
-    await character_service.delete_character(db, character, storage)
+    await character_service.delete_character(db, character, image_storage)
     assert not (tmp_path / key).exists()
 
 
@@ -236,8 +236,8 @@ async def test_set_character_image_sets_key(db: AsyncSession, tmp_path: Path) ->
     user = await make_user(db, supertokens_user_id="svc-chr-img-set", email="svc-chr-img-set@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0001")
     character = await make_character(db, campaign_id=campaign.id)
-    storage = LocalDiskStorage(root=str(tmp_path))
-    updated = await character_service.set_character_image(db, character, "new-key.jpg", storage)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    updated = await character_service.set_character_image(db, character, "new-key.jpg", image_storage)
     assert updated.image_key == "new-key.jpg"
 
 
@@ -245,11 +245,11 @@ async def test_set_character_image_deletes_old_file_after_replacing(db: AsyncSes
     user = await make_user(db, supertokens_user_id="svc-chr-img-replace", email="svc-chr-img-replace@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0002")
     character = await make_character(db, campaign_id=campaign.id)
-    storage = LocalDiskStorage(root=str(tmp_path))
-    old_key = await storage.save(b"old-bytes", "image/jpeg")
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    old_key = await image_storage.save(b"old-bytes", "image/jpeg")
     character.image_key = old_key
     await db.commit()
-    await character_service.set_character_image(db, character, "new-key.jpg", storage)
+    await character_service.set_character_image(db, character, "new-key.jpg", image_storage)
     assert not (tmp_path / old_key).exists()
 
 
@@ -260,10 +260,10 @@ async def test_clear_character_image_clears_key_and_deletes_file(db: AsyncSessio
     user = await make_user(db, supertokens_user_id="svc-chr-img-clear", email="svc-chr-img-clear@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="chri0003")
     character = await make_character(db, campaign_id=campaign.id)
-    storage = LocalDiskStorage(root=str(tmp_path))
-    key = await storage.save(b"portrait-bytes", "image/jpeg")
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"portrait-bytes", "image/jpeg")
     character.image_key = key
     await db.commit()
-    updated = await character_service.clear_character_image(db, character, storage)
+    updated = await character_service.clear_character_image(db, character, image_storage)
     assert updated.image_key is None
     assert not (tmp_path / key).exists()

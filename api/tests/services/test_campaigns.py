@@ -193,8 +193,8 @@ async def test_update_campaign_missing_fields_not_updated(db: AsyncSession) -> N
 async def test_delete_campaign_removes_record(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-del-ok", email="svc-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="del00001")
-    storage = LocalDiskStorage(root=str(tmp_path))
-    await campaign_service.delete_campaign(db, campaign, storage)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    await campaign_service.delete_campaign(db, campaign, image_storage)
     result = await campaign_service.get_campaign_by_slug(db, "test-campaign-del00001")
     assert result is None
 
@@ -202,19 +202,19 @@ async def test_delete_campaign_removes_record(db: AsyncSession, tmp_path: Path) 
 async def test_delete_campaign_removes_character_and_item_images(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-camp-del-img", email="svc-camp-del-img@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="campd001")
-    storage = LocalDiskStorage(root=str(tmp_path))
+    image_storage = LocalDiskStorage(root=str(tmp_path))
 
     character = await make_character(db, campaign_id=campaign.id)
-    character_key = await storage.save(b"char-bytes", "image/jpeg")
+    character_key = await image_storage.save(b"char-bytes", "image/jpeg")
     character.image_key = character_key
 
     item = await make_item(db, campaign_id=campaign.id)
-    item_key = await storage.save(b"item-bytes", "image/png")
+    item_key = await image_storage.save(b"item-bytes", "image/png")
     item.image_key = item_key
 
     await db.commit()
 
-    await campaign_service.delete_campaign(db, campaign, storage)
+    await campaign_service.delete_campaign(db, campaign, image_storage)
 
     assert not (tmp_path / character_key).exists()
     assert not (tmp_path / item_key).exists()
