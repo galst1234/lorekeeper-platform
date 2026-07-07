@@ -11,7 +11,7 @@ from tests.helpers import link_location, make_campaign, make_location, make_user
 
 async def test_create_and_link_persists_both_tables(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-cr-link", email="svc-loc-cr-link@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0001")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locc0001")
     result = await campaign_location_service.create_and_link(
         db,
         campaign_id=campaign.id,
@@ -45,9 +45,9 @@ async def test_create_and_link_persists_both_tables(db: AsyncSession) -> None:
     assert junction.notes == "Session 1"
 
 
-async def test_create_location_slug_conflict_raises(db: AsyncSession) -> None:
+async def test_create_and_link_slug_conflict_raises(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-cr-conflict", email="svc-loc-cr-conflict@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0002")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locc0002")
     await make_location(db, owner_id=user.id, slug="tavern", name="Existing Tavern")
     try:
         await campaign_location_service.create_and_link(
@@ -68,7 +68,7 @@ async def test_create_location_slug_conflict_raises(db: AsyncSession) -> None:
 
 async def test_unlink_removes_junction_preserves_location(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-unlink", email="svc-loc-unlink@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0003")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locu0001")
     location = await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
     await link_location(db, campaign_id=campaign.id, location_id=location.id)
     await campaign_location_service.unlink_campaign_location(
@@ -93,7 +93,7 @@ async def test_unlink_removes_junction_preserves_location(db: AsyncSession) -> N
 
 async def test_patch_updates_junction_not_canonical(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-patch", email="svc-loc-patch@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0004")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0001")
     location = await make_location(
         db,
         owner_id=user.id,
@@ -135,7 +135,7 @@ async def test_patch_updates_junction_not_canonical(db: AsyncSession) -> None:
 
 async def test_link_already_linked_raises(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-link-dup", email="svc-loc-link-dup@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0005")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="lock0001")
     location = await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
     await link_location(db, campaign_id=campaign.id, location_id=location.id)
     try:
@@ -152,9 +152,16 @@ async def test_link_already_linked_raises(db: AsyncSession) -> None:
 # --- list_campaign_locations ---
 
 
+async def test_list_campaign_locations_empty(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-list-empty", email="svc-loc-list-empty@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0001")
+    result = await campaign_location_service.list_campaign_locations(db, campaign.id)
+    assert result == []
+
+
 async def test_list_campaign_locations_ordered_by_name(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-list-ord", email="svc-loc-list-ord@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0006")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0002")
     zebra_tavern = await make_location(db, owner_id=user.id, slug="zebra-tavern", name="Zebra Tavern")
     apple_inn = await make_location(db, owner_id=user.id, slug="apple-inn", name="Apple Inn")
     await link_location(db, campaign_id=campaign.id, location_id=zebra_tavern.id)
@@ -176,7 +183,7 @@ async def test_list_campaign_locations_excludes_other_campaign(db: AsyncSession)
 
 async def test_list_campaign_locations_filters_active_only(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-list-active", email="svc-loc-list-active@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0007")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0003")
     active_location = await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
     inactive_location = await make_location(db, owner_id=user.id, slug="dungeon", name="Dungeon")
     await link_location(db, campaign_id=campaign.id, location_id=active_location.id, is_active=True)
@@ -190,9 +197,20 @@ async def test_list_campaign_locations_filters_active_only(db: AsyncSession) -> 
 # --- get_linked_location_by_slug ---
 
 
+async def test_get_linked_location_by_slug_found(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-gbs-ok", email="svc-loc-gbs-ok@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locg0001")
+    location = await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
+    await link_location(db, campaign_id=campaign.id, location_id=location.id)
+    result = await campaign_location_service.get_linked_location_by_slug(db, campaign.id, "tavern")
+    assert result is not None
+    assert result.slug == "tavern"
+    assert result.name == "Tavern"
+
+
 async def test_get_linked_location_by_slug_not_found_returns_none(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-gbs-404", email="svc-loc-gbs-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0008")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locg0002")
     await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
     result = await campaign_location_service.get_linked_location_by_slug(db, campaign.id, "tavern")
     assert result is None

@@ -298,7 +298,7 @@ async def test_patch_campaign_location_returns_403_for_non_member(
     assert response.status_code == 403
 
 
-# --- Delete ---
+# --- Unlink ---
 
 
 async def test_unlink_campaign_location_returns_204(
@@ -334,6 +334,22 @@ async def test_unlink_campaign_location_returns_404_when_not_linked(
 ) -> None:
     user = await make_user(db, supertokens_user_id="rt-loc-del-404", email="rt-loc-del-404@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="rtld0003")
+    await make_location(db, owner_id=user.id, slug="tavern", name="Tavern")
     ac = campaigns_authenticated_client("rt-loc-del-404")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
     assert response.status_code == 404
+
+
+async def test_unlink_campaign_location_player_member_can_unlink(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-loc-del-plown", email="rt-loc-del-plown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtld0004")
+    player = await make_user(db, supertokens_user_id="rt-loc-del-player", email="rt-loc-del-player@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    location = await make_location(db, owner_id=owner.id, slug="tavern", name="Tavern")
+    await link_location(db, campaign_id=campaign.id, location_id=location.id)
+    ac = campaigns_authenticated_client("rt-loc-del-player")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    assert response.status_code == 204
