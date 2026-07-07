@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services import locations as location_service
@@ -102,7 +103,7 @@ async def test_create_location_slug_conflict_raises(db: AsyncSession) -> None:
         name="Tavern",
         description=None,
     )
-    try:
+    with pytest.raises(LocationSlugConflictError):
         await location_service.create_location(
             db,
             campaign_id=campaign.id,
@@ -110,9 +111,6 @@ async def test_create_location_slug_conflict_raises(db: AsyncSession) -> None:
             name="Another Tavern",
             description=None,
         )
-        raise AssertionError("Expected LocationSlugConflictError")
-    except LocationSlugConflictError:
-        pass
 
 
 async def test_create_location_same_slug_different_campaigns_ok(db: AsyncSession) -> None:
@@ -141,7 +139,7 @@ async def test_create_location_same_slug_different_campaigns_ok(db: AsyncSession
 
 async def test_get_location_by_slug_found(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-gbs-ok", email="svc-loc-gbs-ok@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locg0001")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locs0001")
     await make_location(db, campaign_id=campaign.id, slug="tavern")
     result = await location_service.get_location_by_slug(db, campaign.id, "tavern")
     assert result is not None
@@ -150,7 +148,7 @@ async def test_get_location_by_slug_found(db: AsyncSession) -> None:
 
 async def test_get_location_by_slug_not_found(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-gbs-404", email="svc-loc-gbs-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locg0002")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locs0002")
     result = await location_service.get_location_by_slug(db, campaign.id, "nonexistent")
     assert result is None
 
@@ -175,9 +173,17 @@ async def test_update_location_name(db: AsyncSession) -> None:
     assert updated.name == "New Name"
 
 
+async def test_update_location_description(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-upd-desc", email="svc-loc-upd-desc@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0002")
+    location = await make_location(db, campaign_id=campaign.id, description="Old description")
+    updated = await location_service.update_location(db, location, description="New description")
+    assert updated.description == "New description"
+
+
 async def test_update_location_is_active_and_notes(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-upd-active", email="svc-loc-upd-active@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0002")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0003")
     location = await make_location(db, campaign_id=campaign.id, is_active=True, notes="Old notes")
     updated = await location_service.update_location(db, location, is_active=False, notes="New notes")
     assert updated.is_active is False
@@ -186,7 +192,7 @@ async def test_update_location_is_active_and_notes(db: AsyncSession) -> None:
 
 async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-upd-miss", email="svc-loc-upd-miss@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0003")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0004")
     location = await make_location(
         db,
         campaign_id=campaign.id,

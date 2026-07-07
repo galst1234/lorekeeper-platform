@@ -137,12 +137,14 @@ async def make_location(
     db: AsyncSession,
     *,
     campaign_id: uuid.UUID,
-    slug: str = "tavern",
     name: str = "Tavern",
+    slug: str | None = None,
     description: str | None = None,
     is_active: bool = True,
     notes: str | None = None,
 ) -> Location:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     location = Location(
         campaign_id=campaign_id,
         slug=slug,

@@ -55,6 +55,23 @@ async def test_list_locations_filters_active_only(
     assert data[0]["is_active"] is True
 
 
+async def test_list_locations_includes_inactive_by_default(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-loc-list-both", email="rt-loc-list-both@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtll0004")
+    await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", is_active=True)
+    await make_location(db, campaign_id=campaign.id, slug="dungeon", name="Dungeon", is_active=False)
+    ac = campaigns_authenticated_client("rt-loc-list-both")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    slugs = {row["slug"] for row in data}
+    assert slugs == {"tavern", "dungeon"}
+
+
 # --- Create ---
 
 
@@ -67,20 +84,14 @@ async def test_create_location_returns_201(
     ac = campaigns_authenticated_client("rt-loc-cr-201")
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
-        json={
-            "slug": "tavern",
-            "name": "Tavern",
-            "description": "A cozy inn.",
-            "notes": "Session 1",
-            "is_active": True,
-        },
+        json={"slug": "tavern", "name": "Tavern"},
     )
     assert response.status_code == 201
     data = response.json()
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
-    assert data["description"] == "A cozy inn."
-    assert data["notes"] == "Session 1"
+    assert data["description"] is None
+    assert data["notes"] is None
     assert data["is_active"] is True
 
 
@@ -170,9 +181,10 @@ async def test_create_location_player_member_can_create(
         json={"slug": "tavern", "name": "Tavern"},
     )
     assert response.status_code == 201
-
-
-# --- Get ---
+    data = response.json()
+    assert data["description"] is None
+    assert data["notes"] is None
+    assert data["is_active"] is True
 
 
 async def test_get_location_returns_200(
@@ -249,12 +261,17 @@ async def test_patch_location_returns_200(
     ac = campaigns_authenticated_client("rt-loc-patch-200")
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
-        json={"name": "Rebuilt Tavern", "is_active": False, "notes": "New notes"},
+        json={
+            "name": "Rebuilt Tavern",
+            "description": "Updated description",
+            "is_active": False,
+            "notes": "New notes",
+        },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Rebuilt Tavern"
-    assert data["description"] == "Original"
+    assert data["description"] == "Updated description"
     assert data["is_active"] is False
     assert data["notes"] == "New notes"
 
@@ -275,6 +292,54 @@ async def test_patch_location_returns_403_for_non_member(
     assert response.status_code == 403
 
 
+async def test_patch_location_returns_404_not_found(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-loc-patch-404", email="rt-loc-patch-404@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlp0003")
+    ac = campaigns_authenticated_client("rt-loc-patch-404")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location",
+        json={"notes": "New notes"},
+    )
+    assert response.status_code == 404
+
+
+async def test_patch_location_returns_404_for_wrong_campaign(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-loc-patch-iso", email="rt-loc-patch-iso@test.com")
+    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtlpa001")
+    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtlpb001")
+    location = await make_location(db, campaign_id=campaign_b.id, slug="tavern")
+    ac = campaigns_authenticated_client("rt-loc-patch-iso")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}",
+        json={"notes": "New notes"},
+    )
+    assert response.status_code == 404
+
+
+async def test_patch_location_player_member_can_patch(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-loc-patch-plown", email="rt-loc-patch-plown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlp0004")
+    player = await make_user(db, supertokens_user_id="rt-loc-patch-player", email="rt-loc-patch-player@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
+    ac = campaigns_authenticated_client("rt-loc-patch-player")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
+        json={"notes": "Player notes"},
+    )
+    assert response.status_code == 200
+    assert response.json()["notes"] == "Player notes"
+
+
 # --- Delete ---
 
 
@@ -288,6 +353,8 @@ async def test_delete_location_returns_204(
     ac = campaigns_authenticated_client("rt-loc-del-204")
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
     assert response.status_code == 204
+    get_response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    assert get_response.status_code == 404
 
 
 async def test_delete_location_returns_403_for_non_member(
@@ -311,6 +378,19 @@ async def test_delete_location_returns_404_not_found(
     campaign = await make_campaign(db, owner_id=user.id, slug_id="rtld0003")
     ac = campaigns_authenticated_client("rt-loc-del-404")
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
+    assert response.status_code == 404
+
+
+async def test_delete_location_returns_404_for_wrong_campaign(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-loc-del-iso", email="rt-loc-del-iso@test.com")
+    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtlda001")
+    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtldb001")
+    location = await make_location(db, campaign_id=campaign_b.id, slug="tavern")
+    ac = campaigns_authenticated_client("rt-loc-del-iso")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}")
     assert response.status_code == 404
 
 
