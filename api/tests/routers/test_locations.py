@@ -73,7 +73,13 @@ async def test_create_campaign_location_returns_201(
     ac = campaigns_authenticated_client("rt-loc-cr-201")
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
-        json={"slug": "tavern", "name": "Tavern", "description": "A cozy inn.", "notes": "Session 1", "is_active": True},
+        json={
+            "slug": "tavern",
+            "name": "Tavern",
+            "description": "A cozy inn.",
+            "notes": "Session 1",
+            "is_active": True,
+        },
     )
     assert response.status_code == 201
     data = response.json()
