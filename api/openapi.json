@@ -2262,17 +2262,6 @@
             ],
             "title": "Description"
           },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
@@ -2289,7 +2278,6 @@
           "description": "A cozy inn on the edge of the Whisperwood.",
           "is_active": true,
           "name": "Moonlit Tavern",
-          "notes": "Party rested here after Session 3.",
           "slug": "moonlit-tavern"
         }
       },
@@ -2436,17 +2424,6 @@
             "type": "boolean",
             "title": "Is Active"
           },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2465,7 +2442,6 @@
           "name",
           "description",
           "is_active",
-          "notes",
           "created_at",
           "updated_at"
         ],
@@ -2476,7 +2452,6 @@
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "is_active": true,
           "name": "Moonlit Tavern",
-          "notes": "Party rested here after Session 3.",
           "slug": "moonlit-tavern",
           "updated_at": "2024-01-15T10:00:00Z"
         }
@@ -2710,17 +2685,6 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
           }
         },
         "type": "object",
@@ -2728,8 +2692,7 @@
         "example": {
           "description": "Rebuilt after the fire.",
           "is_active": false,
-          "name": "Moonlit Tavern, Rebuilt",
-          "notes": "Abandoned after the dragon attack."
+          "name": "Moonlit Tavern, Rebuilt"
         }
       },
       "PatchMeRequest": {

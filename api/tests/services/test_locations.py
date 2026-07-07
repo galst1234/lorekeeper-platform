@@ -69,13 +69,11 @@ async def test_create_location_persists(db: AsyncSession) -> None:
         name="Moonlit Tavern",
         description="A cozy inn.",
         is_active=True,
-        notes="Session 1",
     )
     assert location.slug == "moonlit-tavern"
     assert location.name == "Moonlit Tavern"
     assert location.description == "A cozy inn."
     assert location.is_active is True
-    assert location.notes == "Session 1"
     assert location.campaign_id == campaign.id
     assert location.id is not None
 
@@ -181,13 +179,12 @@ async def test_update_location_description(db: AsyncSession) -> None:
     assert updated.description == "New description"
 
 
-async def test_update_location_is_active_and_notes(db: AsyncSession) -> None:
+async def test_update_location_is_active(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-upd-active", email="svc-loc-upd-active@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0003")
-    location = await make_location(db, campaign_id=campaign.id, is_active=True, notes="Old notes")
-    updated = await location_service.update_location(db, location, is_active=False, notes="New notes")
+    location = await make_location(db, campaign_id=campaign.id, is_active=True)
+    updated = await location_service.update_location(db, location, is_active=False)
     assert updated.is_active is False
-    assert updated.notes == "New notes"
 
 
 async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> None:
@@ -199,13 +196,11 @@ async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> Non
         name="Keep Me",
         description="Also keep",
         is_active=True,
-        notes="Keep notes",
     )
-    updated = await location_service.update_location(db, location, notes="Changed")
+    updated = await location_service.update_location(db, location, description="Changed")
     assert updated.name == "Keep Me"
-    assert updated.description == "Also keep"
+    assert updated.description == "Changed"
     assert updated.is_active is True
-    assert updated.notes == "Changed"
 
 
 # --- delete_location ---

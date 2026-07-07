@@ -91,7 +91,6 @@ async def test_create_location_returns_201(
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
     assert data["description"] is None
-    assert data["notes"] is None
     assert data["is_active"] is True
 
 
@@ -183,7 +182,6 @@ async def test_create_location_player_member_can_create(
     assert response.status_code == 201
     data = response.json()
     assert data["description"] is None
-    assert data["notes"] is None
     assert data["is_active"] is True
 
 
@@ -193,14 +191,14 @@ async def test_get_location_returns_200(
 ) -> None:
     user = await make_user(db, supertokens_user_id="rt-loc-get-200", email="rt-loc-get-200@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlg0001")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", notes="First stop")
+    location = await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", description="First stop")
     ac = campaigns_authenticated_client("rt-loc-get-200")
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Tavern"
     assert data["slug"] == "tavern"
-    assert data["notes"] == "First stop"
+    assert data["description"] == "First stop"
 
 
 async def test_get_location_returns_403_for_non_member(
@@ -256,7 +254,6 @@ async def test_patch_location_returns_200(
         name="Tavern",
         description="Original",
         is_active=True,
-        notes="Old notes",
     )
     ac = campaigns_authenticated_client("rt-loc-patch-200")
     response = await ac.patch(
@@ -265,7 +262,6 @@ async def test_patch_location_returns_200(
             "name": "Rebuilt Tavern",
             "description": "Updated description",
             "is_active": False,
-            "notes": "New notes",
         },
     )
     assert response.status_code == 200
@@ -273,7 +269,6 @@ async def test_patch_location_returns_200(
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
     assert data["is_active"] is False
-    assert data["notes"] == "New notes"
 
 
 async def test_patch_location_returns_403_for_non_member(
@@ -287,7 +282,7 @@ async def test_patch_location_returns_403_for_non_member(
     ac = campaigns_authenticated_client("rt-loc-patch-403")
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
-        json={"notes": "New notes"},
+        json={"name": "Rebuilt Tavern"},
     )
     assert response.status_code == 403
 
@@ -301,7 +296,7 @@ async def test_patch_location_returns_404_not_found(
     ac = campaigns_authenticated_client("rt-loc-patch-404")
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location",
-        json={"notes": "New notes"},
+        json={"name": "Rebuilt Tavern"},
     )
     assert response.status_code == 404
 
@@ -317,7 +312,7 @@ async def test_patch_location_returns_404_for_wrong_campaign(
     ac = campaigns_authenticated_client("rt-loc-patch-iso")
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}",
-        json={"notes": "New notes"},
+        json={"name": "Rebuilt Tavern"},
     )
     assert response.status_code == 404
 
@@ -334,10 +329,10 @@ async def test_patch_location_player_member_can_patch(
     ac = campaigns_authenticated_client("rt-loc-patch-player")
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
-        json={"notes": "Player notes"},
+        json={"description": "Player update"},
     )
     assert response.status_code == 200
-    assert response.json()["notes"] == "Player notes"
+    assert response.json()["description"] == "Player update"
 
 
 # --- Delete ---

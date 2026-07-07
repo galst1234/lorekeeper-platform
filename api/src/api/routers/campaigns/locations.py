@@ -29,7 +29,6 @@ class LocationResponse(BaseModel):
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
                 "is_active": True,
-                "notes": "Party rested here after Session 3.",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
             }
@@ -41,7 +40,6 @@ class LocationResponse(BaseModel):
     name: str
     description: str | None
     is_active: bool
-    notes: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -53,7 +51,6 @@ class CreateLocationRequest(NonReservedSlugModel):
                 "slug": "moonlit-tavern",
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
-                "notes": "Party rested here after Session 3.",
                 "is_active": True,
             }
         }
@@ -61,7 +58,6 @@ class CreateLocationRequest(NonReservedSlugModel):
 
     name: _NonEmptyStr
     description: str | None = None
-    notes: str | None = None
     is_active: bool = True
 
 
@@ -72,7 +68,6 @@ class PatchLocationRequest(BaseModel):
                 "name": "Moonlit Tavern, Rebuilt",
                 "description": "Rebuilt after the fire.",
                 "is_active": False,
-                "notes": "Abandoned after the dragon attack.",
             }
         }
     )
@@ -80,7 +75,6 @@ class PatchLocationRequest(BaseModel):
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
     is_active: bool | MISSING = MISSING
-    notes: str | None | MISSING = MISSING
 
 
 def _to_response(location: Location) -> LocationResponse:
@@ -90,7 +84,6 @@ def _to_response(location: Location) -> LocationResponse:
         name=location.name,
         description=location.description,
         is_active=location.is_active,
-        notes=location.notes,
         created_at=location.created_at,
         updated_at=location.updated_at,
     )
@@ -120,7 +113,6 @@ async def create_location(
             name=body.name,
             description=body.description,
             is_active=body.is_active,
-            notes=body.notes,
         )
     except LocationSlugConflictError:
         raise HTTPException(
@@ -158,7 +150,6 @@ async def patch_location(
         name=body.name,
         description=body.description,
         is_active=body.is_active,
-        notes=body.notes,
     )
     return _to_response(updated)
 

@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { cn, getErrorDetail, getErrorMessage } from "@/lib/utils";
 
 type LocationPageEditorProps =
@@ -37,14 +36,13 @@ const editorSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens")
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
-  notes: z.string(),
   is_active: z.boolean(),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "", notes: "", is_active: true };
+  return { name: "", slug: "", description: "", is_active: true };
 }
 
 function isSlugConflictError(error: unknown): boolean {
@@ -57,7 +55,6 @@ function editDefaultValues(location: LocationResponse): EditorFormValues {
     name: location.name,
     slug: location.slug,
     description: location.description ?? "",
-    notes: location.notes ?? "",
     is_active: location.is_active,
   };
 }
@@ -92,7 +89,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
           body: {
             name: values.name.trim(),
             description: values.description.trim() || null,
-            notes: values.notes.trim() || null,
             is_active: values.is_active,
           },
           throwOnError: true,
@@ -106,7 +102,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
           name: values.name.trim(),
           slug: values.slug.trim(),
           description: values.description.trim() || undefined,
-          notes: values.notes.trim() || undefined,
           is_active: values.is_active,
         },
         throwOnError: true,
@@ -221,20 +216,6 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
                     className="flex min-h-0 flex-1 flex-col"
                     textareaClassName="min-h-[16rem] flex-1 leading-7"
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes</FormLabel>
-                <FormControl>
-                  <Textarea {...field} rows={4} placeholder="Private notes (plain text only)" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

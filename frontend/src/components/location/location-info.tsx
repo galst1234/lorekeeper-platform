@@ -61,13 +61,6 @@ export function LocationInfo({ location, campaignSlug }: LocationInfoProps) {
         )}
       </div>
 
-      {location.notes && (
-        <div className="mt-6">
-          <h2 className="text-sm font-semibold mb-1">Notes</h2>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{location.notes}</p>
-        </div>
-      )}
-
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
