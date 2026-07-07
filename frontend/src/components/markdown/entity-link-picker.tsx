@@ -20,9 +20,10 @@ const GROUP_LABELS: Record<EntityDirectiveType, string> = {
   character: "Characters",
   item: "Items",
   entry: "Chronicle Entries",
+  location: "Locations",
 };
 
-const GROUP_ORDER: EntityDirectiveType[] = ["character", "item", "entry"];
+const GROUP_ORDER: EntityDirectiveType[] = ["character", "item", "entry", "location"];
 
 export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: EntityLinkPickerProps) {
   return (
@@ -32,7 +33,7 @@ export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: Ent
       title="Link an entity"
       description="Search characters, items, and chronicle entries to link."
     >
-      <CommandInput placeholder="Search characters, items, chronicle entries…" />
+      <CommandInput placeholder="Search characters, items, chronicle entries, locations…" />
       <CommandList>
         <CommandEmpty>No entities found.</CommandEmpty>
         {GROUP_ORDER.map((type) => {

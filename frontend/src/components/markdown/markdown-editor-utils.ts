@@ -78,7 +78,7 @@ export function buildLinkMarkdown(selectedText: string): string {
 }
 
 export function buildEntityDirective(
-  entityType: "character" | "item" | "entry",
+  entityType: "character" | "item" | "entry" | "location",
   slug: string,
   selectedText: string
 ): string {

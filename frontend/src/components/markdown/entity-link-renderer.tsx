@@ -54,5 +54,15 @@ export function EntityLinkRenderer({ entityType, slug, label, campaignSlug, reso
           {displayText}
         </Link>
       );
+    case "location":
+      return (
+        <Link
+          to="/campaigns/$slug/locations/$locationSlug"
+          params={{ slug: campaignSlug, locationSlug: resolved.slug }}
+          className={linkClassName}
+        >
+          {displayText}
+        </Link>
+      );
   }
 }

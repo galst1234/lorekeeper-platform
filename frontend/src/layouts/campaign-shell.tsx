@@ -1,12 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Menu, ScrollText, Settings, Swords, Users } from "lucide-react";
+import { LayoutDashboard, MapPin, Menu, ScrollText, Settings, Swords, Users } from "lucide-react";
 import { useState } from "react";
 import {
   getCampaignOptions,
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
+  listLocationsOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { NavItem } from "@/components/nav-item";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +34,7 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
   const { data: characters } = useSuspenseQuery(listCharactersOptions({ path: { slug } }));
   const { data: items } = useSuspenseQuery(listItemsOptions({ path: { slug } }));
   const { data: chronicleEntries } = useSuspenseQuery(listChronicleEntriesOptions({ path: { slug } }));
+  const { data: locations } = useSuspenseQuery(listLocationsOptions({ path: { slug } }));
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const isGm = campaign.role === "gm";
@@ -55,6 +57,13 @@ export function CampaignShell({ slug, children }: CampaignShellProps) {
         badge={chronicleEntries.length}
       />
       <NavItem to="/campaigns/$slug/items" params={{ slug }} icon={Swords} label="Items" badge={items.length} />
+      <NavItem
+        to="/campaigns/$slug/locations"
+        params={{ slug }}
+        icon={MapPin}
+        label="Locations"
+        badge={locations.length}
+      />
       <Separator className="my-2" />
       {isGm && <NavItem to="/campaigns/$slug/settings" params={{ slug }} icon={Settings} label="Settings" exact />}
     </>

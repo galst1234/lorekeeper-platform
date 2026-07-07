@@ -3,9 +3,10 @@ import {
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
+  listLocationsOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 
-export type EntityDirectiveType = "character" | "item" | "entry";
+export type EntityDirectiveType = "character" | "item" | "entry" | "location";
 
 export interface ResolvedEntity {
   type: EntityDirectiveType;
@@ -25,6 +26,7 @@ export function useEntityResolver(campaignSlug: string | undefined): EntityResol
   const { data: characters } = useQuery({ ...listCharactersOptions({ path: { slug } }), enabled });
   const { data: items } = useQuery({ ...listItemsOptions({ path: { slug } }), enabled });
   const { data: entries } = useQuery({ ...listChronicleEntriesOptions({ path: { slug } }), enabled });
+  const { data: locations } = useQuery({ ...listLocationsOptions({ path: { slug } }), enabled });
 
   const entities: ResolvedEntity[] = [
     ...(characters ?? []).map((character) => ({
@@ -34,6 +36,11 @@ export function useEntityResolver(campaignSlug: string | undefined): EntityResol
     })),
     ...(items ?? []).map((item) => ({ type: "item" as const, slug: item.slug, name: item.name })),
     ...(entries ?? []).map((entry) => ({ type: "entry" as const, slug: entry.slug, name: entry.title })),
+    ...(locations ?? []).map((location) => ({
+      type: "location" as const,
+      slug: location.slug,
+      name: location.name,
+    })),
   ];
 
   function resolve(type: string, targetSlug: string): ResolvedEntity | null {
