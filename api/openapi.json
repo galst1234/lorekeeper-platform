@@ -2217,6 +2217,11 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2292,6 +2297,10 @@
             ],
             "title": "Description"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "image_url": {
             "anyOf": [
               {
@@ -2320,6 +2329,7 @@
           "slug",
           "name",
           "description",
+          "restricted",
           "image_url",
           "created_at",
           "updated_at"
@@ -2331,6 +2341,7 @@
           "id": "b5d3c2e1-f406-489a-bcde-f01234567890",
           "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
           "name": "Sunblade",
+          "restricted": false,
           "slug": "sunblade",
           "updated_at": "2024-01-15T10:00:00Z"
         }
@@ -2560,6 +2571,10 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",

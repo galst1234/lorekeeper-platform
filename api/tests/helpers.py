@@ -93,6 +93,7 @@ async def make_item(
     name: str = "Test Item",
     slug: str | None = None,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Item:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -101,6 +102,7 @@ async def make_item(
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
     )
     db.add(item)
     await db.flush()
@@ -208,6 +210,7 @@ def build_item(
     name: str = "Test Item",
     slug: str | None = None,
     description: str | None = None,
+    restricted: bool = False,
     image_key: str | None = None,
 ) -> Item:
     if slug is None:
@@ -219,6 +222,7 @@ def build_item(
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
         image_key=image_key,
         created_at=now,
         updated_at=now,

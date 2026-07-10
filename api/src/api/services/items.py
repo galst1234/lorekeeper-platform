@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Item
+from api.models import Item, MemberRole
+from api.services.common.visibility import apply_visibility_filter
 from api.storage import ImageStorage
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,9 @@ def _is_slug_conflict(exc: BaseException) -> bool:
     )
 
 
-async def list_items(db: AsyncSession, campaign_id: uuid.UUID) -> list[Item]:
+async def list_items(db: AsyncSession, campaign_id: uuid.UUID, requester_role: MemberRole) -> list[Item]:
     query = select(Item).where(Item.campaign_id == campaign_id).order_by(Item.name.asc())
+    query = apply_visibility_filter(query, Item, requester_role)
     return list(await db.scalars(query))
 
 
@@ -38,12 +40,14 @@ async def create_item(
     slug: str,
     name: str,
     description: str | None,
+    restricted: bool = False,
 ) -> Item:
     item = Item(
         campaign_id=campaign_id,
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
     )
     try:
         db.add(item)
@@ -62,13 +66,14 @@ async def get_item_by_slug(
     db: AsyncSession,
     campaign_id: uuid.UUID,
     item_slug: str,
+    requester_role: MemberRole,
 ) -> Item | None:
-    return await db.scalar(
-        select(Item).where(
-            Item.campaign_id == campaign_id,
-            Item.slug == item_slug,
-        )
+    query = select(Item).where(
+        Item.campaign_id == campaign_id,
+        Item.slug == item_slug,
     )
+    query = apply_visibility_filter(query, Item, requester_role)
+    return await db.scalar(query)
 
 
 async def update_item(
@@ -77,11 +82,14 @@ async def update_item(
     *,
     name: str | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
+    restricted: bool | MISSING = MISSING,
 ) -> Item:
     if name is not MISSING:
         item.name = name
     if description is not MISSING:
         item.description = description
+    if restricted is not MISSING:
+        item.restricted = restricted
     await db.commit()
     await db.refresh(item)
     return item
