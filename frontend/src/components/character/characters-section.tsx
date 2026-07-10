@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, User } from "lucide-react";
 import { listCharactersOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 interface CharactersSectionProps {
@@ -38,8 +39,11 @@ export function CharactersSection({ slug, characterType }: CharactersSectionProp
                     <User className="h-10 w-10 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex flex-1 items-center justify-between min-w-0">
-                  <span className="font-medium hover:underline truncate">{character.name}</span>
+                <div className="flex flex-1 items-center justify-between min-w-0 gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium hover:underline truncate">{character.name}</span>
+                    {character.restricted && <Badge variant="outline">Restricted</Badge>}
+                  </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
               </Link>
