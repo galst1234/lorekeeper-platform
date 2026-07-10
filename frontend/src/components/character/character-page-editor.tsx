@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +7,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CharacterResponse } from "@/api/generated";
 import { createCharacter, deleteCharacterImage, patchCharacter, uploadCharacterImage } from "@/api/generated";
-import { getCharacterQueryKey, listCharactersQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import {
+  getCampaignOptions,
+  getCharacterQueryKey,
+  listCharactersQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
@@ -40,12 +44,13 @@ const editorSchema = z.object({
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   character_type: z.enum(["pc", "npc"]),
   description: z.string(),
+  access: z.enum(["everyone", "gm_only"]),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", character_type: "npc", description: "" };
+  return { name: "", slug: "", character_type: "npc", description: "", access: "everyone" };
 }
 
 function editDefaultValues(character: CharacterResponse): EditorFormValues {
@@ -54,6 +59,7 @@ function editDefaultValues(character: CharacterResponse): EditorFormValues {
     slug: character.slug,
     character_type: character.character_type,
     description: character.description ?? "",
+    access: character.restricted ? "gm_only" : "everyone",
   };
 }
 
@@ -65,6 +71,8 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
   const [slugEdited, setSlugEdited] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (character ? editDefaultValues(character) : createDefaultValues()), [character]);
 
@@ -91,6 +99,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 name: values.name.trim(),
                 character_type: values.character_type,
                 description: values.description.trim() || null,
+                restricted: values.access === "gm_only",
               },
               throwOnError: true,
             })
@@ -103,6 +112,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 slug: values.slug.trim(),
                 character_type: values.character_type,
                 description: values.description.trim() || undefined,
+                restricted: values.access === "gm_only",
               },
               throwOnError: true,
             })
@@ -232,6 +242,29 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                     </FormItem>
                   )}
                 />
+                {isGm && (
+                  <FormField
+                    control={form.control}
+                    name="access"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Access</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="everyone">Everyone</SelectItem>
+                            <SelectItem value="gm_only">GM Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <FormField
