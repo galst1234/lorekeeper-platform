@@ -7,10 +7,18 @@ from httpx import AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign
+from api.models import Campaign, CampaignMember
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.storage import ImageStorage, get_image_storage
-from tests.helpers import build_campaign, build_character, make_campaign, make_character, make_member, make_user
+from tests.helpers import (
+    build_campaign,
+    build_character,
+    build_member,
+    make_campaign,
+    make_character,
+    make_member,
+    make_user,
+)
 
 # --- List ---
 
@@ -315,11 +323,11 @@ async def test_delete_character_player_member_can_delete(
 
 
 def _allow_member(inner_app: FastAPI, campaign: Campaign) -> None:
-    inner_app.dependency_overrides[require_campaign_member] = lambda: campaign
+    inner_app.dependency_overrides[require_campaign_member] = lambda: build_member(campaign_id=campaign.id)
 
 
 def _forbid_member(inner_app: FastAPI) -> None:
-    def _raise() -> Campaign:
+    def _raise() -> CampaignMember:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     inner_app.dependency_overrides[require_campaign_member] = _raise

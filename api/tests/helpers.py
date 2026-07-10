@@ -159,6 +159,20 @@ def build_campaign(*, slug_label: str = "test-campaign", slug_id: str = "aabbccd
     )
 
 
+def build_member(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+    role: MemberRole = MemberRole.GM,
+) -> CampaignMember:
+    return CampaignMember(
+        campaign_id=campaign_id or uuid.uuid4(),
+        user_id=user_id or uuid.uuid4(),
+        role=role,
+        joined_at=datetime.now(UTC),
+    )
+
+
 def build_character(
     *,
     campaign_id: uuid.UUID | None = None,

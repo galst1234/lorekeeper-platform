@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
-from api.models import Campaign, ChronicleEntry, User
+from api.models import CampaignMember, ChronicleEntry, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -144,16 +144,16 @@ def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
 
 @router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def list_chronicle_entries(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ChronicleEntryResponse]:
-    entries = await chronicle_service.list_entries(db, campaign.id)
+    entries = await chronicle_service.list_entries(db, member.campaign_id)
     return [_to_response(entry) for entry in entries]
 
 
 @router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_chronicle_entry(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     user: Annotated[User, Depends(get_current_user)],
     body: CreateChronicleEntryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -161,7 +161,7 @@ async def create_chronicle_entry(
     try:
         entry = await chronicle_service.create_entry(
             db,
-            campaign_id=campaign.id,
+            campaign_id=member.campaign_id,
             slug=body.slug,
             title=body.title,
             occurred_at=body.occurred_at,
@@ -178,10 +178,10 @@ async def create_chronicle_entry(
 @router.get("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def get_chronicle_entry(
     entry_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ChronicleEntryDetailResponse:
-    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     return _to_detail_response(entry)
@@ -190,11 +190,11 @@ async def get_chronicle_entry(
 @router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_chronicle_entry(
     entry_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: PatchChronicleEntryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ChronicleEntryResponse:
-    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     updated = await chronicle_service.update_entry(
@@ -210,10 +210,10 @@ async def patch_chronicle_entry(
 @router.delete("/{entry_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_chronicle_entry(
     entry_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    entry = await chronicle_service.get_entry_by_slug(db, campaign.id, entry_slug)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     await chronicle_service.delete_entry(db, entry)
