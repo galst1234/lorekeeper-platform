@@ -63,4 +63,4 @@ class ThingResponse(BaseModel):
 
 ## Visibility filtering
 
-List and get routes for campaign-scoped entities (characters, items, chronicle entries, and similar future resources) must filter through `apply_visibility_filter` (`api/src/api/services/common/visibility.py`) in their service-layer implementation, so restricted entities never reach non-GM members. See `docs/superpowers/specs/2026-07-10-gm-only-visibility-design.md` for the full design.
+List and get routes for campaign-scoped entities (characters, items, chronicle entries, and similar future resources) must filter through `apply_visibility_filter` (`api/src/api/services/common/visibility.py`) in their service-layer implementation, so restricted entities never reach non-GM members.
