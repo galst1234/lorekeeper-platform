@@ -118,6 +118,7 @@ async def make_chronicle_entry(
     occurred_at: datetime | None = None,
     body: str | None = None,
     author_id: uuid.UUID | None = None,
+    restricted: bool = False,
 ) -> ChronicleEntry:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
@@ -130,6 +131,7 @@ async def make_chronicle_entry(
         occurred_at=occurred_at,
         body=body,
         author_id=author_id,
+        restricted=restricted,
     )
     db.add(entry)
     await db.flush()

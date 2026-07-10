@@ -1952,6 +1952,10 @@
             ],
             "title": "Body"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1980,6 +1984,7 @@
           "title",
           "occurred_at",
           "body",
+          "restricted",
           "created_at",
           "updated_at",
           "author"
@@ -2030,6 +2035,10 @@
             ],
             "title": "Body"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2048,6 +2057,7 @@
           "title",
           "occurred_at",
           "body",
+          "restricted",
           "created_at",
           "updated_at"
         ],
@@ -2057,6 +2067,7 @@
           "created_at": "2024-01-16T02:30:00Z",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "occurred_at": "2024-01-15T19:00:00Z",
+          "restricted": false,
           "slug": "the-fall-of-blackspire",
           "title": "The Fall of Blackspire",
           "updated_at": "2024-01-16T02:30:00Z"
@@ -2177,6 +2188,11 @@
               }
             ],
             "title": "Body"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2545,6 +2561,10 @@
               }
             ],
             "title": "Body"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",

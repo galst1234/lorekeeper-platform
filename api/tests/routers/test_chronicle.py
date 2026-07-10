@@ -441,3 +441,157 @@ async def test_delete_chronicle_entry_player_member_can_delete(
     ac = campaigns_authenticated_client("rt-chr-del-player")
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
     assert response.status_code == 204
+
+
+# --- Restricted ---
+
+
+async def test_create_chronicle_entry_restricted_defaults_false(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-res-default", email="rt-chr-res-default@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrd001")
+    ac = campaigns_authenticated_client("rt-chr-res-default")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
+    )
+    assert response.status_code == 201
+    assert response.json()["restricted"] is False
+
+
+async def test_create_chronicle_entry_gm_can_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-res-gm", email="rt-chr-res-gm@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrg001")
+    ac = campaigns_authenticated_client("rt-chr-res-gm")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={
+            "slug": "session-one",
+            "title": "Session One",
+            "occurred_at": "2024-01-15T19:00:00Z",
+            "restricted": True,
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["restricted"] is True
+
+
+async def test_create_chronicle_entry_player_cannot_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-plown", email="rt-chr-res-plown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrp001")
+    player = await make_user(db, supertokens_user_id="rt-chr-res-player", email="rt-chr-res-player@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    ac = campaigns_authenticated_client("rt-chr-res-player")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={
+            "slug": "session-one",
+            "title": "Session One",
+            "occurred_at": "2024-01-15T19:00:00Z",
+            "restricted": True,
+        },
+    )
+    assert response.status_code == 403
+
+
+async def test_patch_chronicle_entry_player_cannot_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-patchown", email="rt-chr-res-patchown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrq001")
+    player = await make_user(db, supertokens_user_id="rt-chr-res-patchplayer", email="rt-chr-res-patchplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="session-one")
+    ac = campaigns_authenticated_client("rt-chr-res-patchplayer")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        json={"restricted": True},
+    )
+    assert response.status_code == 403
+
+
+async def test_list_chronicle_entries_excludes_restricted_for_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-listown", email="rt-chr-res-listown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrl001")
+    player = await make_user(db, supertokens_user_id="rt-chr-res-listplayer", email="rt-chr-res-listplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    await make_chronicle_entry(db, campaign_id=campaign.id, slug="visible", title="Visible", restricted=False)
+    await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", title="Secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-chr-res-listplayer")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
+    titles = [entry["title"] for entry in response.json()]
+    assert titles == ["Visible"]
+
+
+async def test_list_chronicle_entries_includes_restricted_for_gm(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-chr-res-listgm", email="rt-chr-res-listgm@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrm001")
+    await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", title="Secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-chr-res-listgm")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
+    titles = [entry["title"] for entry in response.json()]
+    assert titles == ["Secret"]
+
+
+async def test_get_chronicle_entry_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-getown", email="rt-chr-res-getown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrn001")
+    player = await make_user(db, supertokens_user_id="rt-chr-res-getplayer", email="rt-chr-res-getplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-chr-res-getplayer")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+    assert response.status_code == 404
+
+
+async def test_patch_chronicle_entry_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-patchgetown", email="rt-chr-res-patchgetown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcro001")
+    player = await make_user(
+        db, supertokens_user_id="rt-chr-res-patchgetplayer", email="rt-chr-res-patchgetplayer@test.com"
+    )
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-chr-res-patchgetplayer")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        json={"title": "New Title"},
+    )
+    assert response.status_code == 404
+
+
+async def test_delete_chronicle_entry_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-chr-res-delgetown", email="rt-chr-res-delgetown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrs001")
+    player = await make_user(
+        db, supertokens_user_id="rt-chr-res-delgetplayer", email="rt-chr-res-delgetplayer@test.com"
+    )
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-chr-res-delgetplayer")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+    assert response.status_code == 404

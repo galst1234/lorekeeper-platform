@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
-from api.models import CampaignMember, ChronicleEntry, User
+from api.models import CampaignMember, ChronicleEntry, MemberRole, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -44,6 +44,7 @@ class ChronicleEntryResponse(BaseModel):
                 "title": "The Fall of Blackspire",
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
+                "restricted": False,
                 "created_at": "2024-01-16T02:30:00Z",
                 "updated_at": "2024-01-16T02:30:00Z",
             }
@@ -55,6 +56,7 @@ class ChronicleEntryResponse(BaseModel):
     title: str
     occurred_at: datetime
     body: str | None
+    restricted: bool
     created_at: datetime
     updated_at: datetime
 
@@ -96,6 +98,7 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
     title: _NonEmptyStr
     occurred_at: AwareDatetime
     body: str | None = None
+    restricted: bool = False
 
 
 class PatchChronicleEntryRequest(BaseModel):
@@ -111,6 +114,7 @@ class PatchChronicleEntryRequest(BaseModel):
     title: _NonEmptyStr | MISSING = MISSING
     occurred_at: AwareDatetime | MISSING = MISSING
     body: str | None | MISSING = MISSING
+    restricted: bool | MISSING = MISSING
 
 
 def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
@@ -120,6 +124,7 @@ def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
         title=entry.title,
         occurred_at=entry.occurred_at,
         body=entry.body,
+        restricted=entry.restricted,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
     )
@@ -136,6 +141,7 @@ def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
         title=entry.title,
         occurred_at=entry.occurred_at,
         body=entry.body,
+        restricted=entry.restricted,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
         author=author,
@@ -147,7 +153,7 @@ async def list_chronicle_entries(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ChronicleEntryResponse]:
-    entries = await chronicle_service.list_entries(db, member.campaign_id)
+    entries = await chronicle_service.list_entries(db, member.campaign_id, member.role)
     return [_to_response(entry) for entry in entries]
 
 
@@ -158,6 +164,8 @@ async def create_chronicle_entry(
     body: CreateChronicleEntryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ChronicleEntryResponse:
+    if body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can create a restricted chronicle entry")
     try:
         entry = await chronicle_service.create_entry(
             db,
@@ -167,6 +175,7 @@ async def create_chronicle_entry(
             occurred_at=body.occurred_at,
             body=body.body,
             author_id=user.id,
+            restricted=body.restricted,
         )
     except EntrySlugConflictError:
         raise HTTPException(
@@ -181,7 +190,7 @@ async def get_chronicle_entry(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ChronicleEntryDetailResponse:
-    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     return _to_detail_response(entry)
@@ -194,7 +203,9 @@ async def patch_chronicle_entry(
     body: PatchChronicleEntryRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ChronicleEntryResponse:
-    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
+    if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can mark a chronicle entry as restricted")
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     updated = await chronicle_service.update_entry(
@@ -203,6 +214,7 @@ async def patch_chronicle_entry(
         title=body.title,
         occurred_at=body.occurred_at,
         body=body.body,
+        restricted=body.restricted,
     )
     return _to_response(updated)
 
@@ -213,7 +225,7 @@ async def delete_chronicle_entry(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     await chronicle_service.delete_entry(db, entry)
