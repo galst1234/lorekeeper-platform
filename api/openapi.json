@@ -1862,6 +1862,10 @@
             ],
             "title": "Description"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "image_url": {
             "anyOf": [
               {
@@ -1891,6 +1895,7 @@
           "name",
           "character_type",
           "description",
+          "restricted",
           "image_url",
           "created_at",
           "updated_at"
@@ -1903,6 +1908,7 @@
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "image_url": "/media/3f9c1e2a-3b7e-4a2e-9b1a-9d6a2b0e5c11.jpg",
           "name": "Elara Moonwhisper",
+          "restricted": false,
           "slug": "elara-moonwhisper",
           "updated_at": "2024-01-15T10:00:00Z"
         }
@@ -2121,6 +2127,11 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2487,6 +2498,10 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",

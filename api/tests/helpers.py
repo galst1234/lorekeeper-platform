@@ -69,6 +69,7 @@ async def make_character(
     slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Character:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -78,6 +79,7 @@ async def make_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
     )
     db.add(character)
     await db.flush()
@@ -180,6 +182,7 @@ def build_character(
     slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
+    restricted: bool = False,
     image_key: str | None = None,
 ) -> Character:
     if slug is None:
@@ -192,6 +195,7 @@ def build_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
         image_key=image_key,
         created_at=now,
         updated_at=now,
