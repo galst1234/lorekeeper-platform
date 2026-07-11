@@ -3,11 +3,14 @@ import { Plus } from "lucide-react";
 import { ChronicleSection } from "@/components/chronicle/chronicle-section";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 
 const Route = getRouteApi("/campaigns/$slug/chronicle/");
 
 export function ChroniclePage() {
   const { slug } = Route.useParams();
+  const { q: query = "" } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   return (
     <PageContainer className="space-y-8">
@@ -20,7 +23,13 @@ export function ChroniclePage() {
           </Link>
         </Button>
       </div>
-      <ChronicleSection slug={slug} />
+      <SearchInput
+        value={query}
+        onChange={(value) => navigate({ search: value.trim() ? { q: value } : {}, replace: true })}
+        placeholder="Search chronicle"
+        aria-label="Search chronicle"
+      />
+      <ChronicleSection slug={slug} query={query} />
     </PageContainer>
   );
 }

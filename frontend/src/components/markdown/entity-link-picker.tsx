@@ -32,7 +32,7 @@ export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: Ent
       title="Link an entity"
       description="Search characters, items, and chronicle entries to link."
     >
-      <CommandInput placeholder="Search characters, items, chronicle entries…" />
+      <CommandInput placeholder="Search characters, items, chronicle entries" />
       <CommandList>
         <CommandEmpty>No entities found.</CommandEmpty>
         {GROUP_ORDER.map((type) => {
