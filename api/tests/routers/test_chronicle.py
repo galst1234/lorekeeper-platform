@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from unittest.mock import ANY
 
 from fastapi import FastAPI, HTTPException
@@ -28,7 +29,17 @@ def _authenticate(inner_app: FastAPI, user: User) -> None:
     inner_app.dependency_overrides[get_current_user] = lambda: user
 
 
+# The `Z`-suffixed timestamp used in request bodies below, parsed to the aware
+# datetime Pydantic hands to the service layer — used for exact (non-ANY) assertions.
+_OCCURRED_AT = datetime(2024, 1, 15, 19, 0, 0, tzinfo=UTC)
+
+
 # --- List ---
+#
+# Ordering (`list_entries` sorts by `occurred_at.desc()`) is not re-tested here:
+# a mocked router test can only prove the mock returns what it was told to
+# return. That guarantee is covered by the sociable test in
+# tests/services/test_chronicle.py.
 
 
 async def test_list_chronicle_entries_returns_200(
@@ -97,9 +108,10 @@ async def test_create_chronicle_entry_returns_201(
         title="The Fall of Blackspire",
         body="The party stormed the keep at dusk.",
     )
+    user = build_user()
     _allow_member(inner_app, campaign)
-    _authenticate(inner_app, build_user())
-    mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", return_value=entry)
 
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
@@ -117,6 +129,16 @@ async def test_create_chronicle_entry_returns_201(
     assert data["title"] == "The Fall of Blackspire"
     assert data["body"] == "The party stormed the keep at dusk."
     assert "author" not in data
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="the-fall-of-blackspire",
+        title="The Fall of Blackspire",
+        occurred_at=_OCCURRED_AT,
+        body="The party stormed the keep at dusk.",
+        author_id=user.id,
+        restricted=False,
+    )
 
 
 async def test_create_chronicle_entry_sets_author_to_current_user(
@@ -142,7 +164,7 @@ async def test_create_chronicle_entry_sets_author_to_current_user(
         campaign_id=campaign.id,
         slug="session-one",
         title="Session One",
-        occurred_at=ANY,
+        occurred_at=_OCCURRED_AT,
         body=None,
         author_id=user.id,
         restricted=False,
@@ -250,9 +272,10 @@ async def test_create_chronicle_entry_slug_conflict_returns_409(
 ) -> None:
     ac, inner_app = campaigns_client
     campaign = build_campaign()
+    user = build_user()
     _allow_member(inner_app, campaign)
-    _authenticate(inner_app, build_user())
-    mocker.patch("api.services.chronicle.create_entry", side_effect=EntrySlugConflictError())
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", side_effect=EntrySlugConflictError())
 
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
@@ -260,6 +283,16 @@ async def test_create_chronicle_entry_slug_conflict_returns_409(
     )
 
     assert response.status_code == 409
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="session-one",
+        title="Another Session One",
+        occurred_at=_OCCURRED_AT,
+        body=None,
+        author_id=user.id,
+        restricted=False,
+    )
 
 
 async def test_create_chronicle_entry_player_member_can_create(
@@ -285,7 +318,7 @@ async def test_create_chronicle_entry_player_member_can_create(
         campaign_id=campaign.id,
         slug="session-one",
         title="Session One",
-        occurred_at=ANY,
+        occurred_at=_OCCURRED_AT,
         body=None,
         author_id=user.id,
         restricted=False,
@@ -316,7 +349,7 @@ async def test_create_chronicle_entry_restricted_defaults_false(
         campaign_id=campaign.id,
         slug="session-one",
         title="Session One",
-        occurred_at=ANY,
+        occurred_at=_OCCURRED_AT,
         body=None,
         author_id=user.id,
         restricted=False,
@@ -352,7 +385,7 @@ async def test_create_chronicle_entry_gm_can_set_restricted_true(
         campaign_id=campaign.id,
         slug="session-one",
         title="Session One",
-        occurred_at=ANY,
+        occurred_at=_OCCURRED_AT,
         body=None,
         author_id=user.id,
         restricted=True,
@@ -428,11 +461,13 @@ async def test_get_chronicle_entry_includes_author(
     author = build_user(display_name="Aria")
     entry = build_chronicle_entry(campaign_id=campaign.id, author_id=author.id, author=author)
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
 
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
 
+    assert response.status_code == 200
     assert response.json()["author"] == {"id": str(author.id), "display_name": "Aria"}
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.GM)
 
 
 async def test_get_chronicle_entry_author_null_when_unset(
@@ -443,11 +478,13 @@ async def test_get_chronicle_entry_author_null_when_unset(
     campaign = build_campaign()
     entry = build_chronicle_entry(campaign_id=campaign.id, author_id=None, author=None)
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
 
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
 
+    assert response.status_code == 200
     assert response.json()["author"] is None
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.GM)
 
 
 async def test_get_chronicle_entry_returns_403_for_non_member(
@@ -515,7 +552,7 @@ async def test_patch_chronicle_entry_ignores_slug_and_author_id(
     entry = build_chronicle_entry(campaign_id=campaign.id, slug="original-slug")
     updated = build_chronicle_entry(campaign_id=campaign.id, slug="original-slug", title="Updated Title")
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
     mock_update = mocker.patch("api.services.chronicle.update_entry", return_value=updated)
 
     response = await ac.patch(
@@ -526,6 +563,7 @@ async def test_patch_chronicle_entry_ignores_slug_and_author_id(
     assert response.status_code == 200
     assert response.json()["slug"] == "original-slug"
     assert response.json()["title"] == "Updated Title"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "original-slug", MemberRole.GM)
     mock_update.assert_awaited_once_with(
         ANY, entry, title="Updated Title", occurred_at=MISSING, body=MISSING, restricted=MISSING
     )
