@@ -4,6 +4,7 @@ import {
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
+  listLocationsOptions,
   listMembersOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { CampaignLayout } from "@/layouts/campaign-layout";
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/campaigns/$slug")({
     await context.queryClient.ensureQueryData(listCharactersOptions({ path: { slug: params.slug } }));
     await context.queryClient.ensureQueryData(listItemsOptions({ path: { slug: params.slug } }));
     await context.queryClient.ensureQueryData(listChronicleEntriesOptions({ path: { slug: params.slug } }));
+    await context.queryClient.ensureQueryData(listLocationsOptions({ path: { slug: params.slug } }));
     await context.queryClient.ensureQueryData(listMembersOptions({ path: { slug: params.slug } }));
   },
   component: CampaignLayout,

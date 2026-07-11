@@ -21,7 +21,7 @@ export function LocationSidebarCard({ location }: LocationSidebarCardProps) {
   return (
     <Card className="sticky top-6">
       <CardContent className="pt-6 space-y-4">
-        <div className="aspect-square w-full bg-muted rounded-md flex items-center justify-center">
+        <div className="aspect-square w-full overflow-hidden rounded-md bg-muted flex items-center justify-center">
           <MapPin className="h-12 w-12 text-muted-foreground" />
         </div>
         <div>

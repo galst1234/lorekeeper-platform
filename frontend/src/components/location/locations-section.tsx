@@ -1,44 +1,44 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, MapPin } from "lucide-react";
 import { listLocationsOptions } from "@/api/generated/@tanstack/react-query.gen";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { matchesQuery } from "@/lib/search";
 
 interface LocationsSectionProps {
   slug: string;
+  query?: string;
 }
 
-export function LocationsSection({ slug }: LocationsSectionProps) {
+export function LocationsSection({ slug, query = "" }: LocationsSectionProps) {
   const { data: locations } = useSuspenseQuery(listLocationsOptions({ path: { slug } }));
+
+  const filtered = locations.filter((location) => matchesQuery(location.name, query));
+  const noMatchText = `No matches for "${query}".`;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Locations</h2>
-        <Button variant="ghost" size="icon" asChild aria-label="Create Location" className="-my-1">
-          <Link to="/campaigns/$slug/locations/new" params={{ slug }}>
-            <Plus className="h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-
-      {locations.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">No locations yet.</p>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">
+          {locations.length === 0 ? "No locations yet." : noMatchText}
+        </p>
       ) : (
         <div className="space-y-2">
-          {locations.map((location) => (
+          {filtered.map((location) => (
             <Card key={location.id} className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <Link
-                  to="/campaigns/$slug/locations/$locationSlug"
-                  params={{ slug, locationSlug: location.slug }}
-                  className="font-medium hover:underline"
-                >
-                  {location.name}
-                </Link>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
+              <Link
+                to="/campaigns/$slug/locations/$locationSlug"
+                params={{ slug, locationSlug: location.slug }}
+                className="flex items-center gap-3"
+              >
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
+                  <MapPin className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div className="flex flex-1 items-center justify-between min-w-0 gap-2">
+                  <span className="font-medium hover:underline truncate">{location.name}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </div>
+              </Link>
             </Card>
           ))}
         </div>
