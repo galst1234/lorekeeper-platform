@@ -281,6 +281,7 @@ def build_location(
     slug: str | None = None,
     description: str | None = None,
     restricted: bool = False,
+    image_key: str | None = None,
 ) -> Location:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -292,6 +293,7 @@ def build_location(
         name=name,
         description=description,
         restricted=restricted,
+        image_key=image_key,
         created_at=now,
         updated_at=now,
     )

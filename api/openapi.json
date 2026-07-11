@@ -1650,6 +1650,130 @@
         }
       }
     },
+    "/api/v1/campaigns/{slug}/locations/{location_slug}/image": {
+      "put": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Upload Location Image",
+        "operationId": "upload_location_image",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_location_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "400": {
+            "description": "Image is not a supported type or exceeds the size limit"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Delete Location Image",
+        "operationId": "delete_location_image",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{slug}/chronicle/entries": {
       "get": {
         "tags": [
@@ -2054,6 +2178,20 @@
           "file"
         ],
         "title": "Body_upload_item_image"
+      },
+      "Body_upload_location_image": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_location_image"
       },
       "CampaignResponse": {
         "properties": {
@@ -2745,6 +2883,17 @@
             ],
             "title": "Description"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2762,6 +2911,7 @@
           "slug",
           "name",
           "description",
+          "image_url",
           "created_at",
           "updated_at"
         ],
@@ -2770,6 +2920,7 @@
           "created_at": "2024-01-15T10:00:00Z",
           "description": "A cozy inn on the edge of the Whisperwood.",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+          "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
           "name": "Moonlit Tavern",
           "slug": "moonlit-tavern",
           "updated_at": "2024-01-15T10:00:00Z"

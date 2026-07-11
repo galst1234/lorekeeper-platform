@@ -1,5 +1,6 @@
 from unittest.mock import ANY
 
+import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
 from pydantic_core import MISSING
@@ -8,6 +9,7 @@ from pytest_mock import MockerFixture
 from api.models import Campaign, CampaignMember, MemberRole
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services.locations import LocationSlugConflictError
+from api.storage import ImageStorage, get_image_storage
 from tests.helpers import build_campaign, build_location, build_member
 
 
@@ -396,7 +398,7 @@ async def test_delete_location_returns_204(
 
     assert response.status_code == 204
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
-    mock_delete.assert_awaited_once_with(ANY, location)
+    mock_delete.assert_awaited_once_with(ANY, location, ANY)
 
 
 async def test_delete_location_returns_403_for_non_member(
@@ -465,4 +467,178 @@ async def test_delete_location_player_member_can_delete(
 
     assert response.status_code == 204
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
-    mock_delete.assert_awaited_once_with(ANY, location)
+    mock_delete.assert_awaited_once_with(ANY, location, ANY)
+
+
+# --- Image (solitary — see tests/CLAUDE.md) ---
+
+
+@pytest.fixture
+def image_client(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> tuple[AsyncClient, FastAPI, ImageStorage]:
+    ac, inner_app = campaigns_client
+    image_storage = mocker.create_autospec(ImageStorage, instance=True)
+    inner_app.dependency_overrides[get_image_storage] = lambda: image_storage
+    return ac, inner_app, image_storage
+
+
+async def test_upload_location_image_returns_200_with_image_url(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern")
+    updated = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", image_key="new-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_set = mocker.patch("api.services.locations.set_location_image", return_value=updated)
+    image_storage.save.return_value = "new-key.jpg"
+    image_storage.url_for.return_value = "/media/new-key.jpg"
+
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}/image",
+        files={"file": ("tavern.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["image_url"] == "/media/new-key.jpg"
+    image_storage.save.assert_awaited_once_with(b"fake-jpeg-bytes", "image/jpeg")
+    mock_set.assert_awaited_once_with(ANY, location, "new-key.jpg", image_storage)
+
+
+async def test_upload_location_image_rejects_invalid_content_type(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_set = mocker.patch("api.services.locations.set_location_image")
+
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}/image",
+        files={"file": ("notes.txt", b"not an image", "text/plain")},
+    )
+
+    assert response.status_code == 400
+    image_storage.save.assert_not_called()
+    mock_set.assert_not_called()
+
+
+async def test_upload_location_image_rejects_oversized_file(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_set = mocker.patch("api.services.locations.set_location_image")
+    oversized_content = b"x" * (5 * 1024 * 1024 + 1)
+
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}/image",
+        files={"file": ("tavern.jpg", oversized_content, "image/jpeg")},
+    )
+
+    assert response.status_code == 400
+    image_storage.save.assert_not_called()
+    mock_set.assert_not_called()
+
+
+async def test_upload_location_image_returns_403_for_non_member(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug")
+    mock_set = mocker.patch("api.services.locations.set_location_image")
+
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern/image",
+        files={"file": ("tavern.jpg", b"bytes", "image/jpeg")},
+    )
+
+    assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_set.assert_not_called()
+    image_storage.save.assert_not_called()
+
+
+async def test_upload_location_image_returns_404_not_found(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+    mock_set = mocker.patch("api.services.locations.set_location_image")
+
+    response = await ac.put(
+        f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location/image",
+        files={"file": ("tavern.jpg", b"bytes", "image/jpeg")},
+    )
+
+    assert response.status_code == 404
+    image_storage.save.assert_not_called()
+    mock_set.assert_not_called()
+
+
+async def test_delete_location_image_returns_204(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", image_key="existing-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_clear = mocker.patch("api.services.locations.clear_location_image", return_value=location)
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}/image")
+
+    assert response.status_code == 204
+    mock_clear.assert_awaited_once_with(ANY, location, image_storage)
+
+
+async def test_delete_location_image_returns_403_for_non_member(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, _image_storage = image_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug")
+    mock_clear = mocker.patch("api.services.locations.clear_location_image")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern/image")
+
+    assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_clear.assert_not_called()
+
+
+async def test_delete_location_also_removes_image_file(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", image_key="existing-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+
+    assert response.status_code == 204
+    mock_delete.assert_awaited_once_with(ANY, location, image_storage)

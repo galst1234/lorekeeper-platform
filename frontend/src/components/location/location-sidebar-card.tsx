@@ -22,7 +22,11 @@ export function LocationSidebarCard({ location }: LocationSidebarCardProps) {
     <Card className="sticky top-6">
       <CardContent className="pt-6 space-y-4">
         <div className="aspect-square w-full overflow-hidden rounded-md bg-muted flex items-center justify-center">
-          <MapPin className="h-12 w-12 text-muted-foreground" />
+          {location.image_url ? (
+            <img src={location.image_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <MapPin className="h-12 w-12 text-muted-foreground" />
+          )}
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Last updated</p>

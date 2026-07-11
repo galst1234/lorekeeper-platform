@@ -32,7 +32,11 @@ export function LocationsSection({ slug, query = "" }: LocationsSectionProps) {
                 className="flex items-center gap-3"
               >
                 <div className="h-24 w-24 shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center">
-                  <MapPin className="h-10 w-10 text-muted-foreground" />
+                  {location.image_url ? (
+                    <img src={location.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <MapPin className="h-10 w-10 text-muted-foreground" />
+                  )}
                 </div>
                 <div className="flex flex-1 items-center justify-between min-w-0 gap-2">
                   <span className="font-medium hover:underline truncate">{location.name}</span>

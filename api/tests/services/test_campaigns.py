@@ -12,7 +12,7 @@ from api.models import Campaign, MemberRole
 from api.services import campaigns as campaign_service
 from api.services.campaigns import _parse_slug_id
 from api.storage import LocalDiskStorage
-from tests.helpers import make_campaign, make_character, make_item, make_user
+from tests.helpers import make_campaign, make_character, make_item, make_location, make_user
 
 # --- _parse_slug_id ---
 
@@ -199,7 +199,7 @@ async def test_delete_campaign_removes_record(db: AsyncSession, tmp_path: Path) 
     assert result is None
 
 
-async def test_delete_campaign_removes_character_and_item_images(db: AsyncSession, tmp_path: Path) -> None:
+async def test_delete_campaign_removes_character_item_and_location_images(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-camp-del-img", email="svc-camp-del-img@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="campd001")
     image_storage = LocalDiskStorage(root=str(tmp_path))
@@ -212,12 +212,17 @@ async def test_delete_campaign_removes_character_and_item_images(db: AsyncSessio
     item_key = await image_storage.save(b"item-bytes", "image/png")
     item.image_key = item_key
 
+    location = await make_location(db, campaign_id=campaign.id)
+    location_key = await image_storage.save(b"location-bytes", "image/webp")
+    location.image_key = location_key
+
     await db.commit()
 
     await campaign_service.delete_campaign(db, campaign, image_storage)
 
     assert not (tmp_path / character_key).exists()
     assert not (tmp_path / item_key).exists()
+    assert not (tmp_path / location_key).exists()
 
 
 # --- create_campaign retry logic (mocked DB) ---

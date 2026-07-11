@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.services import locations as location_service
 from api.services.locations import LocationSlugConflictError
+from api.storage import LocalDiskStorage
 from tests.helpers import make_campaign, make_location, make_user
 
 # --- list_locations ---
@@ -183,11 +186,58 @@ async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> Non
 # --- delete_location ---
 
 
-async def test_delete_location_removes_record(db: AsyncSession) -> None:
+async def test_delete_location_removes_record(db: AsyncSession, tmp_path: Path) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-del-ok", email="svc-loc-del-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locd0001")
     location = await make_location(db, campaign_id=campaign.id)
     location_slug = location.slug
-    await location_service.delete_location(db, location)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    await location_service.delete_location(db, location, image_storage)
     result = await location_service.get_location_by_slug(db, campaign.id, location_slug)
     assert result is None
+
+
+async def test_delete_location_removes_image_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-del-img", email="svc-loc-del-img@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locd0002")
+    location = await make_location(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"location-bytes", "image/png")
+    location.image_key = key
+    await db.commit()
+    await location_service.delete_location(db, location, image_storage)
+    assert not (tmp_path / key).exists()
+
+
+async def test_set_location_image_sets_key(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-img-set", email="svc-loc-img-set@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="loci0001")
+    location = await make_location(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    updated = await location_service.set_location_image(db, location, "new-key.png", image_storage)
+    assert updated.image_key == "new-key.png"
+
+
+async def test_set_location_image_deletes_old_file_after_replacing(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-img-replace", email="svc-loc-img-replace@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="loci0002")
+    location = await make_location(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    old_key = await image_storage.save(b"old-bytes", "image/png")
+    location.image_key = old_key
+    await db.commit()
+    await location_service.set_location_image(db, location, "new-key.png", image_storage)
+    assert not (tmp_path / old_key).exists()
+
+
+async def test_clear_location_image_clears_key_and_deletes_file(db: AsyncSession, tmp_path: Path) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-img-clear", email="svc-loc-img-clear@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="loci0003")
+    location = await make_location(db, campaign_id=campaign.id)
+    image_storage = LocalDiskStorage(root=str(tmp_path))
+    key = await image_storage.save(b"location-bytes", "image/png")
+    location.image_key = key
+    await db.commit()
+    updated = await location_service.clear_location_image(db, location, image_storage)
+    assert updated.image_key is None
+    assert not (tmp_path / key).exists()

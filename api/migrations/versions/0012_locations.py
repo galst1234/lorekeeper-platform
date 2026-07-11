@@ -2,7 +2,7 @@
 
 Revision ID: 0012
 Revises: 0011
-Create Date: 2026-07-11 20:11:03.871524
+Create Date: 2026-07-11 21:49:31.095078
 
 """
 
@@ -26,6 +26,7 @@ def upgrade() -> None:
         sa.Column("slug", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("image_key", sa.String(), nullable=True),
         sa.Column("restricted", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
