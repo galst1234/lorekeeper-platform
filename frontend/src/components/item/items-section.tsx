@@ -4,21 +4,26 @@ import { ChevronRight, Swords } from "lucide-react";
 import { listItemsOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { matchesQuery } from "@/lib/search";
 
 interface ItemsSectionProps {
   slug: string;
+  query?: string;
 }
 
-export function ItemsSection({ slug }: ItemsSectionProps) {
+export function ItemsSection({ slug, query = "" }: ItemsSectionProps) {
   const { data: items } = useSuspenseQuery(listItemsOptions({ path: { slug } }));
+
+  const filtered = items.filter((item) => matchesQuery(item.name, query));
+  const noMatchText = `No matches for "${query}".`;
 
   return (
     <div>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">No items yet.</p>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">{items.length === 0 ? "No items yet." : noMatchText}</p>
       ) : (
         <div className="space-y-2">
-          {items.map((item) => (
+          {filtered.map((item) => (
             <Card key={item.id} className="px-4 py-3">
               <Link
                 to="/campaigns/$slug/items/$itemSlug"

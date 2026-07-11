@@ -4,25 +4,29 @@ import { ChevronRight, User } from "lucide-react";
 import { listCharactersOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { matchesQuery } from "@/lib/search";
 
 interface CharactersSectionProps {
   slug: string;
   characterType: "pc" | "npc";
+  query?: string;
 }
 
-export function CharactersSection({ slug, characterType }: CharactersSectionProps) {
+export function CharactersSection({ slug, characterType, query = "" }: CharactersSectionProps) {
   const { data: characters } = useSuspenseQuery(listCharactersOptions({ path: { slug } }));
 
-  const filtered = characters.filter((c) => c.character_type === characterType);
+  const ofType = characters.filter((character) => character.character_type === characterType);
+  const filtered = ofType.filter((character) => matchesQuery(character.name, query));
   const title = characterType === "pc" ? "Player Characters" : "NPCs";
   const emptyText = characterType === "pc" ? "No player characters yet." : "No NPCs yet.";
+  const noMatchText = `No matches for "${query}".`;
 
   return (
     <div>
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">{emptyText}</p>
+        <p className="text-sm text-muted-foreground italic">{ofType.length === 0 ? emptyText : noMatchText}</p>
       ) : (
         <div className="space-y-2">
           {filtered.map((character) => (
