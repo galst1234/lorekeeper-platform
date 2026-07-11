@@ -48,6 +48,21 @@ async def test_list_characters_returns_200(
     mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.GM, None)
 
 
+async def test_list_characters_delegates_member_role_for_player(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_list = mocker.patch("api.services.characters.list_characters", return_value=[])
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/characters")
+
+    assert response.status_code == 200
+    mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.PLAYER, None)
+
+
 async def test_list_characters_returns_403_for_non_member(
     campaigns_client: tuple[AsyncClient, FastAPI],
     mocker: MockerFixture,
@@ -195,7 +210,7 @@ async def test_create_character_slug_conflict_returns_409(
     ac, inner_app = campaigns_client
     campaign = build_campaign()
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.characters.create_character", side_effect=CharacterSlugConflictError())
+    mock_create = mocker.patch("api.services.characters.create_character", side_effect=CharacterSlugConflictError())
 
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/characters",
@@ -203,6 +218,15 @@ async def test_create_character_slug_conflict_returns_409(
     )
 
     assert response.status_code == 409
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="gandalf",
+        name="Gandalf the White",
+        character_type=CharacterType.NPC,
+        description=None,
+        restricted=False,
+    )
 
 
 async def test_create_character_player_member_can_create(
@@ -213,7 +237,7 @@ async def test_create_character_player_member_can_create(
     campaign = build_campaign()
     character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
     _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
-    mocker.patch("api.services.characters.create_character", return_value=character)
+    mock_create = mocker.patch("api.services.characters.create_character", return_value=character)
 
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/characters",
@@ -221,6 +245,15 @@ async def test_create_character_player_member_can_create(
     )
 
     assert response.status_code == 201
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="aria",
+        name="Aria",
+        character_type=CharacterType.PC,
+        description=None,
+        restricted=False,
+    )
 
 
 async def test_create_character_restricted_defaults_false(
@@ -318,6 +351,22 @@ async def test_get_character_returns_200(
     mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.GM)
 
 
+async def test_get_character_delegates_member_role_for_player(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/characters/aria")
+
+    assert response.status_code == 200
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
+
+
 async def test_get_character_returns_403_for_non_member(
     campaigns_client: tuple[AsyncClient, FastAPI],
     mocker: MockerFixture,
@@ -340,11 +389,12 @@ async def test_get_character_returns_404_not_found(
     ac, inner_app = campaigns_client
     campaign = build_campaign()
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
 
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/characters/nonexistent-character")
 
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM)
 
 
 # --- Patch ---
@@ -402,7 +452,7 @@ async def test_patch_character_returns_404_not_found(
     ac, inner_app = campaigns_client
     campaign = build_campaign()
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
     mock_update = mocker.patch("api.services.characters.update_character")
 
     response = await ac.patch(
@@ -411,6 +461,7 @@ async def test_patch_character_returns_404_not_found(
     )
 
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM)
     mock_update.assert_not_called()
 
 
@@ -467,7 +518,7 @@ async def test_patch_character_player_can_update_non_restricted_fields(
     character = build_character(campaign_id=campaign.id, slug="aria", name="Aria")
     updated = build_character(campaign_id=campaign.id, slug="aria", name="Aria Renamed")
     _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
-    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
     mock_update = mocker.patch("api.services.characters.update_character", return_value=updated)
 
     response = await ac.patch(
@@ -477,6 +528,7 @@ async def test_patch_character_player_can_update_non_restricted_fields(
 
     assert response.status_code == 200
     assert response.json()["name"] == "Aria Renamed"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
     mock_update.assert_awaited_once_with(
         ANY, character, name="Aria Renamed", character_type=MISSING, description=MISSING, restricted=MISSING
     )
@@ -527,12 +579,13 @@ async def test_delete_character_returns_404_not_found(
     ac, inner_app = campaigns_client
     campaign = build_campaign()
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=None)
     mock_delete = mocker.patch("api.services.characters.delete_character")
 
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/nonexistent-character")
 
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM)
     mock_delete.assert_not_called()
 
 
@@ -544,12 +597,14 @@ async def test_delete_character_player_member_can_delete(
     campaign = build_campaign()
     character = build_character(campaign_id=campaign.id, slug="aria")
     _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
-    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
-    mocker.patch("api.services.characters.delete_character")
+    mock_get = mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_delete = mocker.patch("api.services.characters.delete_character")
 
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/aria")
 
     assert response.status_code == 204
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
+    mock_delete.assert_awaited_once_with(ANY, character, ANY)
 
 
 # --- Image (solitary — see tests/CLAUDE.md) ---
