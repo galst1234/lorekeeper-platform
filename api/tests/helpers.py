@@ -159,9 +159,19 @@ async def make_member(
 # exist for a real query (sociable service tests, e.g.).
 
 
-def build_campaign(*, slug_label: str = "test-campaign", slug_id: str = "aabbccdd") -> Campaign:
+def build_campaign(
+    *, slug_label: str = "test-campaign", slug_id: str = "aabbccdd", invite_code: str | None = None
+) -> Campaign:
+    now = datetime.now(UTC)
     return Campaign(
-        id=uuid.uuid4(), owner_id=uuid.uuid4(), name="Test Campaign", slug_label=slug_label, slug_id=slug_id
+        id=uuid.uuid4(),
+        owner_id=uuid.uuid4(),
+        name="Test Campaign",
+        slug_label=slug_label,
+        slug_id=slug_id,
+        invite_code=invite_code,
+        created_at=now,
+        updated_at=now,
     )
 
 
@@ -177,6 +187,11 @@ def build_member(
         role=role,
         joined_at=datetime.now(UTC),
     )
+
+
+def build_user(*, email: str = "test@example.com", display_name: str | None = "Test User") -> User:
+    now = datetime.now(UTC)
+    return User(id=uuid.uuid4(), email=email, display_name=display_name, created_at=now, updated_at=now)
 
 
 def build_character(
@@ -226,6 +241,37 @@ def build_item(
         description=description,
         restricted=restricted,
         image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_chronicle_entry(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    title: str = "Test Entry",
+    slug: str | None = None,
+    occurred_at: datetime | None = None,
+    body: str | None = None,
+    author_id: uuid.UUID | None = None,
+    author: User | None = None,
+    restricted: bool = False,
+) -> ChronicleEntry:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if occurred_at is None:
+        occurred_at = datetime.now(UTC)
+    now = datetime.now(UTC)
+    return ChronicleEntry(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        title=title,
+        occurred_at=occurred_at,
+        body=body,
+        author_id=author_id,
+        author=author,
+        restricted=restricted,
         created_at=now,
         updated_at=now,
     )
