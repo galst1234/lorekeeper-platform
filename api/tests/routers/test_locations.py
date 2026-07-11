@@ -83,9 +83,7 @@ async def test_create_location_returns_201(
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
     assert data["description"] is None
-    mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None
-    )
+    mock_create.assert_awaited_once_with(ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None)
 
 
 async def test_create_location_returns_403_for_non_member(
@@ -196,9 +194,7 @@ async def test_create_location_player_member_can_create(
     )
 
     assert response.status_code == 201
-    mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None
-    )
+    mock_create.assert_awaited_once_with(ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None)
 
 
 # --- Get ---
@@ -210,9 +206,7 @@ async def test_get_location_returns_200(
 ) -> None:
     ac, inner_app = campaigns_client
     campaign = build_campaign()
-    location = build_location(
-        campaign_id=campaign.id, slug="tavern", name="Tavern", description="First stop"
-    )
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", description="First stop")
     _allow_member(inner_app, campaign)
     mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
 
@@ -280,9 +274,7 @@ async def test_patch_location_returns_200(
 ) -> None:
     ac, inner_app = campaigns_client
     campaign = build_campaign()
-    location = build_location(
-        campaign_id=campaign.id, slug="tavern", name="Tavern", description="Original"
-    )
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", description="Original")
     updated = build_location(
         campaign_id=campaign.id, slug="tavern", name="Rebuilt Tavern", description="Updated description"
     )
@@ -300,9 +292,7 @@ async def test_patch_location_returns_200(
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
-    mock_update.assert_awaited_once_with(
-        ANY, location, name="Rebuilt Tavern", description="Updated description"
-    )
+    mock_update.assert_awaited_once_with(ANY, location, name="Rebuilt Tavern", description="Updated description")
 
 
 async def test_patch_location_returns_403_for_non_member(
