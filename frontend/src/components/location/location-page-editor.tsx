@@ -7,7 +7,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { LocationResponse } from "@/api/generated";
 import { createLocation, deleteLocationImage, patchLocation, uploadLocationImage } from "@/api/generated";
-import { getCampaignOptions, getLocationQueryKey, listLocationsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import {
+  getCampaignOptions,
+  getLocationQueryKey,
+  listLocationsQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
