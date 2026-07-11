@@ -1,13 +1,11 @@
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
-from api.auth import get_session
 from api.config import settings
 from api.database import Base, get_db
 
@@ -43,12 +41,6 @@ async def db() -> AsyncGenerator[AsyncSession]:
         await conn.rollback()  # rollback outer transaction
 
 
-def make_mock_session(user_id: str) -> MagicMock:
-    mock = MagicMock()
-    mock.get_user_id.return_value = user_id
-    return mock
-
-
 @pytest.fixture
 async def client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
     from supertokens_python.framework.fastapi import get_middleware
@@ -71,17 +63,6 @@ async def client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]
 
     async with AsyncClient(transport=ASGITransport(app=inner_app), base_url="http://test") as ac:
         yield ac, inner_app
-
-
-@pytest.fixture
-def authenticated_client(client: tuple[AsyncClient, FastAPI]) -> Callable[[str], AsyncClient]:
-    ac, inner_app = client
-
-    def _with_user(user_id: str) -> AsyncClient:
-        inner_app.dependency_overrides[get_session] = lambda: make_mock_session(user_id)
-        return ac
-
-    return _with_user
 
 
 @pytest.fixture
@@ -108,16 +89,3 @@ async def campaigns_client(db: AsyncSession, tmp_path: Path) -> AsyncGenerator[t
 
     async with AsyncClient(transport=ASGITransport(app=inner_app), base_url="http://test") as ac:
         yield ac, inner_app
-
-
-@pytest.fixture
-def campaigns_authenticated_client(
-    campaigns_client: tuple[AsyncClient, FastAPI],
-) -> Callable[[str], AsyncClient]:
-    ac, inner_app = campaigns_client
-
-    def _with_user(user_id: str) -> AsyncClient:
-        inner_app.dependency_overrides[get_session] = lambda: make_mock_session(user_id)
-        return ac
-
-    return _with_user

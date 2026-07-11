@@ -1,28 +1,18 @@
 import uuid
-from collections.abc import Callable
+from unittest.mock import ANY
 
 from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy import select
+from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import User, UserAuthMethod
+from api.auth import get_current_user
+from api.models import User
+from tests.helpers import build_user
 
 
-async def _make_user(
-    db: AsyncSession,
-    *,
-    supertokens_user_id: str,
-    email: str,
-    display_name: str | None,
-    provider: str = "emailpassword",
-) -> User:
-    user = User(email=email, display_name=display_name)
-    db.add(user)
-    await db.flush()
-    db.add(UserAuthMethod(user_id=user.id, provider=provider, supertokens_user_id=supertokens_user_id))
-    await db.flush()
-    return user
+def _authenticate(inner_app: FastAPI, user: User) -> None:
+    inner_app.dependency_overrides[get_current_user] = lambda: user
 
 
 async def test_get_me_no_session(client: tuple[AsyncClient, FastAPI]) -> None:
@@ -31,16 +21,13 @@ async def test_get_me_no_session(client: tuple[AsyncClient, FastAPI]) -> None:
     assert response.status_code in (401, 500)
 
 
-async def test_get_me_returns_user(
-    authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await _make_user(
-        db, supertokens_user_id="st-abc-123", email="gandalf@middleearth.com", display_name="Gandalf the Grey"
-    )
+async def test_get_me_returns_user(client: tuple[AsyncClient, FastAPI]) -> None:
+    ac, inner_app = client
+    user = build_user(email="gandalf@middleearth.com", display_name="Gandalf the Grey")
+    _authenticate(inner_app, user)
 
-    ac = authenticated_client("st-abc-123")
     response = await ac.get("/api/v1/me")
+
     assert response.status_code == 200
     data = response.json()
     assert uuid.UUID(data["id"]) == user.id
@@ -48,54 +35,63 @@ async def test_get_me_returns_user(
     assert data["display_name"] == "Gandalf the Grey"
 
 
-async def test_get_me_social_user_null_display_name(
-    authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    await _make_user(
-        db, supertokens_user_id="st-social-456", email="aragorn@middleearth.com", display_name=None, provider="google"
-    )
+async def test_get_me_social_user_null_display_name(client: tuple[AsyncClient, FastAPI]) -> None:
+    ac, inner_app = client
+    user = build_user(email="aragorn@middleearth.com", display_name=None)
+    _authenticate(inner_app, user)
 
-    ac = authenticated_client("st-social-456")
     response = await ac.get("/api/v1/me")
+
     assert response.status_code == 200
     assert response.json()["display_name"] is None
 
 
 async def test_patch_me_sets_display_name(
-    authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await _make_user(db, supertokens_user_id="st-patch-789", email="frodo@shire.com", display_name=None)
+    ac, inner_app = client
+    user = build_user(email="frodo@shire.com", display_name=None)
+    _authenticate(inner_app, user)
 
-    ac = authenticated_client("st-patch-789")
+    async def _apply_update(_db: AsyncSession, target_user: User, display_name: str) -> User:
+        target_user.display_name = display_name
+        return target_user
+
+    mock_update = mocker.patch("api.services.users.update_display_name", side_effect=_apply_update)
+
     response = await ac.patch("/api/v1/me", json={"display_name": "Frodo Baggins"})
+
     assert response.status_code == 200
     data = response.json()
     assert uuid.UUID(data["id"]) == user.id
     assert data["display_name"] == "Frodo Baggins"
-
-    refreshed = await db.scalar(select(User).where(User.id == user.id))
-    assert refreshed.display_name == "Frodo Baggins"
+    mock_update.assert_awaited_once_with(ANY, user, "Frodo Baggins")
 
 
 async def test_patch_me_empty_string_rejected(
-    authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    await _make_user(db, supertokens_user_id="st-empty-000", email="bilbo@shire.com", display_name="Bilbo")
+    ac, inner_app = client
+    _authenticate(inner_app, build_user(email="bilbo@shire.com", display_name="Bilbo"))
+    mock_update = mocker.patch("api.services.users.update_display_name")
 
-    ac = authenticated_client("st-empty-000")
     response = await ac.patch("/api/v1/me", json={"display_name": "   "})
+
     assert response.status_code == 422
+    mock_update.assert_not_called()
 
 
 async def test_patch_me_too_long_rejected(
-    authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    await _make_user(db, supertokens_user_id="st-long-111", email="sam@shire.com", display_name="Sam")
+    ac, inner_app = client
+    _authenticate(inner_app, build_user(email="sam@shire.com", display_name="Sam"))
+    mock_update = mocker.patch("api.services.users.update_display_name")
 
-    ac = authenticated_client("st-long-111")
     response = await ac.patch("/api/v1/me", json={"display_name": "x" * 51})
+
     assert response.status_code == 422
+    mock_update.assert_not_called()
