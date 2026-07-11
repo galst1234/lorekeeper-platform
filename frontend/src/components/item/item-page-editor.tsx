@@ -1,17 +1,22 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
+import { Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { ItemResponse } from "@/api/generated";
-import { createItem, patchItem } from "@/api/generated";
-import { getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { createItem, deleteItemImage, patchItem, uploadItemImage } from "@/api/generated";
+import { getCampaignOptions, getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, getErrorMessage } from "@/lib/utils";
 
 type ItemPageEditorProps =
@@ -34,16 +39,22 @@ const editorSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens")
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
+  access: z.enum(["everyone", "gm_only"]),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "" };
+  return { name: "", slug: "", description: "", access: "everyone" };
 }
 
 function editDefaultValues(item: ItemResponse): EditorFormValues {
-  return { name: item.name, slug: item.slug, description: item.description ?? "" };
+  return {
+    name: item.name,
+    slug: item.slug,
+    description: item.description ?? "",
+    access: item.restricted ? "gm_only" : "everyone",
+  };
 }
 
 export function ItemPageEditor(props: ItemPageEditorProps) {
@@ -52,6 +63,10 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (item ? editDefaultValues(item) : createDefaultValues()), [item]);
 
@@ -70,30 +85,50 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
 
   const saveMutation = useMutation({
     mutationFn: async (values: EditorFormValues) => {
-      if (item) {
-        const { data } = await patchItem({
-          path: { slug: campaignSlug, item_slug: item.slug },
-          body: {
-            name: values.name.trim(),
-            description: values.description.trim() || null,
-          },
-          throwOnError: true,
-        });
-        return data;
-      }
+      const savedItem = item
+        ? (
+            await patchItem({
+              path: { slug: campaignSlug, item_slug: item.slug },
+              body: {
+                name: values.name.trim(),
+                description: values.description.trim() || null,
+                restricted: values.access === "gm_only",
+              },
+              throwOnError: true,
+            })
+          ).data
+        : (
+            await createItem({
+              path: { slug: campaignSlug },
+              body: {
+                name: values.name.trim(),
+                slug: values.slug.trim(),
+                description: values.description.trim() || undefined,
+                restricted: values.access === "gm_only",
+              },
+              throwOnError: true,
+            })
+          ).data;
 
-      const { data } = await createItem({
-        path: { slug: campaignSlug },
-        body: {
-          name: values.name.trim(),
-          slug: values.slug.trim(),
-          description: values.description.trim() || undefined,
-        },
-        throwOnError: true,
-      });
-      return data;
+      try {
+        if (pendingImageFile) {
+          await uploadItemImage({
+            path: { slug: campaignSlug, item_slug: savedItem.slug },
+            body: { file: pendingImageFile },
+            throwOnError: true,
+          });
+        } else if (imageRemoved) {
+          await deleteItemImage({
+            path: { slug: campaignSlug, item_slug: savedItem.slug },
+            throwOnError: true,
+          });
+        }
+        return { savedItem, imageUploadFailed: false };
+      } catch {
+        return { savedItem, imageUploadFailed: true };
+      }
     },
-    onSuccess: async (savedItem) => {
+    onSuccess: async ({ savedItem, imageUploadFailed }) => {
       await queryClient.invalidateQueries({ queryKey: listItemsQueryKey({ path: { slug: campaignSlug } }) });
       if (item) {
         await queryClient.invalidateQueries({
@@ -103,6 +138,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
       await router.navigate({
         to: "/campaigns/$slug/items/$itemSlug",
         params: { slug: campaignSlug, itemSlug: savedItem.slug },
+        state: imageUploadFailed ? { imageUploadFailed: true } : undefined,
       });
     },
   });
@@ -138,63 +174,111 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className={cn("grid grid-cols-1 gap-4", !isEditing && "md:grid-cols-2")}>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoFocus />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="flex min-h-0 flex-col gap-6 md:col-span-2">
+              <div className={cn("grid grid-cols-1 gap-4 content-start", !isEditing && "md:grid-cols-2")}>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} autoFocus />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {!isEditing && (
+                {!isEditing && (
+                  <FormField
+                    control={form.control}
+                    name="slug"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Slug</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            onChange={(event) => {
+                              setSlugEdited(true);
+                              field.onChange(event);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
+              {isGm && (
+                <FormField
+                  control={form.control}
+                  name="access"
+                  render={({ field }) => (
+                    <FormItem className="md:w-1/3">
+                      <FormLabel>Access</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="everyone">Everyone</SelectItem>
+                          <SelectItem value="gm_only">GM Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               <FormField
                 control={form.control}
-                name="slug"
+                name="description"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Slug</FormLabel>
+                  <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        onChange={(event) => {
-                          setSlugEdited(true);
-                          field.onChange(event);
-                        }}
+                      <MarkdownEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        campaignSlug={campaignSlug}
+                        className="flex min-h-0 flex-1 flex-col"
+                        textareaClassName="min-h-[16rem] flex-1 leading-7"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-          </div>
+            </div>
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <MarkdownEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    campaignSlug={campaignSlug}
-                    className="flex min-h-0 flex-1 flex-col"
-                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+            <div className="sticky top-6 space-y-2">
+              <Label>Image</Label>
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <EntityImageField
+                    imageUrl={imageRemoved ? null : (item?.image_url ?? null)}
+                    placeholderIcon={Swords}
+                    onFileSelected={(file) => {
+                      setPendingImageFile(file);
+                      setImageRemoved(false);
+                    }}
+                    onRemove={() => {
+                      setPendingImageFile(null);
+                      setImageRemoved(true);
+                    }}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {saveMutation.isError && (
             <p className="text-sm text-destructive">{getErrorMessage(saveMutation.error, "Failed to save item.")}</p>

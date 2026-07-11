@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.models import ChronicleEntry
+from api.models import ChronicleEntry, MemberRole
+from api.services.common.visibility import apply_visibility_filter
 
 
 class EntrySlugConflictError(Exception):
@@ -25,12 +26,13 @@ def _is_slug_conflict(exc: BaseException) -> bool:
     )
 
 
-async def list_entries(db: AsyncSession, campaign_id: uuid.UUID) -> list[ChronicleEntry]:
+async def list_entries(db: AsyncSession, campaign_id: uuid.UUID, requester_role: MemberRole) -> list[ChronicleEntry]:
     query = (
         select(ChronicleEntry)
         .where(ChronicleEntry.campaign_id == campaign_id)
         .order_by(ChronicleEntry.occurred_at.desc())
     )
+    query = apply_visibility_filter(query, ChronicleEntry, requester_role)
     return list(await db.scalars(query))
 
 
@@ -42,6 +44,7 @@ async def create_entry(
     occurred_at: datetime,
     body: str | None,
     author_id: uuid.UUID,
+    restricted: bool = False,
 ) -> ChronicleEntry:
     entry = ChronicleEntry(
         campaign_id=campaign_id,
@@ -50,6 +53,7 @@ async def create_entry(
         occurred_at=occurred_at,
         body=body,
         author_id=author_id,
+        restricted=restricted,
     )
     try:
         db.add(entry)
@@ -68,8 +72,9 @@ async def get_entry_by_slug(
     db: AsyncSession,
     campaign_id: uuid.UUID,
     entry_slug: str,
+    requester_role: MemberRole,
 ) -> ChronicleEntry | None:
-    return await db.scalar(
+    query = (
         select(ChronicleEntry)
         .options(selectinload(ChronicleEntry.author))
         .where(
@@ -78,6 +83,8 @@ async def get_entry_by_slug(
         )
         .execution_options(populate_existing=True)
     )
+    query = apply_visibility_filter(query, ChronicleEntry, requester_role)
+    return await db.scalar(query)
 
 
 async def update_entry(
@@ -87,6 +94,7 @@ async def update_entry(
     title: str | MISSING = MISSING,
     occurred_at: datetime | MISSING = MISSING,
     body: str | None | MISSING = MISSING,
+    restricted: bool | MISSING = MISSING,
 ) -> ChronicleEntry:
     if title is not MISSING:
         entry.title = title
@@ -94,6 +102,8 @@ async def update_entry(
         entry.occurred_at = occurred_at
     if body is not MISSING:
         entry.body = body
+    if restricted is not MISSING:
+        entry.restricted = restricted
     await db.commit()
     await db.refresh(entry)
     return entry

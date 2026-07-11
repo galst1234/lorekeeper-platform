@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ItemResponse } from "@/api/generated";
 import { deleteItemMutation, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -29,7 +30,10 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
   return (
     <div>
       <div className="flex items-start justify-between gap-4">
-        <h1 className="text-3xl font-bold">{item.name}</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-3xl font-bold">{item.name}</h1>
+          {item.restricted && <Badge variant="outline">Restricted</Badge>}
+        </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" asChild aria-label="Edit item">
             <Link to="/campaigns/$slug/items/$itemSlug/edit" params={{ slug: campaignSlug, itemSlug: item.slug }}>

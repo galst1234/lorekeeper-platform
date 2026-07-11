@@ -9,6 +9,7 @@ from api.auth import get_current_user
 from api.database import get_db
 from api.models import User
 from api.routers._openapi import UNAUTHENTICATED
+from api.services import users as user_service
 
 router = APIRouter(tags=["Me"])
 
@@ -58,7 +59,5 @@ async def patch_me(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> MeResponse:
-    user.display_name = body.display_name
-    await db.commit()
-    await db.refresh(user)
-    return MeResponse(id=user.id, email=user.email, display_name=user.display_name)
+    updated = await user_service.update_display_name(db, user, body.display_name)
+    return MeResponse(id=updated.id, email=updated.email, display_name=updated.display_name)

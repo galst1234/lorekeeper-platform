@@ -70,6 +70,7 @@ async def make_character(
     slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Character:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -79,6 +80,7 @@ async def make_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
     )
     db.add(character)
     await db.flush()
@@ -92,6 +94,7 @@ async def make_item(
     name: str = "Test Item",
     slug: str | None = None,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Item:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -100,6 +103,7 @@ async def make_item(
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
     )
     db.add(item)
     await db.flush()
@@ -115,6 +119,7 @@ async def make_chronicle_entry(
     occurred_at: datetime | None = None,
     body: str | None = None,
     author_id: uuid.UUID | None = None,
+    restricted: bool = False,
 ) -> ChronicleEntry:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
@@ -127,6 +132,7 @@ async def make_chronicle_entry(
         occurred_at=occurred_at,
         body=body,
         author_id=author_id,
+        restricted=restricted,
     )
     db.add(entry)
     await db.flush()
@@ -165,3 +171,158 @@ async def make_member(
     db.add(member)
     await db.flush()
     return member
+
+
+# --- In-memory builders (never persisted) ---
+#
+# For solitary router tests: the object is only read by the route/mocked
+# service layer in-process, never queried back from a database. Use the
+# `make_*` factories above instead when a test needs the row to actually
+# exist for a real query (sociable service tests, e.g.).
+
+
+def build_campaign(
+    *,
+    name: str = "Test Campaign",
+    description: str | None = None,
+    slug_label: str = "test-campaign",
+    slug_id: str = "aabbccdd",
+    invite_code: str | None = None,
+) -> Campaign:
+    now = datetime.now(UTC)
+    return Campaign(
+        id=uuid.uuid4(),
+        owner_id=uuid.uuid4(),
+        name=name,
+        description=description,
+        slug_label=slug_label,
+        slug_id=slug_id,
+        invite_code=invite_code,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_member(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+    role: MemberRole = MemberRole.GM,
+) -> CampaignMember:
+    return CampaignMember(
+        campaign_id=campaign_id or uuid.uuid4(),
+        user_id=user_id or uuid.uuid4(),
+        role=role,
+        joined_at=datetime.now(UTC),
+    )
+
+
+def build_user(*, email: str = "test@example.com", display_name: str | None = "Test User") -> User:
+    now = datetime.now(UTC)
+    return User(id=uuid.uuid4(), email=email, display_name=display_name, created_at=now, updated_at=now)
+
+
+def build_character(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Character",
+    slug: str | None = None,
+    character_type: CharacterType = CharacterType.PC,
+    description: str | None = None,
+    restricted: bool = False,
+    image_key: str | None = None,
+) -> Character:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Character(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        character_type=character_type,
+        description=description,
+        restricted=restricted,
+        image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_item(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Item",
+    slug: str | None = None,
+    description: str | None = None,
+    restricted: bool = False,
+    image_key: str | None = None,
+) -> Item:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Item(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        description=description,
+        restricted=restricted,
+        image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_location(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Location",
+    slug: str | None = None,
+    description: str | None = None,
+    restricted: bool = False,
+) -> Location:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Location(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        description=description,
+        restricted=restricted,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_chronicle_entry(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    title: str = "Test Entry",
+    slug: str | None = None,
+    occurred_at: datetime | None = None,
+    body: str | None = None,
+    author_id: uuid.UUID | None = None,
+    author: User | None = None,
+    restricted: bool = False,
+) -> ChronicleEntry:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if occurred_at is None:
+        occurred_at = datetime.now(UTC)
+    now = datetime.now(UTC)
+    return ChronicleEntry(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        title=title,
+        occurred_at=occurred_at,
+        body=body,
+        author_id=author_id,
+        author=author,
+        restricted=restricted,
+        created_at=now,
+        updated_at=now,
+    )

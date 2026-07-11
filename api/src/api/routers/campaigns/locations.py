@@ -8,7 +8,7 @@ from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_db
-from api.models import Campaign, Location
+from api.models import CampaignMember, Location
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -84,23 +84,23 @@ def _to_response(location: Location) -> LocationResponse:
 
 @router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def list_locations(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[LocationResponse]:
-    locations = await location_service.list_locations(db, campaign.id)
+    locations = await location_service.list_locations(db, member.campaign_id)
     return [_to_response(location) for location in locations]
 
 
 @router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_location(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: CreateLocationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LocationResponse:
     try:
         location = await location_service.create_location(
             db,
-            campaign_id=campaign.id,
+            campaign_id=member.campaign_id,
             slug=body.slug,
             name=body.name,
             description=body.description,
@@ -116,10 +116,10 @@ async def create_location(
 @router.get("/{location_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def get_location(
     location_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LocationResponse:
-    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     return _to_response(location)
@@ -128,11 +128,11 @@ async def get_location(
 @router.patch("/{location_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_location(
     location_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: PatchLocationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LocationResponse:
-    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     updated = await location_service.update_location(
@@ -147,10 +147,10 @@ async def patch_location(
 @router.delete("/{location_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_location(
     location_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    location = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     await location_service.delete_location(db, location)

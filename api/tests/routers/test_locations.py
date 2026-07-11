@@ -1,363 +1,478 @@
-from collections.abc import Callable
+from unittest.mock import ANY
 
+from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic_core import MISSING
+from pytest_mock import MockerFixture
 
-from tests.helpers import make_campaign, make_location, make_member, make_user
+from api.models import Campaign, CampaignMember, MemberRole
+from api.routers.campaigns.dependencies import require_campaign_member
+from api.services.locations import LocationSlugConflictError
+from tests.helpers import build_campaign, build_location, build_member
+
+
+def _allow_member(inner_app: FastAPI, campaign: Campaign, *, role: MemberRole = MemberRole.GM) -> None:
+    inner_app.dependency_overrides[require_campaign_member] = lambda: build_member(campaign_id=campaign.id, role=role)
+
+
+def _forbid_member(inner_app: FastAPI) -> None:
+    def _raise() -> CampaignMember:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    inner_app.dependency_overrides[require_campaign_member] = _raise
+
 
 # --- List ---
 
 
 async def test_list_locations_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-list-200", email="rt-loc-list-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtll0001")
-    await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern")
-    ac = campaigns_authenticated_client("rt-loc-list-200")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern")
+    _allow_member(inner_app, campaign)
+    mock_list = mocker.patch("api.services.locations.list_locations", return_value=[location])
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations")
+
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
     assert len(data) == 1
     assert data[0]["name"] == "Tavern"
     assert data[0]["slug"] == "tavern"
+    mock_list.assert_awaited_once_with(ANY, campaign.id)
 
 
 async def test_list_locations_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-list-own", email="rt-loc-list-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtll0002")
-    await make_user(db, supertokens_user_id="rt-loc-list-403", email="rt-loc-list-403@test.com")
-    ac = campaigns_authenticated_client("rt-loc-list-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_list = mocker.patch("api.services.locations.list_locations")
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations")
+
     assert response.status_code == 403
+    mock_list.assert_not_called()
 
 
 # --- Create ---
 
 
 async def test_create_location_returns_201(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-cr-201", email="rt-loc-cr-201@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlc0001")
-    ac = campaigns_authenticated_client("rt-loc-cr-201")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", description=None)
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location", return_value=location)
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "tavern", "name": "Tavern"},
     )
+
     assert response.status_code == 201
     data = response.json()
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
     assert data["description"] is None
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None
+    )
 
 
 async def test_create_location_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-cr-own", email="rt-loc-cr-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlc0002")
-    await make_user(db, supertokens_user_id="rt-loc-cr-403", email="rt-loc-cr-403@test.com")
-    ac = campaigns_authenticated_client("rt-loc-cr-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_create = mocker.patch("api.services.locations.create_location")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "tavern", "name": "Tavern"},
     )
+
     assert response.status_code == 403
+    mock_create.assert_not_called()
 
 
 async def test_create_location_empty_name_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-cr-noname", email="rt-loc-cr-noname@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlc0003")
-    ac = campaigns_authenticated_client("rt-loc-cr-noname")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "tavern", "name": "  "},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_location_invalid_slug_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-cr-badslug", email="rt-loc-cr-badslug@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlc0004")
-    ac = campaigns_authenticated_client("rt-loc-cr-badslug")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "Tavern Square", "name": "Tavern"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_location_reserved_slug_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-cr-reserved", email="rt-loc-cr-reserved@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlc0005")
-    ac = campaigns_authenticated_client("rt-loc-cr-reserved")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "new", "name": "New Location"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_location_slug_conflict_returns_409(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-cr-conflict", email="rt-loc-cr-conflict@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlc0006")
-    await make_location(db, campaign_id=campaign.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-cr-conflict")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location", side_effect=LocationSlugConflictError())
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "tavern", "name": "Another Tavern"},
     )
+
     assert response.status_code == 409
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Another Tavern", description=None
+    )
 
 
 async def test_create_location_player_member_can_create(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-cr-plown", email="rt-loc-cr-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlc0007")
-    player = await make_user(db, supertokens_user_id="rt-loc-cr-player", email="rt-loc-cr-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    ac = campaigns_authenticated_client("rt-loc-cr-player")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_create = mocker.patch("api.services.locations.create_location", return_value=location)
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/locations",
         json={"slug": "tavern", "name": "Tavern"},
     )
+
     assert response.status_code == 201
-    data = response.json()
-    assert data["description"] is None
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None
+    )
+
+
+# --- Get ---
 
 
 async def test_get_location_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-get-200", email="rt-loc-get-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlg0001")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern", description="First stop")
-    ac = campaigns_authenticated_client("rt-loc-get-200")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(
+        campaign_id=campaign.id, slug="tavern", name="Tavern", description="First stop"
+    )
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Tavern"
     assert data["slug"] == "tavern"
     assert data["description"] == "First stop"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
 
 
 async def test_get_location_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-get-own", email="rt-loc-get-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlg0002")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    await make_user(db, supertokens_user_id="rt-loc-get-403", email="rt-loc-get-403@test.com")
-    ac = campaigns_authenticated_client("rt-loc-get-403")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug")
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
 
 
 async def test_get_location_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-get-404", email="rt-loc-get-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlg0003")
-    ac = campaigns_authenticated_client("rt-loc-get-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
 
 
 async def test_get_location_returns_404_for_wrong_campaign(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-get-iso", email="rt-loc-get-iso@test.com")
-    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtlga001")
-    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtlgb001")
-    location = await make_location(db, campaign_id=campaign_b.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-get-iso")
-    response = await ac.get(f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
 
 
 # --- Patch ---
 
 
 async def test_patch_location_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-patch-200", email="rt-loc-patch-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlp0001")
-    location = await make_location(
-        db,
-        campaign_id=campaign.id,
-        slug="tavern",
-        name="Tavern",
-        description="Original",
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(
+        campaign_id=campaign.id, slug="tavern", name="Tavern", description="Original"
     )
-    ac = campaigns_authenticated_client("rt-loc-patch-200")
+    updated = build_location(
+        campaign_id=campaign.id, slug="tavern", name="Rebuilt Tavern", description="Updated description"
+    )
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_update = mocker.patch("api.services.locations.update_location", return_value=updated)
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
-        json={
-            "name": "Rebuilt Tavern",
-            "description": "Updated description",
-        },
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
+        json={"name": "Rebuilt Tavern", "description": "Updated description"},
     )
+
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_update.assert_awaited_once_with(
+        ANY, location, name="Rebuilt Tavern", description="Updated description"
+    )
 
 
 async def test_patch_location_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-patch-own", email="rt-loc-patch-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlp0002")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    await make_user(db, supertokens_user_id="rt-loc-patch-403", email="rt-loc-patch-403@test.com")
-    ac = campaigns_authenticated_client("rt-loc-patch-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug")
+    mock_update = mocker.patch("api.services.locations.update_location")
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
         json={"name": "Rebuilt Tavern"},
     )
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_update.assert_not_called()
 
 
 async def test_patch_location_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-patch-404", email="rt-loc-patch-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtlp0003")
-    ac = campaigns_authenticated_client("rt-loc-patch-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+    mock_update = mocker.patch("api.services.locations.update_location")
+
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location",
         json={"name": "Rebuilt Tavern"},
     )
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
+    mock_update.assert_not_called()
 
 
 async def test_patch_location_returns_404_for_wrong_campaign(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-patch-iso", email="rt-loc-patch-iso@test.com")
-    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtlpa001")
-    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtlpb001")
-    location = await make_location(db, campaign_id=campaign_b.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-patch-iso")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+    mock_update = mocker.patch("api.services.locations.update_location")
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
         json={"name": "Rebuilt Tavern"},
     )
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_update.assert_not_called()
 
 
 async def test_patch_location_player_member_can_patch(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-patch-plown", email="rt-loc-patch-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtlp0004")
-    player = await make_user(db, supertokens_user_id="rt-loc-patch-player", email="rt-loc-patch-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-patch-player")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern")
+    updated = build_location(campaign_id=campaign.id, slug="tavern", description="Player update")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_update = mocker.patch("api.services.locations.update_location", return_value=updated)
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
         json={"description": "Player update"},
     )
+
     assert response.status_code == 200
     assert response.json()["description"] == "Player update"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description="Player update")
 
 
 # --- Delete ---
 
 
 async def test_delete_location_returns_204(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-del-204", email="rt-loc-del-204@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtld0001")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-del-204")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern")
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 204
-    get_response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
-    assert get_response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_delete.assert_awaited_once_with(ANY, location)
 
 
 async def test_delete_location_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-del-own", email="rt-loc-del-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtld0002")
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    await make_user(db, supertokens_user_id="rt-loc-del-403", email="rt-loc-del-403@test.com")
-    ac = campaigns_authenticated_client("rt-loc-del-403")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug")
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_delete.assert_not_called()
 
 
 async def test_delete_location_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-del-404", email="rt-loc-del-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtld0003")
-    ac = campaigns_authenticated_client("rt-loc-del-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
+    mock_delete.assert_not_called()
 
 
 async def test_delete_location_returns_404_for_wrong_campaign(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-loc-del-iso", email="rt-loc-del-iso@test.com")
-    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtlda001")
-    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtldb001")
-    location = await make_location(db, campaign_id=campaign_b.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-del-iso")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign_a.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=None)
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_delete.assert_not_called()
 
 
 async def test_delete_location_player_member_can_delete(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-loc-del-plown", email="rt-loc-del-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtld0004")
-    player = await make_user(db, supertokens_user_id="rt-loc-del-player", email="rt-loc-del-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    location = await make_location(db, campaign_id=campaign.id, slug="tavern")
-    ac = campaigns_authenticated_client("rt-loc-del-player")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/{location.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_delete = mocker.patch("api.services.locations.delete_location")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
+
     assert response.status_code == 204
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_delete.assert_awaited_once_with(ANY, location)

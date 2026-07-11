@@ -1,12 +1,11 @@
-from collections.abc import AsyncGenerator, Callable
-from unittest.mock import MagicMock
+from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
-from api.auth import get_session
 from api.config import settings
 from api.database import Base, get_db
 
@@ -42,12 +41,6 @@ async def db() -> AsyncGenerator[AsyncSession]:
         await conn.rollback()  # rollback outer transaction
 
 
-def make_mock_session(user_id: str) -> MagicMock:
-    mock = MagicMock()
-    mock.get_user_id.return_value = user_id
-    return mock
-
-
 @pytest.fixture
 async def client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
     from supertokens_python.framework.fastapi import get_middleware
@@ -73,21 +66,11 @@ async def client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]
 
 
 @pytest.fixture
-def authenticated_client(client: tuple[AsyncClient, FastAPI]) -> Callable[[str], AsyncClient]:
-    ac, inner_app = client
-
-    def _with_user(user_id: str) -> AsyncClient:
-        inner_app.dependency_overrides[get_session] = lambda: make_mock_session(user_id)
-        return ac
-
-    return _with_user
-
-
-@pytest.fixture
-async def campaigns_client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
+async def campaigns_client(db: AsyncSession, tmp_path: Path) -> AsyncGenerator[tuple[AsyncClient, FastAPI]]:
     from supertokens_python.framework.fastapi import get_middleware
 
     from api.routers import campaigns as campaigns_router
+    from api.storage import LocalDiskStorage, get_image_storage
     from api.supertokens import init_supertokens
 
     global _supertokens_initialized
@@ -102,19 +85,7 @@ async def campaigns_client(db: AsyncSession) -> AsyncGenerator[tuple[AsyncClient
     inner_app.add_middleware(get_middleware())
     inner_app.include_router(campaigns_router.router, prefix="/api/v1")
     inner_app.dependency_overrides[get_db] = override_get_db
+    inner_app.dependency_overrides[get_image_storage] = lambda: LocalDiskStorage(root=str(tmp_path / "uploads"))
 
     async with AsyncClient(transport=ASGITransport(app=inner_app), base_url="http://test") as ac:
         yield ac, inner_app
-
-
-@pytest.fixture
-def campaigns_authenticated_client(
-    campaigns_client: tuple[AsyncClient, FastAPI],
-) -> Callable[[str], AsyncClient]:
-    ac, inner_app = campaigns_client
-
-    def _with_user(user_id: str) -> AsyncClient:
-        inner_app.dependency_overrides[get_session] = lambda: make_mock_session(user_id)
-        return ac
-
-    return _with_user

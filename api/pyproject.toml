@@ -25,6 +25,7 @@ dev = [
     "ruff~=0.15",
     "ipython~=9.14",
     "ty>=0.0.44",
+    "pytest-mock>=3.15.1",
 ]
 
 [build-system]

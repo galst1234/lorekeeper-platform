@@ -1,56 +1,49 @@
 # Tests
 
-`AGENTS.md` is a symlink to this file — edit only `CLAUDE.md`.
+Two test layers, deliberately different in what they mock — pick the one matching the directory you're writing in.
 
-Two layers: **router tests** exercise HTTP behavior; **service tests** exercise database logic directly. Add both when introducing a new resource.
+## `tests/routers/` — solitary unit tests
 
-## Router tests (`tests/routers/`)
+A router test verifies the *route's own logic only*: status codes, response shape, error mapping, and that it delegates to the right collaborator with the right arguments. It does not verify that the collaborator's underlying behavior is correct — that's the service test's job.
 
-Test status codes, auth, validation, and response shape — not SQLAlchemy internals.
+Mock every collaborator the route doesn't own:
+- **Service-layer functions** (`api.services.*`) — patch them with `mocker.patch("api.services.characters.get_character_by_slug", return_value=...)`. Routers import services as a module alias (`from api.services import characters as character_service`), so patching the service module's own dotted path (`api.services.characters.func`) affects every caller — there's no need to patch per-router-module namespace.
+- **Storage** (`ImageStorage`) — override the `get_image_storage` FastAPI dependency with `mocker.create_autospec(ImageStorage, instance=True)` instead of a real `LocalDiskStorage`.
+- **Permission dependencies** (`require_campaign_member`, `require_campaign_owner`) — override them directly via `app.dependency_overrides` to return a fake `CampaignMember` (for `require_campaign_member`) or `Campaign` (for `require_campaign_owner`), or raise `HTTPException(403)` (denied). Overriding a dependency short-circuits its entire sub-dependency tree (`get_campaign_or_404`, `get_current_user`, `get_db`), so a router test exercising a member/owner-gated route needs no real database or auth session at all.
 
-**Naming** — `test_{action}_{resource}_returns_{status}` or `test_{action}_{resource}_{scenario}`:
+Build fake ORM instances in memory with the `build_*` helpers in `tests/helpers.py` (`build_campaign`, `build_character`, `build_item`) — never persisted, never queried back. Use these instead of the `make_*` factories (which write real rows) in router tests.
+
+Assert on both ends: the HTTP response, and that the mocked collaborator was called with the arguments the route should have passed it (`mock.assert_awaited_once_with(...)`) — or, for permission-denial tests, that it was *never* called (`mock.assert_not_called()`), proving the route short-circuits before touching downstream collaborators.
 
 ```python
-async def test_list_items_returns_200(...) -> None: ...
-async def test_get_item_returns_404_for_wrong_campaign(...) -> None: ...
+async def test_upload_character_image_returns_200_with_image_url(
+    image_client: tuple[AsyncClient, FastAPI, ImageStorage],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app, image_storage = image_client
+    campaign = build_campaign()
+    character = build_character(campaign_id=campaign.id, slug="aria")
+    updated = build_character(campaign_id=campaign.id, slug="aria", image_key="new-key.jpg")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.characters.get_character_by_slug", return_value=character)
+    mock_set = mocker.patch("api.services.characters.set_character_image", return_value=updated)
+    image_storage.save.return_value = "new-key.jpg"
+    image_storage.url_for.return_value = "/media/new-key.jpg"
+
+    response = await ac.put(f"/api/v1/campaigns/{campaign.slug}/characters/aria/image", files=...)
+
+    assert response.status_code == 200
+    assert response.json()["image_url"] == "/media/new-key.jpg"
+    mock_set.assert_awaited_once_with(ANY, character, "new-key.jpg", image_storage)
 ```
 
-**Sections** — group by HTTP verb with `# --- List ---`, `# --- Create ---`, etc.
+## `tests/services/` — sociable tests
 
-**Fixtures** — use `campaigns_authenticated_client(supertokens_user_id)` for campaign routes, `authenticated_client` for `/me`. Pass the same `supertokens_user_id` string used in `make_user`.
+A service test verifies real business logic against real infrastructure: the `db` fixture (a real Postgres connection, wrapped in a SAVEPOINT and rolled back after the test — see `conftest.py`) and, for anything storage-touching, a real `LocalDiskStorage` pointed at pytest's `tmp_path`. Assert against real state: query the row back, check the file actually exists or is actually gone. Don't mock the thing you're testing the business logic of.
 
-**Auth coverage** — for each mutating and listing endpoint, include at least:
-- happy path (member)
-- `403` for authenticated non-member
-- `404` when the resource is absent or belongs to another campaign
+## Mocking mechanics
 
-**Validation** — assert `422` for empty names, invalid slugs, and reserved slugs (`new`).
-
-## Service tests (`tests/services/`)
-
-Call service functions with the `db` fixture. No HTTP client, no status codes.
-
-Cover persistence, ordering, filtering, slug conflicts, and cross-campaign isolation. Name tests `test_{function}_{scenario}` with a `svc-{resource}-` prefix in fixture IDs.
-
-## Shared setup
-
-**`conftest.py`** — session-scoped table create/drop against `lorekeeper_platform_test`; per-test `db` uses a savepoint and always rolls back. SuperTokens is mocked; no SuperTokens container is required.
-
-**`helpers.py`** — factory functions (`make_user`, `make_campaign`, `make_item`, …) build rows via `db.add` + `flush`. Add a `make_*` helper for each new model.
-
-**Test data IDs** — keep `supertokens_user_id`, email, and `slug_id` unique and grep-friendly per test:
-
-| Layer  | Prefix example      | `slug_id` example |
-|--------|---------------------|-------------------|
-| Router | `rt-itm-list-200`   | `rtil0001`        |
-| Service| `svc-itm-list-empty`| `itml0001`        |
-
-## Running tests
-
-```bash
-uv run pytest                              # all tests
-uv run pytest tests/routers/test_items.py  # one file
-uv run pytest tests/routers/test_items.py::test_list_items_returns_200  # one test
-```
-
-Requires Postgres and a `lorekeeper_platform_test` database (see CI or local dev setup).
+- Use `pytest-mock`'s `mocker` fixture (`mocker.patch`, `mocker.create_autospec`, ...), not bare `unittest.mock.patch`/`monkeypatch`. `mocker.patch` gives a `Mock`/`AsyncMock` with call-assertion methods and auto-unpatches at teardown — no `with`/decorator bookkeeping.
+- `mocker.patch(...)` auto-detects `async def` targets and returns an `AsyncMock` (Python 3.8+); no need for `new_callable=AsyncMock`.
+- `mocker.create_autospec(SomeProtocol, instance=True)` correctly mixes `AsyncMock` for async methods and `MagicMock` for sync ones on the same object — the right choice for `ImageStorage`, which has both.
+- FastAPI dependency overrides (`app.dependency_overrides[dep] = ...`) are the mechanism for anything wired through `Depends(...)` (storage, permission checks, DB session). Direct service-layer calls aren't DI'd — use `mocker.patch` for those instead.

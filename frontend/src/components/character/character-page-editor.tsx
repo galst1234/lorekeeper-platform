@@ -1,17 +1,25 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
+import { User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CharacterResponse } from "@/api/generated";
-import { createCharacter, patchCharacter } from "@/api/generated";
-import { getCharacterQueryKey, listCharactersQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { createCharacter, deleteCharacterImage, patchCharacter, uploadCharacterImage } from "@/api/generated";
+import {
+  getCampaignOptions,
+  getCharacterQueryKey,
+  listCharactersQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
+import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, getErrorMessage } from "@/lib/utils";
 
@@ -36,12 +44,13 @@ const editorSchema = z.object({
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   character_type: z.enum(["pc", "npc"]),
   description: z.string(),
+  access: z.enum(["everyone", "gm_only"]),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", character_type: "npc", description: "" };
+  return { name: "", slug: "", character_type: "npc", description: "", access: "everyone" };
 }
 
 function editDefaultValues(character: CharacterResponse): EditorFormValues {
@@ -50,6 +59,7 @@ function editDefaultValues(character: CharacterResponse): EditorFormValues {
     slug: character.slug,
     character_type: character.character_type,
     description: character.description ?? "",
+    access: character.restricted ? "gm_only" : "everyone",
   };
 }
 
@@ -59,6 +69,10 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (character ? editDefaultValues(character) : createDefaultValues()), [character]);
 
@@ -77,32 +91,52 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
 
   const saveMutation = useMutation({
     mutationFn: async (values: EditorFormValues) => {
-      if (character) {
-        const { data } = await patchCharacter({
-          path: { slug: campaignSlug, character_slug: character.slug },
-          body: {
-            name: values.name.trim(),
-            character_type: values.character_type,
-            description: values.description.trim() || null,
-          },
-          throwOnError: true,
-        });
-        return data;
-      }
+      const savedCharacter = character
+        ? (
+            await patchCharacter({
+              path: { slug: campaignSlug, character_slug: character.slug },
+              body: {
+                name: values.name.trim(),
+                character_type: values.character_type,
+                description: values.description.trim() || null,
+                restricted: values.access === "gm_only",
+              },
+              throwOnError: true,
+            })
+          ).data
+        : (
+            await createCharacter({
+              path: { slug: campaignSlug },
+              body: {
+                name: values.name.trim(),
+                slug: values.slug.trim(),
+                character_type: values.character_type,
+                description: values.description.trim() || undefined,
+                restricted: values.access === "gm_only",
+              },
+              throwOnError: true,
+            })
+          ).data;
 
-      const { data } = await createCharacter({
-        path: { slug: campaignSlug },
-        body: {
-          name: values.name.trim(),
-          slug: values.slug.trim(),
-          character_type: values.character_type,
-          description: values.description.trim() || undefined,
-        },
-        throwOnError: true,
-      });
-      return data;
+      try {
+        if (pendingImageFile) {
+          await uploadCharacterImage({
+            path: { slug: campaignSlug, character_slug: savedCharacter.slug },
+            body: { file: pendingImageFile },
+            throwOnError: true,
+          });
+        } else if (imageRemoved) {
+          await deleteCharacterImage({
+            path: { slug: campaignSlug, character_slug: savedCharacter.slug },
+            throwOnError: true,
+          });
+        }
+        return { savedCharacter, imageUploadFailed: false };
+      } catch {
+        return { savedCharacter, imageUploadFailed: true };
+      }
     },
-    onSuccess: async (savedCharacter) => {
+    onSuccess: async ({ savedCharacter, imageUploadFailed }) => {
       await queryClient.invalidateQueries({ queryKey: listCharactersQueryKey({ path: { slug: campaignSlug } }) });
       if (character) {
         await queryClient.invalidateQueries({
@@ -112,6 +146,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
       await router.navigate({
         to: "/campaigns/$slug/characters/$characterSlug",
         params: { slug: campaignSlug, characterSlug: savedCharacter.slug },
+        state: imageUploadFailed ? { imageUploadFailed: true } : undefined,
       });
     },
   });
@@ -147,83 +182,132 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
           onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
           className="flex min-h-0 flex-1 flex-col gap-6"
         >
-          <div className={cn("grid grid-cols-1 gap-4", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} autoFocus />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {!isEditing && (
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="flex min-h-0 flex-col gap-6 md:col-span-2">
+              <div
+                className={cn("grid grid-cols-1 gap-4 content-start", isEditing ? "md:grid-cols-2" : "md:grid-cols-3")}
+              >
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} autoFocus />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {!isEditing && (
+                  <FormField
+                    control={form.control}
+                    name="slug"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Slug</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            onChange={(event) => {
+                              setSlugEdited(true);
+                              field.onChange(event);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                <FormField
+                  control={form.control}
+                  name="character_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pc">PC</SelectItem>
+                          <SelectItem value="npc">NPC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {isGm && (
+                  <FormField
+                    control={form.control}
+                    name="access"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Access</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="everyone">Everyone</SelectItem>
+                            <SelectItem value="gm_only">GM Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
               <FormField
                 control={form.control}
-                name="slug"
+                name="description"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Slug</FormLabel>
+                  <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        onChange={(event) => {
-                          setSlugEdited(true);
-                          field.onChange(event);
-                        }}
+                      <MarkdownEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        campaignSlug={campaignSlug}
+                        className="flex min-h-0 flex-1 flex-col"
+                        textareaClassName="min-h-[16rem] flex-1 leading-7"
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-            <FormField
-              control={form.control}
-              name="character_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pc">PC</SelectItem>
-                      <SelectItem value="npc">NPC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+            </div>
 
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="flex min-h-0 flex-1 flex-col gap-2 space-y-0">
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <MarkdownEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    campaignSlug={campaignSlug}
-                    className="flex min-h-0 flex-1 flex-col"
-                    textareaClassName="min-h-[16rem] flex-1 leading-7"
+            <div className="sticky top-6 space-y-2">
+              <Label>Image</Label>
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <EntityImageField
+                    imageUrl={imageRemoved ? null : (character?.image_url ?? null)}
+                    placeholderIcon={User}
+                    onFileSelected={(file) => {
+                      setPendingImageFile(file);
+                      setImageRemoved(false);
+                    }}
+                    onRemove={() => {
+                      setPendingImageFile(null);
+                      setImageRemoved(true);
+                    }}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
           {saveMutation.isError && (
             <p className="text-sm text-destructive">

@@ -3,11 +3,14 @@ import { Plus } from "lucide-react";
 import { CharactersSection } from "@/components/character/characters-section";
 import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 
 const Route = getRouteApi("/campaigns/$slug/characters/");
 
 export function CharactersPage() {
   const { slug } = Route.useParams();
+  const { q: query = "" } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   return (
     <PageContainer className="space-y-8">
@@ -20,8 +23,14 @@ export function CharactersPage() {
           </Link>
         </Button>
       </div>
-      <CharactersSection slug={slug} characterType="pc" />
-      <CharactersSection slug={slug} characterType="npc" />
+      <SearchInput
+        value={query}
+        onChange={(value) => navigate({ search: value.trim() ? { q: value } : {}, replace: true })}
+        placeholder="Search characters"
+        aria-label="Search characters"
+      />
+      <CharactersSection slug={slug} characterType="pc" query={query} />
+      <CharactersSection slug={slug} characterType="npc" query={query} />
     </PageContainer>
   );
 }

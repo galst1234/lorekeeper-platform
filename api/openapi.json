@@ -810,6 +810,130 @@
         }
       }
     },
+    "/api/v1/campaigns/{slug}/characters/{character_slug}/image": {
+      "put": {
+        "tags": [
+          "Characters"
+        ],
+        "summary": "Upload Character Image",
+        "operationId": "upload_character_image",
+        "parameters": [
+          {
+            "name": "character_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_character_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "400": {
+            "description": "Image is not a supported type or exceeds the size limit"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Characters"
+        ],
+        "summary": "Delete Character Image",
+        "operationId": "delete_character_image",
+        "parameters": [
+          {
+            "name": "character_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{slug}/items": {
       "get": {
         "tags": [
@@ -1060,6 +1184,130 @@
         ],
         "summary": "Delete Item",
         "operationId": "delete_item",
+        "parameters": [
+          {
+            "name": "item_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{slug}/items/{item_slug}/image": {
+      "put": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "Upload Item Image",
+        "operationId": "upload_item_image",
+        "parameters": [
+          {
+            "name": "item_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_item_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "400": {
+            "description": "Image is not a supported type or exceeds the size limit"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "Delete Item Image",
+        "operationId": "delete_item_image",
         "parameters": [
           {
             "name": "item_slug",
@@ -1779,6 +2027,34 @@
           "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
         }
       },
+      "Body_upload_character_image": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_character_image"
+      },
+      "Body_upload_item_image": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_item_image"
+      },
       "CampaignResponse": {
         "properties": {
           "id": {
@@ -1882,6 +2158,21 @@
             ],
             "title": "Description"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1900,6 +2191,8 @@
           "name",
           "character_type",
           "description",
+          "restricted",
+          "image_url",
           "created_at",
           "updated_at"
         ],
@@ -1909,7 +2202,9 @@
           "created_at": "2024-01-15T10:00:00Z",
           "description": "A wise elven druid from the Emerald Enclave.",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+          "image_url": "/media/3f9c1e2a-3b7e-4a2e-9b1a-9d6a2b0e5c11.jpg",
           "name": "Elara Moonwhisper",
+          "restricted": false,
           "slug": "elara-moonwhisper",
           "updated_at": "2024-01-15T10:00:00Z"
         }
@@ -1953,6 +2248,10 @@
             ],
             "title": "Body"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1981,6 +2280,7 @@
           "title",
           "occurred_at",
           "body",
+          "restricted",
           "created_at",
           "updated_at",
           "author"
@@ -1995,6 +2295,7 @@
           "created_at": "2024-01-16T02:30:00Z",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "occurred_at": "2024-01-15T19:00:00Z",
+          "restricted": false,
           "slug": "the-fall-of-blackspire",
           "title": "The Fall of Blackspire",
           "updated_at": "2024-01-16T02:30:00Z"
@@ -2031,6 +2332,10 @@
             ],
             "title": "Body"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2049,6 +2354,7 @@
           "title",
           "occurred_at",
           "body",
+          "restricted",
           "created_at",
           "updated_at"
         ],
@@ -2058,6 +2364,7 @@
           "created_at": "2024-01-16T02:30:00Z",
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "occurred_at": "2024-01-15T19:00:00Z",
+          "restricted": false,
           "slug": "the-fall-of-blackspire",
           "title": "The Fall of Blackspire",
           "updated_at": "2024-01-16T02:30:00Z"
@@ -2128,6 +2435,11 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2173,6 +2485,11 @@
               }
             ],
             "title": "Body"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2213,6 +2530,11 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2222,9 +2544,9 @@
         ],
         "title": "CreateItemRequest",
         "example": {
-          "description": "A blade that glows under moonlight.",
-          "name": "Moonblade",
-          "slug": "moonblade"
+          "description": "A radiant longsword that glows in the presence of undead.",
+          "name": "Sunblade",
+          "slug": "sunblade"
         }
       },
       "CreateLocationRequest": {
@@ -2326,6 +2648,21 @@
             ],
             "title": "Description"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2343,16 +2680,20 @@
           "slug",
           "name",
           "description",
+          "restricted",
+          "image_url",
           "created_at",
           "updated_at"
         ],
         "title": "ItemResponse",
         "example": {
           "created_at": "2024-01-15T10:00:00Z",
-          "description": "A blade that glows under moonlight.",
-          "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
-          "name": "Moonblade",
-          "slug": "moonblade",
+          "description": "A radiant longsword that glows in the presence of undead.",
+          "id": "b5d3c2e1-f406-489a-bcde-f01234567890",
+          "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
+          "name": "Sunblade",
+          "restricted": false,
+          "slug": "sunblade",
           "updated_at": "2024-01-15T10:00:00Z"
         }
       },
@@ -2575,6 +2916,10 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",
@@ -2607,6 +2952,10 @@
               }
             ],
             "title": "Body"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",
@@ -2633,13 +2982,17 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",
         "title": "PatchItemRequest",
         "example": {
           "description": "Updated description.",
-          "name": "Moonblade, Reforged"
+          "name": "Sunblade, Reforged"
         }
       },
       "PatchLocationRequest": {
