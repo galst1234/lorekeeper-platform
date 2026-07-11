@@ -427,13 +427,14 @@ async def test_patch_item_gm_can_set_restricted_true(
     item = build_item(campaign_id=campaign.id, slug="sword", name="Sword", restricted=False)
     updated = build_item(campaign_id=campaign.id, slug="sword", name="Sword", restricted=True)
     _allow_member(inner_app, campaign)
-    mocker.patch("api.services.items.get_item_by_slug", return_value=item)
+    mock_get = mocker.patch("api.services.items.get_item_by_slug", return_value=item)
     mock_update = mocker.patch("api.services.items.update_item", return_value=updated)
 
     response = await ac.patch(f"/api/v1/campaigns/{campaign.slug}/items/sword", json={"restricted": True})
 
     assert response.status_code == 200
     assert response.json()["restricted"] is True
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM)
     mock_update.assert_awaited_once_with(ANY, item, name=MISSING, description=MISSING, restricted=True)
 
 
