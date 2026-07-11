@@ -1,4 +1,4 @@
-from unittest.mock import ANY
+from unittest.mock import ANY, call
 
 from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
@@ -8,6 +8,7 @@ from api.auth import get_current_user
 from api.models import Campaign, MemberRole, User
 from api.routers.campaigns.dependencies import require_campaign_owner
 from api.services.campaigns import CampaignWithRole
+from api.storage import ImageStorage, get_image_storage
 from tests.helpers import build_campaign, build_user
 
 
@@ -35,8 +36,9 @@ async def test_list_campaigns_returns_200(
 ) -> None:
     ac, inner_app = campaigns_client
     campaign = build_campaign()
-    _authenticate(inner_app, build_user())
-    mocker.patch(
+    user = build_user()
+    _authenticate(inner_app, user)
+    mock_list = mocker.patch(
         "api.services.campaigns.list_campaigns",
         return_value=[CampaignWithRole(campaign=campaign, role=MemberRole.GM)],
     )
@@ -47,6 +49,7 @@ async def test_list_campaigns_returns_200(
     data = response.json()
     assert len(data) == 1
     assert data[0]["slug"] == campaign.slug
+    mock_list.assert_awaited_once_with(ANY, user.id)
 
 
 async def test_list_campaigns_includes_role_gm(
@@ -193,7 +196,7 @@ async def test_get_campaign_member_can_access(
     mocker: MockerFixture,
 ) -> None:
     ac, inner_app = campaigns_client
-    campaign = build_campaign(slug_label="shared", slug_id="member01")
+    campaign = build_campaign(slug_label="shared", slug_id="member01", invite_code="hidden-from-player")
     _authenticate(inner_app, build_user())
     mocker.patch("api.services.campaigns.get_campaign_by_slug", return_value=campaign)
     mocker.patch("api.services.campaigns.get_member_role", return_value=MemberRole.PLAYER)
@@ -201,7 +204,9 @@ async def test_get_campaign_member_can_access(
     response = await ac.get("/api/v1/campaigns/shared-member01")
 
     assert response.status_code == 200
-    assert response.json()["role"] == "player"
+    data = response.json()
+    assert data["role"] == "player"
+    assert data["invite_code"] is None
 
 
 async def test_get_campaign_owner_has_gm_role(
@@ -209,7 +214,7 @@ async def test_get_campaign_owner_has_gm_role(
     mocker: MockerFixture,
 ) -> None:
     ac, inner_app = campaigns_client
-    campaign = build_campaign(slug_label="gm-role", slug_id="gmrole01")
+    campaign = build_campaign(slug_label="gm-role", slug_id="gmrole01", invite_code="visible-to-gm")
     _authenticate(inner_app, build_user())
     mocker.patch("api.services.campaigns.get_campaign_by_slug", return_value=campaign)
     mocker.patch("api.services.campaigns.get_member_role", return_value=MemberRole.GM)
@@ -217,10 +222,42 @@ async def test_get_campaign_owner_has_gm_role(
     response = await ac.get("/api/v1/campaigns/gm-role-gmrole01")
 
     assert response.status_code == 200
-    assert response.json()["role"] == "gm"
+    data = response.json()
+    assert data["role"] == "gm"
+    assert data["invite_code"] == "visible-to-gm"
 
 
 # --- Patch ---
+
+
+async def test_patch_campaign_returns_200_and_updates(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign(slug_id="patchok1")
+    updated = build_campaign(
+        name="New Name",
+        description="New description",
+        slug_label="new-label",
+        slug_id="patchok1",
+    )
+    _allow_owner(inner_app, campaign)
+    mock_update = mocker.patch("api.services.campaigns.update_campaign", return_value=updated)
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}",
+        json={"name": "New Name", "description": "New description", "slug_label": "new-label"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "New Name"
+    assert data["description"] == "New description"
+    assert data["slug"] == updated.slug
+    mock_update.assert_awaited_once_with(
+        ANY, campaign, name="New Name", description="New description", slug_label="new-label"
+    )
 
 
 async def test_patch_campaign_null_name_rejected(
@@ -290,13 +327,15 @@ async def test_delete_campaign_returns_204(
     ac, inner_app = campaigns_client
     campaign = build_campaign(slug_id="del00001")
     _allow_owner(inner_app, campaign)
+    image_storage = mocker.create_autospec(ImageStorage, instance=True)
+    inner_app.dependency_overrides[get_image_storage] = lambda: image_storage
     mock_delete = mocker.patch("api.services.campaigns.delete_campaign")
 
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}")
 
     assert response.status_code == 204
     assert response.content == b""
-    mock_delete.assert_awaited_once_with(ANY, campaign, ANY)
+    mock_delete.assert_awaited_once_with(ANY, campaign, image_storage)
 
 
 async def test_delete_campaign_not_found(
@@ -337,7 +376,7 @@ async def test_create_invite_returns_200_with_code(
     campaign = build_campaign(slug_id="invgen01")
     updated = build_campaign(slug_id="invgen01", invite_code="dX9kLmN2pQrS4tUvWxYz")
     _allow_owner(inner_app, campaign)
-    mocker.patch("api.services.campaigns.generate_invite", return_value=updated)
+    mock_generate = mocker.patch("api.services.campaigns.generate_invite", return_value=updated)
 
     response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites")
 
@@ -345,6 +384,7 @@ async def test_create_invite_returns_200_with_code(
     data = response.json()
     assert data["invite_code"] == "dX9kLmN2pQrS4tUvWxYz"
     assert data["invite_url"] == f"/campaigns/{updated.slug}/invites/dX9kLmN2pQrS4tUvWxYz"
+    mock_generate.assert_awaited_once_with(ANY, campaign)
 
 
 async def test_create_invite_not_found(
@@ -492,9 +532,10 @@ async def test_post_join_adds_member_returns_campaign(
 ) -> None:
     ac, inner_app = campaigns_client
     campaign = build_campaign(slug_id="rtjoin01", invite_code="joinme01")
-    _authenticate(inner_app, build_user())
+    user = build_user()
+    _authenticate(inner_app, user)
     mocker.patch("api.services.campaigns.get_campaign_by_slug", return_value=campaign)
-    mocker.patch("api.services.campaigns.join_campaign", return_value=True)
+    mock_join = mocker.patch("api.services.campaigns.join_campaign", return_value=True)
     mocker.patch("api.services.campaigns.get_member_role", return_value=MemberRole.PLAYER)
 
     response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites/joinme01")
@@ -503,6 +544,7 @@ async def test_post_join_adds_member_returns_campaign(
     data = response.json()
     assert data["role"] == "player"
     assert data["slug"] == campaign.slug
+    mock_join.assert_awaited_once_with(ANY, campaign, user.id, "joinme01")
 
 
 async def test_post_join_wrong_code_returns_404(
@@ -525,16 +567,30 @@ async def test_post_join_idempotent(
     campaigns_client: tuple[AsyncClient, FastAPI],
     mocker: MockerFixture,
 ) -> None:
+    """Joining with the same invite code twice (e.g. a retried request) succeeds both times
+
+    with the same result, because `join_campaign`'s `on_conflict_do_nothing` insert makes the
+    second call a no-op rather than an error.
+    """
     ac, inner_app = campaigns_client
     campaign = build_campaign(slug_id="rtjidem1", invite_code="idemcode")
-    _authenticate(inner_app, build_user())
+    user = build_user()
+    _authenticate(inner_app, user)
     mocker.patch("api.services.campaigns.get_campaign_by_slug", return_value=campaign)
-    mocker.patch("api.services.campaigns.join_campaign", return_value=True)
+    mock_join = mocker.patch("api.services.campaigns.join_campaign", return_value=True)
     mocker.patch("api.services.campaigns.get_member_role", return_value=MemberRole.PLAYER)
 
-    response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites/idemcode")
+    first_response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites/idemcode")
+    second_response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/invites/idemcode")
 
-    assert response.status_code == 200
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert first_response.json() == second_response.json()
+    assert mock_join.await_count == 2
+    assert mock_join.await_args_list == [
+        call(ANY, campaign, user.id, "idemcode"),
+        call(ANY, campaign, user.id, "idemcode"),
+    ]
 
 
 async def test_post_join_owner_has_gm_role_in_response(

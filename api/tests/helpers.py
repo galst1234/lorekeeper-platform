@@ -160,13 +160,19 @@ async def make_member(
 
 
 def build_campaign(
-    *, slug_label: str = "test-campaign", slug_id: str = "aabbccdd", invite_code: str | None = None
+    *,
+    name: str = "Test Campaign",
+    description: str | None = None,
+    slug_label: str = "test-campaign",
+    slug_id: str = "aabbccdd",
+    invite_code: str | None = None,
 ) -> Campaign:
     now = datetime.now(UTC)
     return Campaign(
         id=uuid.uuid4(),
         owner_id=uuid.uuid4(),
-        name="Test Campaign",
+        name=name,
+        description=description,
         slug_label=slug_label,
         slug_id=slug_id,
         invite_code=invite_code,
