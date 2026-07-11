@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.models import MemberRole
 from api.services import locations as location_service
 from api.services.locations import LocationSlugConflictError
 from api.storage import LocalDiskStorage
@@ -14,7 +15,7 @@ from tests.helpers import make_campaign, make_location, make_user
 async def test_list_locations_empty(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-list-empty", email="svc-loc-list-empty@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0001")
-    result = await location_service.list_locations(db, campaign.id)
+    result = await location_service.list_locations(db, campaign.id, MemberRole.GM)
     assert result == []
 
 
@@ -23,7 +24,7 @@ async def test_list_locations_returns_all(db: AsyncSession) -> None:
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0002")
     tavern = await make_location(db, campaign_id=campaign.id, slug="tavern", name="Tavern")
     dungeon = await make_location(db, campaign_id=campaign.id, slug="dungeon", name="Dungeon")
-    result = await location_service.list_locations(db, campaign.id)
+    result = await location_service.list_locations(db, campaign.id, MemberRole.GM)
     ids = [location.id for location in result]
     assert tavern.id in ids
     assert dungeon.id in ids
@@ -34,7 +35,7 @@ async def test_list_locations_ordered_by_name(db: AsyncSession) -> None:
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locl0003")
     zebra_tavern = await make_location(db, campaign_id=campaign.id, slug="zebra-tavern", name="Zebra Tavern")
     apple_inn = await make_location(db, campaign_id=campaign.id, slug="apple-inn", name="Apple Inn")
-    result = await location_service.list_locations(db, campaign.id)
+    result = await location_service.list_locations(db, campaign.id, MemberRole.GM)
     assert result[0].id == apple_inn.id
     assert result[1].id == zebra_tavern.id
 
@@ -44,7 +45,7 @@ async def test_list_locations_excludes_other_campaign(db: AsyncSession) -> None:
     campaign_a = await make_campaign(db, owner_id=user.id, slug_id="locla001")
     campaign_b = await make_campaign(db, owner_id=user.id, slug_id="loclb001")
     await make_location(db, campaign_id=campaign_b.id, name="Other")
-    result = await location_service.list_locations(db, campaign_a.id)
+    result = await location_service.list_locations(db, campaign_a.id, MemberRole.GM)
     assert result == []
 
 
@@ -66,6 +67,21 @@ async def test_create_location_persists(db: AsyncSession) -> None:
     assert location.description == "A cozy inn."
     assert location.campaign_id == campaign.id
     assert location.id is not None
+    assert location.restricted is False
+
+
+async def test_create_location_restricted_true_persists(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-cr-restr", email="svc-loc-cr-restr@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locc0004")
+    location = await location_service.create_location(
+        db,
+        campaign_id=campaign.id,
+        slug="secret",
+        name="Secret Room",
+        description=None,
+        restricted=True,
+    )
+    assert location.restricted is True
 
 
 async def test_create_location_no_description(db: AsyncSession) -> None:
@@ -129,7 +145,7 @@ async def test_get_location_by_slug_found(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-gbs-ok", email="svc-loc-gbs-ok@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locs0001")
     await make_location(db, campaign_id=campaign.id, slug="tavern")
-    result = await location_service.get_location_by_slug(db, campaign.id, "tavern")
+    result = await location_service.get_location_by_slug(db, campaign.id, "tavern", MemberRole.GM)
     assert result is not None
     assert result.slug == "tavern"
 
@@ -137,7 +153,7 @@ async def test_get_location_by_slug_found(db: AsyncSession) -> None:
 async def test_get_location_by_slug_not_found(db: AsyncSession) -> None:
     user = await make_user(db, supertokens_user_id="svc-loc-gbs-404", email="svc-loc-gbs-404@test.com")
     campaign = await make_campaign(db, owner_id=user.id, slug_id="locs0002")
-    result = await location_service.get_location_by_slug(db, campaign.id, "nonexistent")
+    result = await location_service.get_location_by_slug(db, campaign.id, "nonexistent", MemberRole.GM)
     assert result is None
 
 
@@ -146,7 +162,7 @@ async def test_get_location_by_slug_wrong_campaign_returns_none(db: AsyncSession
     campaign_a = await make_campaign(db, owner_id=user.id, slug_id="locga001")
     campaign_b = await make_campaign(db, owner_id=user.id, slug_id="locgb001")
     await make_location(db, campaign_id=campaign_b.id, slug="tavern")
-    result = await location_service.get_location_by_slug(db, campaign_a.id, "tavern")
+    result = await location_service.get_location_by_slug(db, campaign_a.id, "tavern", MemberRole.GM)
     assert result is None
 
 
@@ -183,6 +199,51 @@ async def test_update_location_missing_fields_unchanged(db: AsyncSession) -> Non
     assert updated.description == "Changed"
 
 
+async def test_update_location_restricted_toggles(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-upd-restr", email="svc-loc-upd-restr@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locp0005")
+    location = await make_location(db, campaign_id=campaign.id, restricted=False)
+    updated = await location_service.update_location(db, location, restricted=True)
+    assert updated.restricted is True
+
+
+# --- visibility ---
+
+
+async def test_list_locations_excludes_restricted_for_player(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-vis-list-p", email="svc-loc-vis-list-p@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locv0001")
+    await make_location(db, campaign_id=campaign.id, slug="public", name="Public")
+    await make_location(db, campaign_id=campaign.id, slug="secret", name="Secret", restricted=True)
+    result = await location_service.list_locations(db, campaign.id, MemberRole.PLAYER)
+    assert len(result) == 1
+    assert result[0].slug == "public"
+
+
+async def test_list_locations_includes_restricted_for_gm(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-vis-list-g", email="svc-loc-vis-list-g@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locv0002")
+    secret = await make_location(db, campaign_id=campaign.id, slug="secret", name="Secret", restricted=True)
+    result = await location_service.list_locations(db, campaign.id, MemberRole.GM)
+    assert secret.id in [location.id for location in result]
+
+
+async def test_get_location_by_slug_restricted_returns_none_for_player(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-vis-get-p", email="svc-loc-vis-get-p@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locv0003")
+    await make_location(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    result = await location_service.get_location_by_slug(db, campaign.id, "secret", MemberRole.PLAYER)
+    assert result is None
+
+
+async def test_get_location_by_slug_restricted_returns_value_for_gm(db: AsyncSession) -> None:
+    user = await make_user(db, supertokens_user_id="svc-loc-vis-get-g", email="svc-loc-vis-get-g@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="locv0004")
+    await make_location(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    result = await location_service.get_location_by_slug(db, campaign.id, "secret", MemberRole.GM)
+    assert result is not None
+
+
 # --- delete_location ---
 
 
@@ -193,7 +254,7 @@ async def test_delete_location_removes_record(db: AsyncSession, tmp_path: Path) 
     location_slug = location.slug
     image_storage = LocalDiskStorage(root=str(tmp_path))
     await location_service.delete_location(db, location, image_storage)
-    result = await location_service.get_location_by_slug(db, campaign.id, location_slug)
+    result = await location_service.get_location_by_slug(db, campaign.id, location_slug, MemberRole.GM)
     assert result is None
 
 

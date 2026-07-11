@@ -38,4 +38,4 @@ When adding a new model file under `src/api/models/`:
 
 ## Campaign-scoped entities and visibility
 
-Any model representing a campaign-scoped entity (characters, items, chronicle entries, and similar future resources) must include a `restricted: Mapped[bool]` column (`nullable=False`, `server_default=text("false")`). This flag drives GM-only visibility filtering in the service layer — see `api/src/api/services/common/visibility.py`.
+Any model representing a campaign-scoped entity (characters, items, chronicle entries, locations, and similar future resources) must include a `restricted: Mapped[bool]` column (`nullable=False`, `server_default=text("false")`). This flag drives GM-only visibility filtering in the service layer — see `api/src/api/services/common/visibility.py`.

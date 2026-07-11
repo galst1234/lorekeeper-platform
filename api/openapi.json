@@ -2711,6 +2711,11 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           }
         },
         "type": "object",
@@ -2883,6 +2888,10 @@
             ],
             "title": "Description"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "image_url": {
             "anyOf": [
               {
@@ -2911,6 +2920,7 @@
           "slug",
           "name",
           "description",
+          "restricted",
           "image_url",
           "created_at",
           "updated_at"
@@ -2922,6 +2932,7 @@
           "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
           "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
           "name": "Moonlit Tavern",
+          "restricted": false,
           "slug": "moonlit-tavern",
           "updated_at": "2024-01-15T10:00:00Z"
         }
@@ -3163,6 +3174,10 @@
               }
             ],
             "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
           }
         },
         "type": "object",

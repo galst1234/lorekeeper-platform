@@ -44,7 +44,7 @@ async def test_list_locations_returns_200(
     assert len(data) == 1
     assert data[0]["name"] == "Tavern"
     assert data[0]["slug"] == "tavern"
-    mock_list.assert_awaited_once_with(ANY, campaign.id)
+    mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.GM)
 
 
 async def test_list_locations_returns_403_for_non_member(
@@ -85,7 +85,9 @@ async def test_create_location_returns_201(
     assert data["slug"] == "tavern"
     assert data["name"] == "Tavern"
     assert data["description"] is None
-    mock_create.assert_awaited_once_with(ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None)
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+    )
 
 
 async def test_create_location_returns_403_for_non_member(
@@ -176,7 +178,7 @@ async def test_create_location_slug_conflict_returns_409(
 
     assert response.status_code == 409
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Another Tavern", description=None
+        ANY, campaign_id=campaign.id, slug="tavern", name="Another Tavern", description=None, restricted=False
     )
 
 
@@ -196,7 +198,71 @@ async def test_create_location_player_member_can_create(
     )
 
     assert response.status_code == 201
-    mock_create.assert_awaited_once_with(ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None)
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+    )
+
+
+async def test_create_location_restricted_defaults_false(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", restricted=False)
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location", return_value=location)
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/locations",
+        json={"slug": "tavern", "name": "Tavern"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["restricted"] is False
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+    )
+
+
+async def test_create_location_gm_can_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", name="Tavern", restricted=True)
+    _allow_member(inner_app, campaign)
+    mock_create = mocker.patch("api.services.locations.create_location", return_value=location)
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/locations",
+        json={"slug": "tavern", "name": "Tavern", "restricted": True},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["restricted"] is True
+    mock_create.assert_awaited_once_with(
+        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=True
+    )
+
+
+async def test_create_location_player_cannot_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_create = mocker.patch("api.services.locations.create_location")
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/locations",
+        json={"slug": "tavern", "name": "Tavern", "restricted": True},
+    )
+
+    assert response.status_code == 403
+    mock_create.assert_not_called()
 
 
 # --- Get ---
@@ -219,7 +285,7 @@ async def test_get_location_returns_200(
     assert data["name"] == "Tavern"
     assert data["slug"] == "tavern"
     assert data["description"] == "First stop"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
 
 
 async def test_get_location_returns_403_for_non_member(
@@ -249,7 +315,7 @@ async def test_get_location_returns_404_not_found(
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM)
 
 
 async def test_get_location_returns_404_for_wrong_campaign(
@@ -264,7 +330,7 @@ async def test_get_location_returns_404_for_wrong_campaign(
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
 
 
 # --- Patch ---
@@ -293,8 +359,10 @@ async def test_patch_location_returns_200(
     data = response.json()
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
-    mock_update.assert_awaited_once_with(ANY, location, name="Rebuilt Tavern", description="Updated description")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_update.assert_awaited_once_with(
+        ANY, location, name="Rebuilt Tavern", description="Updated description", restricted=MISSING
+    )
 
 
 async def test_patch_location_returns_403_for_non_member(
@@ -333,7 +401,7 @@ async def test_patch_location_returns_404_not_found(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM)
     mock_update.assert_not_called()
 
 
@@ -353,7 +421,7 @@ async def test_patch_location_returns_404_for_wrong_campaign(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
     mock_update.assert_not_called()
 
 
@@ -376,8 +444,52 @@ async def test_patch_location_player_member_can_patch(
 
     assert response.status_code == 200
     assert response.json()["description"] == "Player update"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
-    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description="Player update")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER)
+    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description="Player update", restricted=MISSING)
+
+
+async def test_patch_location_player_cannot_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_update = mocker.patch("api.services.locations.update_location")
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
+        json={"restricted": True},
+    )
+
+    assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_update.assert_not_called()
+
+
+async def test_patch_location_gm_can_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    location = build_location(campaign_id=campaign.id, slug="tavern", restricted=False)
+    updated = build_location(campaign_id=campaign.id, slug="tavern", restricted=True)
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.locations.get_location_by_slug", return_value=location)
+    mock_update = mocker.patch("api.services.locations.update_location", return_value=updated)
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/locations/tavern",
+        json={"restricted": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["restricted"] is True
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description=MISSING, restricted=True)
 
 
 # --- Delete ---
@@ -397,7 +509,7 @@ async def test_delete_location_returns_204(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
     mock_delete.assert_awaited_once_with(ANY, location, ANY)
 
 
@@ -431,7 +543,7 @@ async def test_delete_location_returns_404_not_found(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM)
     mock_delete.assert_not_called()
 
 
@@ -448,7 +560,7 @@ async def test_delete_location_returns_404_for_wrong_campaign(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
     mock_delete.assert_not_called()
 
 
@@ -466,7 +578,7 @@ async def test_delete_location_player_member_can_delete(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern")
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER)
     mock_delete.assert_awaited_once_with(ANY, location, ANY)
 
 

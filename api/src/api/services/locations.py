@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Location
+from api.models import Location, MemberRole
+from api.services.common.visibility import apply_visibility_filter
 from api.storage import ImageStorage
 
 logger = logging.getLogger(__name__)
@@ -27,8 +28,9 @@ def _is_slug_conflict(exc: BaseException) -> bool:
     )
 
 
-async def list_locations(db: AsyncSession, campaign_id: uuid.UUID) -> list[Location]:
+async def list_locations(db: AsyncSession, campaign_id: uuid.UUID, requester_role: MemberRole) -> list[Location]:
     query = select(Location).where(Location.campaign_id == campaign_id).order_by(Location.name.asc())
+    query = apply_visibility_filter(query, Location, requester_role)
     return list(await db.scalars(query))
 
 
@@ -38,12 +40,14 @@ async def create_location(
     slug: str,
     name: str,
     description: str | None,
+    restricted: bool = False,
 ) -> Location:
     location = Location(
         campaign_id=campaign_id,
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
     )
     try:
         db.add(location)
@@ -62,13 +66,14 @@ async def get_location_by_slug(
     db: AsyncSession,
     campaign_id: uuid.UUID,
     location_slug: str,
+    requester_role: MemberRole,
 ) -> Location | None:
-    return await db.scalar(
-        select(Location).where(
-            Location.campaign_id == campaign_id,
-            Location.slug == location_slug,
-        )
+    query = select(Location).where(
+        Location.campaign_id == campaign_id,
+        Location.slug == location_slug,
     )
+    query = apply_visibility_filter(query, Location, requester_role)
+    return await db.scalar(query)
 
 
 async def update_location(
@@ -77,11 +82,14 @@ async def update_location(
     *,
     name: str | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
+    restricted: bool | MISSING = MISSING,
 ) -> Location:
     if name is not MISSING:
         location.name = name
     if description is not MISSING:
         location.description = description
+    if restricted is not MISSING:
+        location.restricted = restricted
     await db.commit()
     await db.refresh(location)
     return location

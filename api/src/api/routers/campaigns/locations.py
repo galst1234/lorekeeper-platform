@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.database import get_db
-from api.models import CampaignMember, Location
+from api.models import CampaignMember, Location, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -30,6 +30,7 @@ class LocationResponse(BaseModel):
                 "slug": "moonlit-tavern",
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
+                "restricted": False,
                 "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -41,6 +42,7 @@ class LocationResponse(BaseModel):
     slug: str
     name: str
     description: str | None
+    restricted: bool
     image_url: str | None
     created_at: datetime
     updated_at: datetime
@@ -59,6 +61,7 @@ class CreateLocationRequest(NonReservedSlugModel):
 
     name: _NonEmptyStr
     description: str | None = None
+    restricted: bool = False
 
 
 class PatchLocationRequest(BaseModel):
@@ -73,6 +76,7 @@ class PatchLocationRequest(BaseModel):
 
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
+    restricted: bool | MISSING = MISSING
 
 
 def _to_response(location: Location, image_storage: ImageStorage) -> LocationResponse:
@@ -81,6 +85,7 @@ def _to_response(location: Location, image_storage: ImageStorage) -> LocationRes
         slug=location.slug,
         name=location.name,
         description=location.description,
+        restricted=location.restricted,
         image_url=image_storage.url_for(location.image_key) if location.image_key else None,
         created_at=location.created_at,
         updated_at=location.updated_at,
@@ -93,7 +98,7 @@ async def list_locations(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> list[LocationResponse]:
-    locations = await location_service.list_locations(db, member.campaign_id)
+    locations = await location_service.list_locations(db, member.campaign_id, member.role)
     return [_to_response(location, image_storage) for location in locations]
 
 
@@ -104,6 +109,8 @@ async def create_location(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> LocationResponse:
+    if body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can create a restricted location")
     try:
         location = await location_service.create_location(
             db,
@@ -111,6 +118,7 @@ async def create_location(
             slug=body.slug,
             name=body.name,
             description=body.description,
+            restricted=body.restricted,
         )
     except LocationSlugConflictError:
         raise HTTPException(
@@ -127,7 +135,7 @@ async def get_location(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> LocationResponse:
-    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     return _to_response(location, image_storage)
@@ -141,7 +149,9 @@ async def patch_location(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> LocationResponse:
-    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
+    if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can mark a location as restricted")
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     updated = await location_service.update_location(
@@ -149,6 +159,7 @@ async def patch_location(
         location,
         name=body.name,
         description=body.description,
+        restricted=body.restricted,
     )
     return _to_response(updated, image_storage)
 
@@ -160,7 +171,7 @@ async def delete_location(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     await location_service.delete_location(db, location, image_storage)
@@ -174,7 +185,7 @@ async def upload_location_image(
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
     file: Annotated[UploadFile, File()],
 ) -> LocationResponse:
-    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
@@ -198,7 +209,7 @@ async def delete_location_image(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug)
+    location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     await location_service.clear_location_image(db, location, image_storage)
