@@ -1,93 +1,106 @@
-from collections.abc import Callable
-from datetime import UTC, datetime
+import uuid
+from unittest.mock import ANY
 
+from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic_core import MISSING
+from pytest_mock import MockerFixture
 
-from tests.helpers import make_campaign, make_chronicle_entry, make_member, make_user
+from api.auth import get_current_user
+from api.models import Campaign, CampaignMember, MemberRole, User
+from api.routers.campaigns.dependencies import require_campaign_member
+from api.services.chronicle import EntrySlugConflictError
+from tests.helpers import build_campaign, build_chronicle_entry, build_member, build_user
+
+
+def _allow_member(inner_app: FastAPI, campaign: Campaign, *, role: MemberRole = MemberRole.GM) -> None:
+    inner_app.dependency_overrides[require_campaign_member] = lambda: build_member(campaign_id=campaign.id, role=role)
+
+
+def _forbid_member(inner_app: FastAPI) -> None:
+    def _raise() -> CampaignMember:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    inner_app.dependency_overrides[require_campaign_member] = _raise
+
+
+def _authenticate(inner_app: FastAPI, user: User) -> None:
+    inner_app.dependency_overrides[get_current_user] = lambda: user
+
 
 # --- List ---
 
 
 async def test_list_chronicle_entries_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-list-200", email="rt-chr-list-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcl0001")
-    await make_chronicle_entry(db, campaign_id=campaign.id, slug="session-one", title="Session One")
-    ac = campaigns_authenticated_client("rt-chr-list-200")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Session One")
+    _allow_member(inner_app, campaign)
+    mock_list = mocker.patch("api.services.chronicle.list_entries", return_value=[entry])
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
+
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
     assert len(data) == 1
     assert data[0]["title"] == "Session One"
     assert data[0]["slug"] == "session-one"
+    assert "author" not in data[0]
+    mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.GM)
 
 
-async def test_list_chronicle_entries_excludes_author(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+async def test_list_chronicle_entries_delegates_member_role_for_player(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-list-noauthor", email="rt-chr-list-noauthor@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcl0002")
-    await make_chronicle_entry(db, campaign_id=campaign.id, author_id=user.id)
-    ac = campaigns_authenticated_client("rt-chr-list-noauthor")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_list = mocker.patch("api.services.chronicle.list_entries", return_value=[])
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
+
     assert response.status_code == 200
-    assert "author" not in response.json()[0]
-
-
-async def test_list_chronicle_entries_orders_by_occurred_at(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-list-ord", email="rt-chr-list-ord@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcl0003")
-    recent_session = await make_chronicle_entry(
-        db,
-        campaign_id=campaign.id,
-        slug="session-two",
-        title="Session Two",
-        occurred_at=datetime(2024, 2, 1, tzinfo=UTC),
-    )
-    backfilled_older_session = await make_chronicle_entry(
-        db,
-        campaign_id=campaign.id,
-        slug="session-one",
-        title="Session One",
-        occurred_at=datetime(2024, 1, 1, tzinfo=UTC),
-    )
-    ac = campaigns_authenticated_client("rt-chr-list-ord")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
-    data = response.json()
-    assert data[0]["id"] == str(recent_session.id)
-    assert data[1]["id"] == str(backfilled_older_session.id)
+    mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.PLAYER)
 
 
 async def test_list_chronicle_entries_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-list-own", email="rt-chr-list-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcl0004")
-    await make_user(db, supertokens_user_id="rt-chr-list-403", email="rt-chr-list-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-list-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_list = mocker.patch("api.services.chronicle.list_entries")
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
+
     assert response.status_code == 403
+    mock_list.assert_not_called()
 
 
 # --- Create ---
 
 
 async def test_create_chronicle_entry_returns_201(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-201", email="rt-chr-cr-201@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0001")
-    ac = campaigns_authenticated_client("rt-chr-cr-201")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(
+        campaign_id=campaign.id,
+        slug="the-fall-of-blackspire",
+        title="The Fall of Blackspire",
+        body="The party stormed the keep at dusk.",
+    )
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={
@@ -97,6 +110,7 @@ async def test_create_chronicle_entry_returns_201(
             "body": "The party stormed the keep at dusk.",
         },
     )
+
     assert response.status_code == 201
     data = response.json()
     assert data["slug"] == "the-fall-of-blackspire"
@@ -106,492 +120,611 @@ async def test_create_chronicle_entry_returns_201(
 
 
 async def test_create_chronicle_entry_sets_author_to_current_user(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(
-        db, supertokens_user_id="rt-chr-cr-author", email="rt-chr-cr-author@test.com", display_name="Bram"
-    )
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0002")
-    ac = campaigns_authenticated_client("rt-chr-cr-author")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    user = build_user(display_name="Bram")
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Session One")
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 201
-    entry_slug = response.json()["slug"]
-    detail = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry_slug}")
-    assert detail.json()["author"] == {"id": str(user.id), "display_name": "Bram"}
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="session-one",
+        title="Session One",
+        occurred_at=ANY,
+        body=None,
+        author_id=user.id,
+        restricted=False,
+    )
 
 
 async def test_create_chronicle_entry_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-cr-own", email="rt-chr-cr-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcc0003")
-    await make_user(db, supertokens_user_id="rt-chr-cr-403", email="rt-chr-cr-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-cr-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 403
+    mock_create.assert_not_called()
 
 
 async def test_create_chronicle_entry_empty_title_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-notitle", email="rt-chr-cr-notitle@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0004")
-    ac = campaigns_authenticated_client("rt-chr-cr-notitle")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "  ", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_chronicle_entry_invalid_slug_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-badslug", email="rt-chr-cr-badslug@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0005")
-    ac = campaigns_authenticated_client("rt-chr-cr-badslug")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "Session One!", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_chronicle_entry_naive_occurred_at_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-naive", email="rt-chr-cr-naive@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0007")
-    ac = campaigns_authenticated_client("rt-chr-cr-naive")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_chronicle_entry_reserved_slug_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-reserved", email="rt-chr-cr-reserved@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0006")
-    ac = campaigns_authenticated_client("rt-chr-cr-reserved")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "new", "title": "New Entry", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 422
+    mock_create.assert_not_called()
 
 
 async def test_create_chronicle_entry_slug_conflict_returns_409(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-cr-conflict", email="rt-chr-cr-conflict@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcc0006")
-    await make_chronicle_entry(db, campaign_id=campaign.id, slug="session-one")
-    ac = campaigns_authenticated_client("rt-chr-cr-conflict")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, build_user())
+    mocker.patch("api.services.chronicle.create_entry", side_effect=EntrySlugConflictError())
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "Another Session One", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 409
 
 
 async def test_create_chronicle_entry_player_member_can_create(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-cr-plown", email="rt-chr-cr-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcc0007")
-    player = await make_user(db, supertokens_user_id="rt-chr-cr-player", email="rt-chr-cr-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    ac = campaigns_authenticated_client("rt-chr-cr-player")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    user = build_user()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Session One")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+
     response = await ac.post(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
         json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
     )
+
     assert response.status_code == 201
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="session-one",
+        title="Session One",
+        occurred_at=ANY,
+        body=None,
+        author_id=user.id,
+        restricted=False,
+    )
+
+
+async def test_create_chronicle_entry_restricted_defaults_false(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    user = build_user()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", restricted=False)
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["restricted"] is False
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="session-one",
+        title="Session One",
+        occurred_at=ANY,
+        body=None,
+        author_id=user.id,
+        restricted=False,
+    )
+
+
+async def test_create_chronicle_entry_gm_can_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    user = build_user()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", restricted=True)
+    _allow_member(inner_app, campaign)
+    _authenticate(inner_app, user)
+    mock_create = mocker.patch("api.services.chronicle.create_entry", return_value=entry)
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={
+            "slug": "session-one",
+            "title": "Session One",
+            "occurred_at": "2024-01-15T19:00:00Z",
+            "restricted": True,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["restricted"] is True
+    mock_create.assert_awaited_once_with(
+        ANY,
+        campaign_id=campaign.id,
+        slug="session-one",
+        title="Session One",
+        occurred_at=ANY,
+        body=None,
+        author_id=user.id,
+        restricted=True,
+    )
+
+
+async def test_create_chronicle_entry_player_cannot_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    _authenticate(inner_app, build_user())
+    mock_create = mocker.patch("api.services.chronicle.create_entry")
+
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
+        json={
+            "slug": "session-one",
+            "title": "Session One",
+            "occurred_at": "2024-01-15T19:00:00Z",
+            "restricted": True,
+        },
+    )
+
+    assert response.status_code == 403
+    mock_create.assert_not_called()
 
 
 # --- Get ---
 
 
 async def test_get_chronicle_entry_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-get-200", email="rt-chr-get-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcg0001")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="session-one", title="Session One")
-    ac = campaigns_authenticated_client("rt-chr-get-200")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Session One")
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one")
+
     assert response.status_code == 200
     assert response.json()["title"] == "Session One"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.GM)
+
+
+async def test_get_chronicle_entry_delegates_member_role_for_player(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Session One")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one")
+
+    assert response.status_code == 200
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.PLAYER)
 
 
 async def test_get_chronicle_entry_includes_author(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(
-        db, supertokens_user_id="rt-chr-get-author", email="rt-chr-get-author@test.com", display_name="Aria"
-    )
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcg0002")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, author_id=user.id)
-    ac = campaigns_authenticated_client("rt-chr-get-author")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    author = build_user(display_name="Aria")
+    entry = build_chronicle_entry(campaign_id=campaign.id, author_id=author.id, author=author)
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
-    assert response.json()["author"] == {"id": str(user.id), "display_name": "Aria"}
+
+    assert response.json()["author"] == {"id": str(author.id), "display_name": "Aria"}
 
 
 async def test_get_chronicle_entry_author_null_when_unset(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-get-noauthor", email="rt-chr-get-noauthor@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcg0003")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, author_id=None)
-    ac = campaigns_authenticated_client("rt-chr-get-noauthor")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, author_id=None, author=None)
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+
     assert response.json()["author"] is None
 
 
 async def test_get_chronicle_entry_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-get-own", email="rt-chr-get-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcg0004")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id)
-    await make_user(db, supertokens_user_id="rt-chr-get-403", email="rt-chr-get-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-get-403")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug")
+
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one")
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
 
 
 async def test_get_chronicle_entry_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-get-404", email="rt-chr-get-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcg0005")
-    ac = campaigns_authenticated_client("rt-chr-get-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=None)
+
     response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/nonexistent-entry")
-    assert response.status_code == 404
 
-
-async def test_get_chronicle_entry_returns_404_for_wrong_campaign(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-get-iso", email="rt-chr-get-iso@test.com")
-    campaign_a = await make_campaign(db, owner_id=user.id, slug_id="rtcga001")
-    campaign_b = await make_campaign(db, owner_id=user.id, slug_id="rtcgb001")
-    entry = await make_chronicle_entry(db, campaign_id=campaign_b.id)
-    ac = campaigns_authenticated_client("rt-chr-get-iso")
-    response = await ac.get(f"/api/v1/campaigns/{campaign_a.slug}/chronicle/entries/{entry.slug}")
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM)
 
 
 # --- Patch ---
 
 
 async def test_patch_chronicle_entry_returns_200(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-patch-200", email="rt-chr-patch-200@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcp0001")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="old-entry", title="Old")
-    ac = campaigns_authenticated_client("rt-chr-patch-200")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="old-entry", title="Old")
+    updated = build_chronicle_entry(campaign_id=campaign.id, slug="old-entry", title="New")
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_update = mocker.patch("api.services.chronicle.update_entry", return_value=updated)
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/old-entry",
         json={"title": "New"},
     )
+
     assert response.status_code == 200
     assert response.json()["title"] == "New"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-entry", MemberRole.GM)
+    mock_update.assert_awaited_once_with(ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING)
 
 
 async def test_patch_chronicle_entry_ignores_slug_and_author_id(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-patch-ignore", email="rt-chr-patch-ignore@test.com")
-    other_user = await make_user(db, supertokens_user_id="rt-chr-patch-other", email="rt-chr-patch-other@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcp0002")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="original-slug", author_id=user.id)
-    ac = campaigns_authenticated_client("rt-chr-patch-ignore")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="original-slug")
+    updated = build_chronicle_entry(campaign_id=campaign.id, slug="original-slug", title="Updated Title")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_update = mocker.patch("api.services.chronicle.update_entry", return_value=updated)
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
-        json={"slug": "new-slug", "author_id": str(other_user.id), "title": "Updated Title"},
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/original-slug",
+        json={"slug": "new-slug", "author_id": str(uuid.uuid4()), "title": "Updated Title"},
     )
+
     assert response.status_code == 200
-    data = response.json()
-    assert data["slug"] == "original-slug"
-    assert data["title"] == "Updated Title"
-    detail = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/original-slug")
-    assert detail.json()["author"]["id"] == str(user.id)
+    assert response.json()["slug"] == "original-slug"
+    assert response.json()["title"] == "Updated Title"
+    mock_update.assert_awaited_once_with(
+        ANY, entry, title="Updated Title", occurred_at=MISSING, body=MISSING, restricted=MISSING
+    )
 
 
 async def test_patch_chronicle_entry_naive_occurred_at_rejected(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-patch-naive", email="rt-chr-patch-naive@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcp0005")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="old-entry", title="Old")
-    ac = campaigns_authenticated_client("rt-chr-patch-naive")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="old-entry")
+    _allow_member(inner_app, campaign)
+    mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_update = mocker.patch("api.services.chronicle.update_entry")
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/old-entry",
         json={"occurred_at": "2024-01-15T19:00:00"},
     )
+
     assert response.status_code == 422
+    mock_update.assert_not_called()
 
 
 async def test_patch_chronicle_entry_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-patch-own", email="rt-chr-patch-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcp0003")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id)
-    await make_user(db, supertokens_user_id="rt-chr-patch-403", email="rt-chr-patch-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-patch-403")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug")
+    mock_update = mocker.patch("api.services.chronicle.update_entry")
+
     response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one",
         json={"title": "New"},
     )
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_update.assert_not_called()
 
 
 async def test_patch_chronicle_entry_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-patch-404", email="rt-chr-patch-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcp0004")
-    ac = campaigns_authenticated_client("rt-chr-patch-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=None)
+    mock_update = mocker.patch("api.services.chronicle.update_entry")
+
     response = await ac.patch(
         f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/nonexistent-entry",
         json={"title": "New"},
     )
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM)
+    mock_update.assert_not_called()
+
+
+async def test_patch_chronicle_entry_player_cannot_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug")
+    mock_update = mocker.patch("api.services.chronicle.update_entry")
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one",
+        json={"restricted": True},
+    )
+
+    assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_update.assert_not_called()
+
+
+async def test_patch_chronicle_entry_gm_can_set_restricted_true(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", restricted=False)
+    updated = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", restricted=True)
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_update = mocker.patch("api.services.chronicle.update_entry", return_value=updated)
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one",
+        json={"restricted": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["restricted"] is True
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.GM)
+    mock_update.assert_awaited_once_with(ANY, entry, title=MISSING, occurred_at=MISSING, body=MISSING, restricted=True)
+
+
+async def test_patch_chronicle_entry_player_can_update_non_restricted_fields(
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
+) -> None:
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="Old")
+    updated = build_chronicle_entry(campaign_id=campaign.id, slug="session-one", title="New")
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_update = mocker.patch("api.services.chronicle.update_entry", return_value=updated)
+
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one",
+        json={"title": "New"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "New"
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.PLAYER)
+    mock_update.assert_awaited_once_with(ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING)
 
 
 # --- Delete ---
 
 
 async def test_delete_chronicle_entry_returns_204(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-del-204", email="rt-chr-del-204@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcd0001")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id)
-    ac = campaigns_authenticated_client("rt-chr-del-204")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id)
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_delete = mocker.patch("api.services.chronicle.delete_entry")
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+
     assert response.status_code == 204
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.GM)
+    mock_delete.assert_awaited_once_with(ANY, entry)
 
 
 async def test_delete_chronicle_entry_returns_403_for_non_member(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-del-own", email="rt-chr-del-own@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcd0002")
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id)
-    await make_user(db, supertokens_user_id="rt-chr-del-403", email="rt-chr-del-403@test.com")
-    ac = campaigns_authenticated_client("rt-chr-del-403")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _forbid_member(inner_app)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug")
+    mock_delete = mocker.patch("api.services.chronicle.delete_entry")
+
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/session-one")
+
     assert response.status_code == 403
+    mock_get.assert_not_called()
+    mock_delete.assert_not_called()
 
 
 async def test_delete_chronicle_entry_returns_404_not_found(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-del-404", email="rt-chr-del-404@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcd0003")
-    ac = campaigns_authenticated_client("rt-chr-del-404")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    _allow_member(inner_app, campaign)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=None)
+    mock_delete = mocker.patch("api.services.chronicle.delete_entry")
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/nonexistent-entry")
+
     assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM)
+    mock_delete.assert_not_called()
 
 
 async def test_delete_chronicle_entry_player_member_can_delete(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
+    campaigns_client: tuple[AsyncClient, FastAPI],
+    mocker: MockerFixture,
 ) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-del-plown", email="rt-chr-del-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcd0004")
-    player = await make_user(db, supertokens_user_id="rt-chr-del-player", email="rt-chr-del-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id)
-    ac = campaigns_authenticated_client("rt-chr-del-player")
+    ac, inner_app = campaigns_client
+    campaign = build_campaign()
+    entry = build_chronicle_entry(campaign_id=campaign.id)
+    _allow_member(inner_app, campaign, role=MemberRole.PLAYER)
+    mock_get = mocker.patch("api.services.chronicle.get_entry_by_slug", return_value=entry)
+    mock_delete = mocker.patch("api.services.chronicle.delete_entry")
+
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
+
     assert response.status_code == 204
-
-
-# --- Restricted ---
-
-
-async def test_create_chronicle_entry_restricted_defaults_false(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-res-default", email="rt-chr-res-default@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrd001")
-    ac = campaigns_authenticated_client("rt-chr-res-default")
-    response = await ac.post(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
-        json={"slug": "session-one", "title": "Session One", "occurred_at": "2024-01-15T19:00:00Z"},
-    )
-    assert response.status_code == 201
-    assert response.json()["restricted"] is False
-
-
-async def test_create_chronicle_entry_gm_can_set_restricted_true(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-res-gm", email="rt-chr-res-gm@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrg001")
-    ac = campaigns_authenticated_client("rt-chr-res-gm")
-    response = await ac.post(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
-        json={
-            "slug": "session-one",
-            "title": "Session One",
-            "occurred_at": "2024-01-15T19:00:00Z",
-            "restricted": True,
-        },
-    )
-    assert response.status_code == 201
-    assert response.json()["restricted"] is True
-
-
-async def test_create_chronicle_entry_player_cannot_set_restricted_true(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-plown", email="rt-chr-res-plown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrp001")
-    player = await make_user(db, supertokens_user_id="rt-chr-res-player", email="rt-chr-res-player@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    ac = campaigns_authenticated_client("rt-chr-res-player")
-    response = await ac.post(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries",
-        json={
-            "slug": "session-one",
-            "title": "Session One",
-            "occurred_at": "2024-01-15T19:00:00Z",
-            "restricted": True,
-        },
-    )
-    assert response.status_code == 403
-
-
-async def test_patch_chronicle_entry_player_cannot_set_restricted_true(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-patchown", email="rt-chr-res-patchown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrq001")
-    player = await make_user(db, supertokens_user_id="rt-chr-res-patchplayer", email="rt-chr-res-patchplayer@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="session-one")
-    ac = campaigns_authenticated_client("rt-chr-res-patchplayer")
-    response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
-        json={"restricted": True},
-    )
-    assert response.status_code == 403
-
-
-async def test_list_chronicle_entries_excludes_restricted_for_player(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-listown", email="rt-chr-res-listown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrl001")
-    player = await make_user(db, supertokens_user_id="rt-chr-res-listplayer", email="rt-chr-res-listplayer@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    await make_chronicle_entry(db, campaign_id=campaign.id, slug="visible", title="Visible", restricted=False)
-    await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", title="Secret", restricted=True)
-    ac = campaigns_authenticated_client("rt-chr-res-listplayer")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
-    titles = [entry["title"] for entry in response.json()]
-    assert titles == ["Visible"]
-
-
-async def test_list_chronicle_entries_includes_restricted_for_gm(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    user = await make_user(db, supertokens_user_id="rt-chr-res-listgm", email="rt-chr-res-listgm@test.com")
-    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtcrm001")
-    await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", title="Secret", restricted=True)
-    ac = campaigns_authenticated_client("rt-chr-res-listgm")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries")
-    titles = [entry["title"] for entry in response.json()]
-    assert titles == ["Secret"]
-
-
-async def test_get_chronicle_entry_returns_404_for_restricted_as_player(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-getown", email="rt-chr-res-getown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrn001")
-    player = await make_user(db, supertokens_user_id="rt-chr-res-getplayer", email="rt-chr-res-getplayer@test.com")
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
-    ac = campaigns_authenticated_client("rt-chr-res-getplayer")
-    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
-    assert response.status_code == 404
-
-
-async def test_patch_chronicle_entry_returns_404_for_restricted_as_player(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-patchgetown", email="rt-chr-res-patchgetown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcro001")
-    player = await make_user(
-        db, supertokens_user_id="rt-chr-res-patchgetplayer", email="rt-chr-res-patchgetplayer@test.com"
-    )
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
-    ac = campaigns_authenticated_client("rt-chr-res-patchgetplayer")
-    response = await ac.patch(
-        f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}",
-        json={"title": "New Title"},
-    )
-    assert response.status_code == 404
-
-
-async def test_delete_chronicle_entry_returns_404_for_restricted_as_player(
-    campaigns_authenticated_client: Callable[[str], AsyncClient],
-    db: AsyncSession,
-) -> None:
-    owner = await make_user(db, supertokens_user_id="rt-chr-res-delgetown", email="rt-chr-res-delgetown@test.com")
-    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtcrs001")
-    player = await make_user(
-        db, supertokens_user_id="rt-chr-res-delgetplayer", email="rt-chr-res-delgetplayer@test.com"
-    )
-    await make_member(db, campaign_id=campaign.id, user_id=player.id)
-    entry = await make_chronicle_entry(db, campaign_id=campaign.id, slug="secret", restricted=True)
-    ac = campaigns_authenticated_client("rt-chr-res-delgetplayer")
-    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
-    assert response.status_code == 404
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.PLAYER)
+    mock_delete.assert_awaited_once_with(ANY, entry)
