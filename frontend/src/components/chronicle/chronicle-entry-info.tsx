@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { deleteChronicleEntryMutation, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -38,7 +39,10 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
     <div>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{entry.title}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold">{entry.title}</h1>
+            {entry.restricted && <Badge variant="outline">Restricted</Badge>}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatOccurredAt(entry.occurred_at)} - by {entry.author?.display_name ?? "Unknown"}
           </p>

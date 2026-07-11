@@ -1,18 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { createChronicleEntry, patchChronicleEntry } from "@/api/generated";
-import { getChronicleEntryQueryKey, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import {
+  getCampaignOptions,
+  getChronicleEntryQueryKey,
+  listChronicleEntriesQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { datetimeLocalToIso, toDatetimeLocalValue } from "@/lib/datetime";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -44,12 +49,13 @@ const editorSchema = z.object({
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   occurredAt: z.string().min(1, "Session date is required"),
   body: z.string(),
+  access: z.enum(["everyone", "gm_only"]),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { title: "", slug: "", occurredAt: toDatetimeLocalValue(new Date()), body: "" };
+  return { title: "", slug: "", occurredAt: toDatetimeLocalValue(new Date()), body: "", access: "everyone" };
 }
 
 function editDefaultValues(entry: ChronicleEntryDetailResponse): EditorFormValues {
@@ -58,6 +64,7 @@ function editDefaultValues(entry: ChronicleEntryDetailResponse): EditorFormValue
     slug: entry.slug,
     occurredAt: toDatetimeLocalValue(new Date(entry.occurred_at)),
     body: entry.body ?? "",
+    access: entry.restricted ? "gm_only" : "everyone",
   };
 }
 
@@ -67,6 +74,8 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (entry ? editDefaultValues(entry) : createDefaultValues()), [entry]);
 
@@ -92,6 +101,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
             title: values.title.trim(),
             occurred_at: datetimeLocalToIso(values.occurredAt),
             body: values.body.trim() || null,
+            restricted: values.access === "gm_only",
           },
           throwOnError: true,
         });
@@ -105,6 +115,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
           slug: values.slug.trim(),
           occurred_at: datetimeLocalToIso(values.occurredAt),
           body: values.body.trim() || undefined,
+          restricted: values.access === "gm_only",
         },
         throwOnError: true,
       });
@@ -183,6 +194,30 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
               )}
             />
           </div>
+
+          {isGm && (
+            <FormField
+              control={form.control}
+              name="access"
+              render={({ field }) => (
+                <FormItem className="md:w-1/3">
+                  <FormLabel>Access</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="everyone">Everyone</SelectItem>
+                      <SelectItem value="gm_only">GM Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {!isEditing && (
             <FormField

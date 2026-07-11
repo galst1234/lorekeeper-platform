@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, Swords } from "lucide-react";
 import { listItemsOptions } from "@/api/generated/@tanstack/react-query.gen";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 interface ItemsSectionProps {
@@ -31,8 +32,11 @@ export function ItemsSection({ slug }: ItemsSectionProps) {
                     <Swords className="h-10 w-10 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex flex-1 items-center justify-between min-w-0">
-                  <span className="font-medium hover:underline truncate">{item.name}</span>
+                <div className="flex flex-1 items-center justify-between min-w-0 gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium hover:underline truncate">{item.name}</span>
+                    {item.restricted && <Badge variant="outline">Restricted</Badge>}
+                  </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </div>
               </Link>

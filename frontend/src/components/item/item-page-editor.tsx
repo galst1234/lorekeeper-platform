@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { ItemResponse } from "@/api/generated";
 import { createItem, deleteItemImage, patchItem, uploadItemImage } from "@/api/generated";
-import { getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import { getCampaignOptions, getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, getErrorMessage } from "@/lib/utils";
 
 type ItemPageEditorProps =
@@ -38,16 +39,22 @@ const editorSchema = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug must be lowercase letters, numbers, and hyphens")
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
+  access: z.enum(["everyone", "gm_only"]),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "" };
+  return { name: "", slug: "", description: "", access: "everyone" };
 }
 
 function editDefaultValues(item: ItemResponse): EditorFormValues {
-  return { name: item.name, slug: item.slug, description: item.description ?? "" };
+  return {
+    name: item.name,
+    slug: item.slug,
+    description: item.description ?? "",
+    access: item.restricted ? "gm_only" : "everyone",
+  };
 }
 
 export function ItemPageEditor(props: ItemPageEditorProps) {
@@ -58,6 +65,8 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
   const [slugEdited, setSlugEdited] = useState(false);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
+  const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (item ? editDefaultValues(item) : createDefaultValues()), [item]);
 
@@ -83,6 +92,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
               body: {
                 name: values.name.trim(),
                 description: values.description.trim() || null,
+                restricted: values.access === "gm_only",
               },
               throwOnError: true,
             })
@@ -94,6 +104,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                 name: values.name.trim(),
                 slug: values.slug.trim(),
                 description: values.description.trim() || undefined,
+                restricted: values.access === "gm_only",
               },
               throwOnError: true,
             })
@@ -202,6 +213,30 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                   />
                 )}
               </div>
+
+              {isGm && (
+                <FormField
+                  control={form.control}
+                  name="access"
+                  render={({ field }) => (
+                    <FormItem className="md:w-1/3">
+                      <FormLabel>Access</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="everyone">Everyone</SelectItem>
+                          <SelectItem value="gm_only">GM Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight, ScrollText } from "lucide-react";
 import { listChronicleEntriesOptions } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownExcerpt } from "@/components/markdown/markdown-excerpt";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 function formatOccurredAt(dateString: string): string {
@@ -38,7 +39,10 @@ export function ChronicleSection({ slug }: ChronicleSectionProps) {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium hover:underline">{entry.title}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium hover:underline">{entry.title}</p>
+                      {entry.restricted && <Badge variant="outline">Restricted</Badge>}
+                    </div>
                     <p className="text-xs text-muted-foreground">{formatOccurredAt(entry.occurred_at)}</p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

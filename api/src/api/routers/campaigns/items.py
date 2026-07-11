@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.database import get_db
-from api.models import Campaign, Item
+from api.models import CampaignMember, Item, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -30,6 +30,7 @@ class ItemResponse(BaseModel):
                 "slug": "sunblade",
                 "name": "Sunblade",
                 "description": "A radiant longsword that glows in the presence of undead.",
+                "restricted": False,
                 "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -41,6 +42,7 @@ class ItemResponse(BaseModel):
     slug: str
     name: str
     description: str | None
+    restricted: bool
     image_url: str | None
     created_at: datetime
     updated_at: datetime
@@ -59,6 +61,7 @@ class CreateItemRequest(NonReservedSlugModel):
 
     name: _NonEmptyStr
     description: str | None = None
+    restricted: bool = False
 
 
 class PatchItemRequest(BaseModel):
@@ -73,6 +76,7 @@ class PatchItemRequest(BaseModel):
 
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
+    restricted: bool | MISSING = MISSING
 
 
 def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
@@ -81,6 +85,7 @@ def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
         slug=item.slug,
         name=item.name,
         description=item.description,
+        restricted=item.restricted,
         image_url=image_storage.url_for(item.image_key) if item.image_key else None,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -89,28 +94,31 @@ def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
 
 @router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def list_items(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> list[ItemResponse]:
-    items = await item_service.list_items(db, campaign.id)
+    items = await item_service.list_items(db, member.campaign_id, member.role)
     return [_to_response(item, image_storage) for item in items]
 
 
 @router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_item(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: CreateItemRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> ItemResponse:
+    if body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can create a restricted item")
     try:
         item = await item_service.create_item(
             db,
-            campaign_id=campaign.id,
+            campaign_id=member.campaign_id,
             slug=body.slug,
             name=body.name,
             description=body.description,
+            restricted=body.restricted,
         )
     except ItemSlugConflictError:
         raise HTTPException(status_code=409, detail="An item with that slug already exists in this campaign") from None
@@ -120,11 +128,11 @@ async def create_item(
 @router.get("/{item_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def get_item(
     item_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> ItemResponse:
-    item = await item_service.get_item_by_slug(db, campaign.id, item_slug)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     return _to_response(item, image_storage)
@@ -133,26 +141,30 @@ async def get_item(
 @router.patch("/{item_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_item(
     item_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: PatchItemRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> ItemResponse:
-    item = await item_service.get_item_by_slug(db, campaign.id, item_slug)
+    if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
+        raise HTTPException(status_code=403, detail="Only the GM can mark an item as restricted")
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    updated = await item_service.update_item(db, item, name=body.name, description=body.description)
+    updated = await item_service.update_item(
+        db, item, name=body.name, description=body.description, restricted=body.restricted
+    )
     return _to_response(updated, image_storage)
 
 
 @router.delete("/{item_slug}", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_item(
     item_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    item = await item_service.get_item_by_slug(db, campaign.id, item_slug)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     await item_service.delete_item(db, item, image_storage)
@@ -161,12 +173,12 @@ async def delete_item(
 @router.put("/{item_slug}/image", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | INVALID_IMAGE)
 async def upload_item_image(
     item_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
     file: Annotated[UploadFile, File()],
 ) -> ItemResponse:
-    item = await item_service.get_item_by_slug(db, campaign.id, item_slug)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
@@ -186,11 +198,11 @@ async def upload_item_image(
 @router.delete("/{item_slug}/image", status_code=204, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def delete_item_image(
     item_slug: str,
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    item = await item_service.get_item_by_slug(db, campaign.id, item_slug)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     await item_service.clear_item_image(db, item, image_storage)

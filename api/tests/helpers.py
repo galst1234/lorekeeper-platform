@@ -69,6 +69,7 @@ async def make_character(
     slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Character:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -78,6 +79,7 @@ async def make_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
     )
     db.add(character)
     await db.flush()
@@ -91,6 +93,7 @@ async def make_item(
     name: str = "Test Item",
     slug: str | None = None,
     description: str | None = None,
+    restricted: bool = False,
 ) -> Item:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -99,6 +102,7 @@ async def make_item(
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
     )
     db.add(item)
     await db.flush()
@@ -114,6 +118,7 @@ async def make_chronicle_entry(
     occurred_at: datetime | None = None,
     body: str | None = None,
     author_id: uuid.UUID | None = None,
+    restricted: bool = False,
 ) -> ChronicleEntry:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
@@ -126,6 +131,7 @@ async def make_chronicle_entry(
         occurred_at=occurred_at,
         body=body,
         author_id=author_id,
+        restricted=restricted,
     )
     db.add(entry)
     await db.flush()
@@ -159,6 +165,20 @@ def build_campaign(*, slug_label: str = "test-campaign", slug_id: str = "aabbccd
     )
 
 
+def build_member(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+    role: MemberRole = MemberRole.GM,
+) -> CampaignMember:
+    return CampaignMember(
+        campaign_id=campaign_id or uuid.uuid4(),
+        user_id=user_id or uuid.uuid4(),
+        role=role,
+        joined_at=datetime.now(UTC),
+    )
+
+
 def build_character(
     *,
     campaign_id: uuid.UUID | None = None,
@@ -166,6 +186,7 @@ def build_character(
     slug: str | None = None,
     character_type: CharacterType = CharacterType.PC,
     description: str | None = None,
+    restricted: bool = False,
     image_key: str | None = None,
 ) -> Character:
     if slug is None:
@@ -178,6 +199,7 @@ def build_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
         image_key=image_key,
         created_at=now,
         updated_at=now,
@@ -190,6 +212,7 @@ def build_item(
     name: str = "Test Item",
     slug: str | None = None,
     description: str | None = None,
+    restricted: bool = False,
     image_key: str | None = None,
 ) -> Item:
     if slug is None:
@@ -201,6 +224,7 @@ def build_item(
         slug=slug,
         name=name,
         description=description,
+        restricted=restricted,
         image_key=image_key,
         created_at=now,
         updated_at=now,

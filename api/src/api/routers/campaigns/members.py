@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.database import get_db
-from api.models import Campaign, MemberRole
+from api.models import CampaignMember, MemberRole
 from api.routers._openapi import FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import campaigns as campaign_service
@@ -35,10 +35,10 @@ class MemberResponse(BaseModel):
 
 @router.get("", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def list_members(
-    campaign: Annotated[Campaign, Depends(require_campaign_member)],
+    member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[MemberResponse]:
-    rows = await campaign_service.list_members_with_users(db, campaign.id)
+    rows = await campaign_service.list_members_with_users(db, member.campaign_id)
     return [
         MemberResponse(
             user_id=member.user_id,

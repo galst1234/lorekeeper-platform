@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Character, CharacterType
+from api.models import Character, CharacterType, MemberRole
+from api.services.common.visibility import apply_visibility_filter
 from api.storage import ImageStorage
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,13 @@ def _is_slug_conflict(exc: BaseException) -> bool:
 async def list_characters(
     db: AsyncSession,
     campaign_id: uuid.UUID,
+    requester_role: MemberRole,
     character_type: CharacterType | None = None,
 ) -> list[Character]:
     query = select(Character).where(Character.campaign_id == campaign_id).order_by(Character.name.asc())
     if character_type is not None:
         query = query.where(Character.character_type == character_type)
+    query = apply_visibility_filter(query, Character, requester_role)
     return list(await db.scalars(query))
 
 
@@ -45,6 +48,7 @@ async def create_character(
     name: str,
     character_type: CharacterType,
     description: str | None,
+    restricted: bool = False,
 ) -> Character:
     character = Character(
         campaign_id=campaign_id,
@@ -52,6 +56,7 @@ async def create_character(
         name=name,
         character_type=character_type,
         description=description,
+        restricted=restricted,
     )
     try:
         db.add(character)
@@ -70,13 +75,14 @@ async def get_character_by_slug(
     db: AsyncSession,
     campaign_id: uuid.UUID,
     character_slug: str,
+    requester_role: MemberRole,
 ) -> Character | None:
-    return await db.scalar(
-        select(Character).where(
-            Character.campaign_id == campaign_id,
-            Character.slug == character_slug,
-        )
+    query = select(Character).where(
+        Character.campaign_id == campaign_id,
+        Character.slug == character_slug,
     )
+    query = apply_visibility_filter(query, Character, requester_role)
+    return await db.scalar(query)
 
 
 async def update_character(
@@ -86,6 +92,7 @@ async def update_character(
     name: str | MISSING = MISSING,
     character_type: CharacterType | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
+    restricted: bool | MISSING = MISSING,
 ) -> Character:
     if name is not MISSING:
         character.name = name
@@ -93,6 +100,8 @@ async def update_character(
         character.character_type = character_type
     if description is not MISSING:
         character.description = description
+    if restricted is not MISSING:
+        character.restricted = restricted
     await db.commit()
     await db.refresh(character)
     return character

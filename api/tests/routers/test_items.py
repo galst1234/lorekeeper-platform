@@ -7,10 +7,10 @@ from httpx import AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.models import Campaign
+from api.models import Campaign, CampaignMember
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.storage import ImageStorage, get_image_storage
-from tests.helpers import build_campaign, build_item, make_campaign, make_item, make_member, make_user
+from tests.helpers import build_campaign, build_item, build_member, make_campaign, make_item, make_member, make_user
 
 # --- List ---
 
@@ -295,15 +295,153 @@ async def test_delete_item_player_member_can_delete(
     assert response.status_code == 204
 
 
+# --- Restricted ---
+
+
+async def test_create_item_restricted_defaults_false(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-itm-res-default", email="rt-itm-res-default@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtird001")
+    ac = campaigns_authenticated_client("rt-itm-res-default")
+    response = await ac.post(f"/api/v1/campaigns/{campaign.slug}/items", json={"slug": "sword", "name": "Sword"})
+    assert response.status_code == 201
+    assert response.json()["restricted"] is False
+
+
+async def test_create_item_gm_can_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-itm-res-gm", email="rt-itm-res-gm@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtirg001")
+    ac = campaigns_authenticated_client("rt-itm-res-gm")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/items",
+        json={"slug": "sword", "name": "Sword", "restricted": True},
+    )
+    assert response.status_code == 201
+    assert response.json()["restricted"] is True
+
+
+async def test_create_item_player_cannot_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-plown", email="rt-itm-res-plown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtirp001")
+    player = await make_user(db, supertokens_user_id="rt-itm-res-player", email="rt-itm-res-player@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    ac = campaigns_authenticated_client("rt-itm-res-player")
+    response = await ac.post(
+        f"/api/v1/campaigns/{campaign.slug}/items",
+        json={"slug": "sword", "name": "Sword", "restricted": True},
+    )
+    assert response.status_code == 403
+
+
+async def test_patch_item_player_cannot_set_restricted_true(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-patchown", email="rt-itm-res-patchown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtirq001")
+    player = await make_user(db, supertokens_user_id="rt-itm-res-patchplayer", email="rt-itm-res-patchplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    item = await make_item(db, campaign_id=campaign.id, slug="sword")
+    ac = campaigns_authenticated_client("rt-itm-res-patchplayer")
+    response = await ac.patch(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}", json={"restricted": True})
+    assert response.status_code == 403
+
+
+async def test_list_items_excludes_restricted_for_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-listown", email="rt-itm-res-listown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtirl001")
+    player = await make_user(db, supertokens_user_id="rt-itm-res-listplayer", email="rt-itm-res-listplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    await make_item(db, campaign_id=campaign.id, slug="visible", name="Visible", restricted=False)
+    await make_item(db, campaign_id=campaign.id, slug="secret", name="Secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-itm-res-listplayer")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/items")
+    names = [item["name"] for item in response.json()]
+    assert names == ["Visible"]
+
+
+async def test_list_items_includes_restricted_for_gm(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    user = await make_user(db, supertokens_user_id="rt-itm-res-listgm", email="rt-itm-res-listgm@test.com")
+    campaign = await make_campaign(db, owner_id=user.id, slug_id="rtirm001")
+    await make_item(db, campaign_id=campaign.id, slug="secret", name="Secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-itm-res-listgm")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/items")
+    names = [item["name"] for item in response.json()]
+    assert names == ["Secret"]
+
+
+async def test_get_item_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-getown", email="rt-itm-res-getown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtirn001")
+    player = await make_user(db, supertokens_user_id="rt-itm-res-getplayer", email="rt-itm-res-getplayer@test.com")
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    item = await make_item(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-itm-res-getplayer")
+    response = await ac.get(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}")
+    assert response.status_code == 404
+
+
+async def test_patch_item_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-patchgetown", email="rt-itm-res-patchgetown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtiro001")
+    player = await make_user(
+        db, supertokens_user_id="rt-itm-res-patchgetplayer", email="rt-itm-res-patchgetplayer@test.com"
+    )
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    item = await make_item(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-itm-res-patchgetplayer")
+    response = await ac.patch(
+        f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}",
+        json={"name": "New Name"},
+    )
+    assert response.status_code == 404
+
+
+async def test_delete_item_returns_404_for_restricted_as_player(
+    campaigns_authenticated_client: Callable[[str], AsyncClient],
+    db: AsyncSession,
+) -> None:
+    owner = await make_user(db, supertokens_user_id="rt-itm-res-delgetown", email="rt-itm-res-delgetown@test.com")
+    campaign = await make_campaign(db, owner_id=owner.id, slug_id="rtirs001")
+    player = await make_user(
+        db, supertokens_user_id="rt-itm-res-delgetplayer", email="rt-itm-res-delgetplayer@test.com"
+    )
+    await make_member(db, campaign_id=campaign.id, user_id=player.id)
+    item = await make_item(db, campaign_id=campaign.id, slug="secret", restricted=True)
+    ac = campaigns_authenticated_client("rt-itm-res-delgetplayer")
+    response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/{item.slug}")
+    assert response.status_code == 404
+
+
 # --- Image (solitary — see tests/CLAUDE.md) ---
 
 
 def _allow_member(inner_app: FastAPI, campaign: Campaign) -> None:
-    inner_app.dependency_overrides[require_campaign_member] = lambda: campaign
+    inner_app.dependency_overrides[require_campaign_member] = lambda: build_member(campaign_id=campaign.id)
 
 
 def _forbid_member(inner_app: FastAPI) -> None:
-    def _raise() -> Campaign:
+    def _raise() -> CampaignMember:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     inner_app.dependency_overrides[require_campaign_member] = _raise
