@@ -249,6 +249,25 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags</FormLabel>
+                      <FormControl>
+                        <TagInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={campaignTags.tags}
+                          placeholder="Add a tag…"
+                          aria-label="Tags"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 {isGm && (
                   <FormField
                     control={form.control}
@@ -287,26 +306,6 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                         campaignSlug={campaignSlug}
                         className="flex min-h-0 flex-1 flex-col"
                         textareaClassName="min-h-[16rem] flex-1 leading-7"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags</FormLabel>
-                    <FormControl>
-                      <TagInput
-                        value={field.value}
-                        onChange={field.onChange}
-                        suggestions={campaignTags.tags}
-                        placeholder="Add a tag…"
-                        aria-label="Tags"
                       />
                     </FormControl>
                     <FormMessage />

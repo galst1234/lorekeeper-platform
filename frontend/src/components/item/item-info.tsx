@@ -32,7 +32,7 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
     <div>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold">{item.name}</h1>
+          <h1 className="text-3xl font-bold leading-none">{item.name}</h1>
           {item.restricted && <Badge variant="outline">Restricted</Badge>}
         </div>
         <div className="flex items-center gap-1 shrink-0">

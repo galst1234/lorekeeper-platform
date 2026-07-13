@@ -1,4 +1,3 @@
-import { Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +11,7 @@ export function TagRow({ tags, className }: TagRowProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
       {tags.map((tag) => (
-        <Badge key={tag} variant="secondary" className="gap-1 font-normal text-muted-foreground">
-          <Tag className="h-3 w-3" />
+        <Badge key={tag} variant="secondary" className="font-normal text-muted-foreground">
           {tag}
         </Badge>
       ))}
