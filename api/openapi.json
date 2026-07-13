@@ -2713,6 +2713,10 @@
           "body": "The party stormed the keep at dusk.",
           "occurred_at": "2024-01-15T19:00:00Z",
           "slug": "the-fall-of-blackspire",
+          "tags": [
+            "battle",
+            "victory"
+          ],
           "title": "The Fall of Blackspire"
         }
       },

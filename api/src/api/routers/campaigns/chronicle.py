@@ -103,6 +103,7 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
                 "title": "The Fall of Blackspire",
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
+                "tags": ["battle", "victory"],
             }
         }
     )
