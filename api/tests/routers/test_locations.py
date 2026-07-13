@@ -86,7 +86,13 @@ async def test_create_location_returns_201(
     assert data["name"] == "Tavern"
     assert data["description"] is None
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+        ANY,
+        campaign_id=campaign.id,
+        slug="tavern",
+        name="Tavern",
+        description=None,
+        restricted=False,
+        tags=[],
     )
 
 
@@ -178,7 +184,13 @@ async def test_create_location_slug_conflict_returns_409(
 
     assert response.status_code == 409
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Another Tavern", description=None, restricted=False
+        ANY,
+        campaign_id=campaign.id,
+        slug="tavern",
+        name="Another Tavern",
+        description=None,
+        restricted=False,
+        tags=[],
     )
 
 
@@ -199,7 +211,13 @@ async def test_create_location_player_member_can_create(
 
     assert response.status_code == 201
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+        ANY,
+        campaign_id=campaign.id,
+        slug="tavern",
+        name="Tavern",
+        description=None,
+        restricted=False,
+        tags=[],
     )
 
 
@@ -221,7 +239,13 @@ async def test_create_location_restricted_defaults_false(
     assert response.status_code == 201
     assert response.json()["restricted"] is False
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=False
+        ANY,
+        campaign_id=campaign.id,
+        slug="tavern",
+        name="Tavern",
+        description=None,
+        restricted=False,
+        tags=[],
     )
 
 
@@ -243,7 +267,13 @@ async def test_create_location_gm_can_set_restricted_true(
     assert response.status_code == 201
     assert response.json()["restricted"] is True
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="tavern", name="Tavern", description=None, restricted=True
+        ANY,
+        campaign_id=campaign.id,
+        slug="tavern",
+        name="Tavern",
+        description=None,
+        restricted=True,
+        tags=[],
     )
 
 
@@ -361,7 +391,7 @@ async def test_patch_location_returns_200(
     assert data["description"] == "Updated description"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
     mock_update.assert_awaited_once_with(
-        ANY, location, name="Rebuilt Tavern", description="Updated description", restricted=MISSING
+        ANY, location, name="Rebuilt Tavern", description="Updated description", restricted=MISSING, tags=MISSING
     )
 
 
@@ -445,7 +475,9 @@ async def test_patch_location_player_member_can_patch(
     assert response.status_code == 200
     assert response.json()["description"] == "Player update"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER)
-    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description="Player update", restricted=MISSING)
+    mock_update.assert_awaited_once_with(
+        ANY, location, name=MISSING, description="Player update", restricted=MISSING, tags=MISSING
+    )
 
 
 async def test_patch_location_player_cannot_set_restricted_true(
@@ -489,7 +521,9 @@ async def test_patch_location_gm_can_set_restricted_true(
     assert response.status_code == 200
     assert response.json()["restricted"] is True
     mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
-    mock_update.assert_awaited_once_with(ANY, location, name=MISSING, description=MISSING, restricted=True)
+    mock_update.assert_awaited_once_with(
+        ANY, location, name=MISSING, description=MISSING, restricted=True, tags=MISSING
+    )
 
 
 # --- Delete ---

@@ -3,23 +3,31 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.database import get_db
 from api.models import CampaignMember, Item, MemberRole
-from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
+from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import items as item_service
+from api.services.common.tags import TagValidationError, normalize_tags
 from api.services.items import ItemSlugConflictError
 from api.storage import ALLOWED_IMAGE_CONTENT_TYPES, ImageStorage, get_image_storage
 
 router = APIRouter(prefix="/items", tags=["Items"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+def _normalize_tags_or_422(raw: list[str]) -> list[str]:
+    try:
+        return normalize_tags(raw)
+    except TagValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 class ItemResponse(BaseModel):
@@ -31,6 +39,7 @@ class ItemResponse(BaseModel):
                 "name": "Sunblade",
                 "description": "A radiant longsword that glows in the presence of undead.",
                 "restricted": False,
+                "tags": ["magic", "relic", "weapon"],
                 "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -43,6 +52,7 @@ class ItemResponse(BaseModel):
     name: str
     description: str | None
     restricted: bool
+    tags: list[str]
     image_url: str | None
     created_at: datetime
     updated_at: datetime
@@ -55,6 +65,7 @@ class CreateItemRequest(NonReservedSlugModel):
                 "slug": "sunblade",
                 "name": "Sunblade",
                 "description": "A radiant longsword that glows in the presence of undead.",
+                "tags": ["magic", "relic"],
             }
         }
     )
@@ -62,6 +73,7 @@ class CreateItemRequest(NonReservedSlugModel):
     name: _NonEmptyStr
     description: str | None = None
     restricted: bool = False
+    tags: list[str] = Field(default_factory=list)
 
 
 class PatchItemRequest(BaseModel):
@@ -70,6 +82,7 @@ class PatchItemRequest(BaseModel):
             "example": {
                 "name": "Sunblade, Reforged",
                 "description": "Updated description.",
+                "tags": ["magic", "relic"],
             }
         }
     )
@@ -77,6 +90,7 @@ class PatchItemRequest(BaseModel):
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
+    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
@@ -86,6 +100,7 @@ def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
         name=item.name,
         description=item.description,
         restricted=item.restricted,
+        tags=item.tags,
         image_url=image_storage.url_for(item.image_key) if item.image_key else None,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -102,7 +117,7 @@ async def list_items(
     return [_to_response(item, image_storage) for item in items]
 
 
-@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT | UNPROCESSABLE)
 async def create_item(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: CreateItemRequest,
@@ -111,6 +126,7 @@ async def create_item(
 ) -> ItemResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted item")
+    normalized_tags = _normalize_tags_or_422(body.tags)
     try:
         item = await item_service.create_item(
             db,
@@ -119,6 +135,7 @@ async def create_item(
             name=body.name,
             description=body.description,
             restricted=body.restricted,
+            tags=normalized_tags,
         )
     except ItemSlugConflictError:
         raise HTTPException(status_code=409, detail="An item with that slug already exists in this campaign") from None
@@ -138,7 +155,7 @@ async def get_item(
     return _to_response(item, image_storage)
 
 
-@router.patch("/{item_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+@router.patch("/{item_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | UNPROCESSABLE)
 async def patch_item(
     item_slug: str,
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
@@ -148,11 +165,15 @@ async def patch_item(
 ) -> ItemResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark an item as restricted")
+    if body.tags is MISSING:
+        tags_update: list[str] | MISSING = MISSING
+    else:
+        tags_update = _normalize_tags_or_422(body.tags)
     item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     updated = await item_service.update_item(
-        db, item, name=body.name, description=body.description, restricted=body.restricted
+        db, item, name=body.name, description=body.description, restricted=body.restricted, tags=tags_update
     )
     return _to_response(updated, image_storage)
 

@@ -3,22 +3,30 @@ from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import CampaignMember, ChronicleEntry, MemberRole, User
-from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
+from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import chronicle as chronicle_service
 from api.services.chronicle import EntrySlugConflictError
+from api.services.common.tags import TagValidationError, normalize_tags
 
 router = APIRouter(prefix="/chronicle/entries", tags=["Chronicle"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+def _normalize_tags_or_422(raw: list[str]) -> list[str]:
+    try:
+        return normalize_tags(raw)
+    except TagValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 class AuthorResponse(BaseModel):
@@ -45,6 +53,7 @@ class ChronicleEntryResponse(BaseModel):
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
                 "restricted": False,
+                "tags": ["battle", "turning-point"],
                 "created_at": "2024-01-16T02:30:00Z",
                 "updated_at": "2024-01-16T02:30:00Z",
             }
@@ -57,6 +66,7 @@ class ChronicleEntryResponse(BaseModel):
     occurred_at: datetime
     body: str | None
     restricted: bool
+    tags: list[str]
     created_at: datetime
     updated_at: datetime
 
@@ -71,6 +81,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
                 "restricted": False,
+                "tags": ["battle", "turning-point"],
                 "created_at": "2024-01-16T02:30:00Z",
                 "updated_at": "2024-01-16T02:30:00Z",
                 "author": {
@@ -100,6 +111,7 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
     occurred_at: AwareDatetime
     body: str | None = None
     restricted: bool = False
+    tags: list[str] = Field(default_factory=list)
 
 
 class PatchChronicleEntryRequest(BaseModel):
@@ -108,6 +120,7 @@ class PatchChronicleEntryRequest(BaseModel):
             "example": {
                 "title": "The Fall of Blackspire, Revised",
                 "body": "Updated write-up.",
+                "tags": ["battle", "turning-point"],
             }
         }
     )
@@ -116,6 +129,7 @@ class PatchChronicleEntryRequest(BaseModel):
     occurred_at: AwareDatetime | MISSING = MISSING
     body: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
+    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
@@ -126,6 +140,7 @@ def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
         occurred_at=entry.occurred_at,
         body=entry.body,
         restricted=entry.restricted,
+        tags=entry.tags,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
     )
@@ -143,6 +158,7 @@ def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
         occurred_at=entry.occurred_at,
         body=entry.body,
         restricted=entry.restricted,
+        tags=entry.tags,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
         author=author,
@@ -158,7 +174,7 @@ async def list_chronicle_entries(
     return [_to_response(entry) for entry in entries]
 
 
-@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT | UNPROCESSABLE)
 async def create_chronicle_entry(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     user: Annotated[User, Depends(get_current_user)],
@@ -167,6 +183,7 @@ async def create_chronicle_entry(
 ) -> ChronicleEntryResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted chronicle entry")
+    normalized_tags = _normalize_tags_or_422(body.tags)
     try:
         entry = await chronicle_service.create_entry(
             db,
@@ -177,6 +194,7 @@ async def create_chronicle_entry(
             body=body.body,
             author_id=user.id,
             restricted=body.restricted,
+            tags=normalized_tags,
         )
     except EntrySlugConflictError:
         raise HTTPException(
@@ -197,7 +215,7 @@ async def get_chronicle_entry(
     return _to_detail_response(entry)
 
 
-@router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+@router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | UNPROCESSABLE)
 async def patch_chronicle_entry(
     entry_slug: str,
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
@@ -206,6 +224,10 @@ async def patch_chronicle_entry(
 ) -> ChronicleEntryResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a chronicle entry as restricted")
+    if body.tags is MISSING:
+        tags_update: list[str] | MISSING = MISSING
+    else:
+        tags_update = _normalize_tags_or_422(body.tags)
     entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
@@ -216,6 +238,7 @@ async def patch_chronicle_entry(
         occurred_at=body.occurred_at,
         body=body.body,
         restricted=body.restricted,
+        tags=tags_update,
     )
     return _to_response(updated)
 

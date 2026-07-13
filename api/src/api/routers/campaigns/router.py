@@ -1,4 +1,4 @@
-from api.routers.campaigns import characters, chronicle, invites, items, locations, members
+from api.routers.campaigns import characters, chronicle, invites, items, locations, members, tags
 from api.routers.campaigns.campaigns import detail_router, router
 
 detail_router.include_router(invites.router)
@@ -7,4 +7,5 @@ detail_router.include_router(items.router)
 detail_router.include_router(locations.router)
 detail_router.include_router(chronicle.router)
 detail_router.include_router(members.router)
+detail_router.include_router(tags.router)
 router.include_router(detail_router)

@@ -101,7 +101,7 @@ async def test_create_item_returns_201(
     assert data["name"] == "Sword"
     assert data["description"] is None
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False
+        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False, tags=[]
     )
 
 
@@ -193,7 +193,7 @@ async def test_create_item_slug_conflict_returns_409(
 
     assert response.status_code == 409
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="sword", name="Another Sword", description=None, restricted=False
+        ANY, campaign_id=campaign.id, slug="sword", name="Another Sword", description=None, restricted=False, tags=[]
     )
 
 
@@ -214,7 +214,7 @@ async def test_create_item_player_member_can_create(
 
     assert response.status_code == 201
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False
+        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False, tags=[]
     )
 
 
@@ -233,7 +233,7 @@ async def test_create_item_restricted_defaults_false(
     assert response.status_code == 201
     assert response.json()["restricted"] is False
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False
+        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=False, tags=[]
     )
 
 
@@ -255,7 +255,7 @@ async def test_create_item_gm_can_set_restricted_true(
     assert response.status_code == 201
     assert response.json()["restricted"] is True
     mock_create.assert_awaited_once_with(
-        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=True
+        ANY, campaign_id=campaign.id, slug="sword", name="Sword", description=None, restricted=True, tags=[]
     )
 
 
@@ -364,7 +364,7 @@ async def test_patch_item_returns_200(
     assert response.status_code == 200
     assert response.json()["name"] == "New"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "old-item", MemberRole.GM)
-    mock_update.assert_awaited_once_with(ANY, item, name="New", description=MISSING, restricted=MISSING)
+    mock_update.assert_awaited_once_with(ANY, item, name="New", description=MISSING, restricted=MISSING, tags=MISSING)
 
 
 async def test_patch_item_returns_403_for_non_member(
@@ -435,7 +435,7 @@ async def test_patch_item_gm_can_set_restricted_true(
     assert response.status_code == 200
     assert response.json()["restricted"] is True
     mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM)
-    mock_update.assert_awaited_once_with(ANY, item, name=MISSING, description=MISSING, restricted=True)
+    mock_update.assert_awaited_once_with(ANY, item, name=MISSING, description=MISSING, restricted=True, tags=MISSING)
 
 
 async def test_patch_item_player_can_update_non_restricted_fields(
@@ -455,7 +455,9 @@ async def test_patch_item_player_can_update_non_restricted_fields(
     assert response.status_code == 200
     assert response.json()["name"] == "Sword Renamed"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.PLAYER)
-    mock_update.assert_awaited_once_with(ANY, item, name="Sword Renamed", description=MISSING, restricted=MISSING)
+    mock_update.assert_awaited_once_with(
+        ANY, item, name="Sword Renamed", description=MISSING, restricted=MISSING, tags=MISSING
+    )
 
 
 # --- Delete ---

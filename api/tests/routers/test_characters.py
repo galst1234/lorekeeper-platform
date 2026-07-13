@@ -110,6 +110,7 @@ async def test_create_character_returns_201(
         character_type=CharacterType.PC,
         description=None,
         restricted=False,
+        tags=[],
     )
 
 
@@ -226,6 +227,7 @@ async def test_create_character_slug_conflict_returns_409(
         character_type=CharacterType.NPC,
         description=None,
         restricted=False,
+        tags=[],
     )
 
 
@@ -253,6 +255,7 @@ async def test_create_character_player_member_can_create(
         character_type=CharacterType.PC,
         description=None,
         restricted=False,
+        tags=[],
     )
 
 
@@ -281,6 +284,7 @@ async def test_create_character_restricted_defaults_false(
         character_type=CharacterType.PC,
         description=None,
         restricted=False,
+        tags=[],
     )
 
 
@@ -309,6 +313,7 @@ async def test_create_character_gm_can_set_restricted_true(
         character_type=CharacterType.PC,
         description=None,
         restricted=True,
+        tags=[],
     )
 
 
@@ -421,7 +426,7 @@ async def test_patch_character_returns_200(
     assert response.json()["name"] == "New"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "old-char", MemberRole.GM)
     mock_update.assert_awaited_once_with(
-        ANY, character, name="New", character_type=MISSING, description=MISSING, restricted=MISSING
+        ANY, character, name="New", character_type=MISSING, description=MISSING, restricted=MISSING, tags=MISSING
     )
 
 
@@ -505,7 +510,7 @@ async def test_patch_character_gm_can_set_restricted_true(
     assert response.status_code == 200
     assert response.json()["restricted"] is True
     mock_update.assert_awaited_once_with(
-        ANY, character, name=MISSING, character_type=MISSING, description=MISSING, restricted=True
+        ANY, character, name=MISSING, character_type=MISSING, description=MISSING, restricted=True, tags=MISSING
     )
 
 
@@ -530,7 +535,13 @@ async def test_patch_character_player_can_update_non_restricted_fields(
     assert response.json()["name"] == "Aria Renamed"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
     mock_update.assert_awaited_once_with(
-        ANY, character, name="Aria Renamed", character_type=MISSING, description=MISSING, restricted=MISSING
+        ANY,
+        character,
+        name="Aria Renamed",
+        character_type=MISSING,
+        description=MISSING,
+        restricted=MISSING,
+        tags=MISSING,
     )
 
 

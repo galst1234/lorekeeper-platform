@@ -3,23 +3,31 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import settings
 from api.database import get_db
 from api.models import CampaignMember, Character, CharacterType, MemberRole
-from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
+from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
+from api.services.common.tags import TagValidationError, normalize_tags
 from api.storage import ALLOWED_IMAGE_CONTENT_TYPES, ImageStorage, get_image_storage
 
 router = APIRouter(prefix="/characters", tags=["Characters"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+def _normalize_tags_or_422(raw: list[str]) -> list[str]:
+    try:
+        return normalize_tags(raw)
+    except TagValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 class CharacterResponse(BaseModel):
@@ -32,6 +40,7 @@ class CharacterResponse(BaseModel):
                 "character_type": "pc",
                 "description": "A wise elven druid from the Emerald Enclave.",
                 "restricted": False,
+                "tags": ["ally", "spellcaster"],
                 "image_url": "/media/3f9c1e2a-3b7e-4a2e-9b1a-9d6a2b0e5c11.jpg",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -45,6 +54,7 @@ class CharacterResponse(BaseModel):
     character_type: CharacterType
     description: str | None
     restricted: bool
+    tags: list[str]
     image_url: str | None
     created_at: datetime
     updated_at: datetime
@@ -58,6 +68,7 @@ class CreateCharacterRequest(NonReservedSlugModel):
                 "name": "Elara Moonwhisper",
                 "character_type": "pc",
                 "description": "A wise elven druid from the Emerald Enclave.",
+                "tags": ["ally", "spellcaster"],
             }
         }
     )
@@ -66,6 +77,7 @@ class CreateCharacterRequest(NonReservedSlugModel):
     character_type: CharacterType
     description: str | None = None
     restricted: bool = False
+    tags: list[str] = Field(default_factory=list)
 
 
 class PatchCharacterRequest(BaseModel):
@@ -75,6 +87,7 @@ class PatchCharacterRequest(BaseModel):
                 "name": "Elara of the Enclave",
                 "character_type": "pc",
                 "description": "Updated description.",
+                "tags": ["ally", "spellcaster"],
             }
         }
     )
@@ -83,6 +96,7 @@ class PatchCharacterRequest(BaseModel):
     character_type: CharacterType | MISSING = MISSING
     description: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
+    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(character: Character, image_storage: ImageStorage) -> CharacterResponse:
@@ -93,6 +107,7 @@ def _to_response(character: Character, image_storage: ImageStorage) -> Character
         character_type=character.character_type,
         description=character.description,
         restricted=character.restricted,
+        tags=character.tags,
         image_url=image_storage.url_for(character.image_key) if character.image_key else None,
         created_at=character.created_at,
         updated_at=character.updated_at,
@@ -110,7 +125,7 @@ async def list_characters(
     return [_to_response(character, image_storage) for character in characters]
 
 
-@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT | UNPROCESSABLE)
 async def create_character(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
@@ -119,6 +134,7 @@ async def create_character(
 ) -> CharacterResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted character")
+    normalized_tags = _normalize_tags_or_422(body.tags)
     try:
         character = await character_service.create_character(
             db,
@@ -128,6 +144,7 @@ async def create_character(
             character_type=body.character_type,
             description=body.description,
             restricted=body.restricted,
+            tags=normalized_tags,
         )
     except CharacterSlugConflictError:
         raise HTTPException(
@@ -149,7 +166,7 @@ async def get_character(
     return _to_response(character, image_storage)
 
 
-@router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
+@router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | UNPROCESSABLE)
 async def patch_character(
     character_slug: str,
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
@@ -159,6 +176,10 @@ async def patch_character(
 ) -> CharacterResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a character as restricted")
+    if body.tags is MISSING:
+        tags_update: list[str] | MISSING = MISSING
+    else:
+        tags_update = _normalize_tags_or_422(body.tags)
     character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
@@ -169,6 +190,7 @@ async def patch_character(
         character_type=body.character_type,
         description=body.description,
         restricted=body.restricted,
+        tags=tags_update,
     )
     return _to_response(updated, image_storage)
 

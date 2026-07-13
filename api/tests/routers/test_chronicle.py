@@ -138,6 +138,7 @@ async def test_create_chronicle_entry_returns_201(
         body="The party stormed the keep at dusk.",
         author_id=user.id,
         restricted=False,
+        tags=[],
     )
 
 
@@ -168,6 +169,7 @@ async def test_create_chronicle_entry_sets_author_to_current_user(
         body=None,
         author_id=user.id,
         restricted=False,
+        tags=[],
     )
 
 
@@ -292,6 +294,7 @@ async def test_create_chronicle_entry_slug_conflict_returns_409(
         body=None,
         author_id=user.id,
         restricted=False,
+        tags=[],
     )
 
 
@@ -322,6 +325,7 @@ async def test_create_chronicle_entry_player_member_can_create(
         body=None,
         author_id=user.id,
         restricted=False,
+        tags=[],
     )
 
 
@@ -353,6 +357,7 @@ async def test_create_chronicle_entry_restricted_defaults_false(
         body=None,
         author_id=user.id,
         restricted=False,
+        tags=[],
     )
 
 
@@ -389,6 +394,7 @@ async def test_create_chronicle_entry_gm_can_set_restricted_true(
         body=None,
         author_id=user.id,
         restricted=True,
+        tags=[],
     )
 
 
@@ -540,7 +546,9 @@ async def test_patch_chronicle_entry_returns_200(
     assert response.status_code == 200
     assert response.json()["title"] == "New"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "old-entry", MemberRole.GM)
-    mock_update.assert_awaited_once_with(ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING)
+    mock_update.assert_awaited_once_with(
+        ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
+    )
 
 
 async def test_patch_chronicle_entry_ignores_slug_and_author_id(
@@ -565,7 +573,7 @@ async def test_patch_chronicle_entry_ignores_slug_and_author_id(
     assert response.json()["title"] == "Updated Title"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "original-slug", MemberRole.GM)
     mock_update.assert_awaited_once_with(
-        ANY, entry, title="Updated Title", occurred_at=MISSING, body=MISSING, restricted=MISSING
+        ANY, entry, title="Updated Title", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
     )
 
 
@@ -669,7 +677,9 @@ async def test_patch_chronicle_entry_gm_can_set_restricted_true(
     assert response.status_code == 200
     assert response.json()["restricted"] is True
     mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.GM)
-    mock_update.assert_awaited_once_with(ANY, entry, title=MISSING, occurred_at=MISSING, body=MISSING, restricted=True)
+    mock_update.assert_awaited_once_with(
+        ANY, entry, title=MISSING, occurred_at=MISSING, body=MISSING, restricted=True, tags=MISSING
+    )
 
 
 async def test_patch_chronicle_entry_player_can_update_non_restricted_fields(
@@ -692,7 +702,9 @@ async def test_patch_chronicle_entry_player_can_update_non_restricted_fields(
     assert response.status_code == 200
     assert response.json()["title"] == "New"
     mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.PLAYER)
-    mock_update.assert_awaited_once_with(ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING)
+    mock_update.assert_awaited_once_with(
+        ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
+    )
 
 
 # --- Delete ---
