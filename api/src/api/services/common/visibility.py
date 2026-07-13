@@ -1,8 +1,8 @@
 from sqlalchemy import Select
 
-from api.models import Character, ChronicleEntry, Item, MemberRole
+from api.models import Character, ChronicleEntry, Item, Location, MemberRole
 
-_RestrictableModel = type[Character] | type[Item] | type[ChronicleEntry]
+_RestrictableModel = type[Character] | type[Item] | type[ChronicleEntry] | type[Location]
 
 
 def apply_visibility_filter(query: Select, model: _RestrictableModel, requester_role: MemberRole) -> Select:

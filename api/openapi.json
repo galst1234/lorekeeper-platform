@@ -1354,6 +1354,426 @@
         }
       }
     },
+    "/api/v1/campaigns/{slug}/locations": {
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "List Locations",
+        "operationId": "list_locations",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocationResponse"
+                  },
+                  "title": "Response List Locations"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Create Location",
+        "operationId": "create_location",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{slug}/locations/{location_slug}": {
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Get Location",
+        "operationId": "get_location",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Patch Location",
+        "operationId": "patch_location",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Delete Location",
+        "operationId": "delete_location",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{slug}/locations/{location_slug}/image": {
+      "put": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Upload Location Image",
+        "operationId": "upload_location_image",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_location_image"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "400": {
+            "description": "Image is not a supported type or exceeds the size limit"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Delete Location Image",
+        "operationId": "delete_location_image",
+        "parameters": [
+          {
+            "name": "location_slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Location Slug"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{slug}/chronicle/entries": {
       "get": {
         "tags": [
@@ -1758,6 +2178,20 @@
           "file"
         ],
         "title": "Body_upload_item_image"
+      },
+      "Body_upload_location_image": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_location_image"
       },
       "CampaignResponse": {
         "properties": {
@@ -2253,6 +2687,49 @@
           "slug": "sunblade"
         }
       },
+      "CreateLocationRequest": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CreateLocationRequest",
+        "example": {
+          "description": "A cozy inn on the edge of the Whisperwood.",
+          "name": "Moonlit Tavern",
+          "slug": "moonlit-tavern"
+        }
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2383,6 +2860,81 @@
         "example": {
           "name": "Curse of Strahd",
           "slug": "curse-of-strahd-a1b2c3d4"
+        }
+      },
+      "LocationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "restricted",
+          "image_url",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "LocationResponse",
+        "example": {
+          "created_at": "2024-01-15T10:00:00Z",
+          "description": "A cozy inn on the edge of the Whisperwood.",
+          "id": "a4c2b1d0-e3f5-4789-abcd-ef0123456789",
+          "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
+          "name": "Moonlit Tavern",
+          "restricted": false,
+          "slug": "moonlit-tavern",
+          "updated_at": "2024-01-15T10:00:00Z"
         }
       },
       "MeResponse": {
@@ -2605,6 +3157,36 @@
           "name": "Sunblade, Reforged"
         }
       },
+      "PatchLocationRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          }
+        },
+        "type": "object",
+        "title": "PatchLocationRequest",
+        "example": {
+          "description": "Rebuilt after the fire.",
+          "name": "Moonlit Tavern, Rebuilt"
+        }
+      },
       "PatchMeRequest": {
         "properties": {
           "display_name": {
@@ -2679,6 +3261,10 @@
     {
       "name": "Items",
       "description": "Item management within a campaign."
+    },
+    {
+      "name": "Locations",
+      "description": "Location management within a campaign."
     },
     {
       "name": "Chronicle",

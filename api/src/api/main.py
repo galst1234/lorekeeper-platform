@@ -22,6 +22,7 @@ app = FastAPI(
         {"name": "Campaigns", "description": "Campaign management — create, read, update, and delete campaigns."},
         {"name": "Characters", "description": "Character management within a campaign."},
         {"name": "Items", "description": "Item management within a campaign."},
+        {"name": "Locations", "description": "Location management within a campaign."},
         {"name": "Chronicle", "description": "Chronicle entries — the campaign's session-by-session narrative record."},
         {"name": "Members", "description": "Campaign membership — list who is in a campaign."},
         {"name": "Invites", "description": "Invite links — generate, revoke, preview, and join via invite."},

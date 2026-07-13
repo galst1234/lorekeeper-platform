@@ -12,7 +12,7 @@ Three independent projects, each with its own dependency manifest and lockfile:
 - `api/` — FastAPI backend: SQLAlchemy async/asyncpg + Alembic migrations, SuperTokens auth. `uv` + Python >=3.14.
 - `agent/` — separate FastAPI service for agent tooling. `uv` + Python >=3.14.
 
-Nested `CLAUDE.md` (and their linked `AGENTS.md`) files exist closer to the code they govern and take precedence for their subtree — notably `frontend/CLAUDE.md` (component/page conventions), `api/src/api/routers/CLAUDE.md` (router package structure, OpenAPI documentation requirements), `api/src/api/models/CLAUDE.md` (model registration), and `api/migrations/CLAUDE.md` (Alembic migration rules).
+Nested `CLAUDE.md` (and their linked `AGENTS.md`) files exist closer to the code they govern and take precedence for their subtree — notably `frontend/CLAUDE.md` (component/page conventions), `api/tests/CLAUDE.md` (router and service test conventions), `api/src/api/routers/CLAUDE.md` (router package structure, OpenAPI documentation requirements), `api/src/api/models/CLAUDE.md` (model registration), and `api/migrations/CLAUDE.md` (Alembic migration rules).
 Each `CLAUDE.md` file has a `AGENTS.md` symlink next to it for other agents to read.
 
 ## Commands
@@ -36,7 +36,9 @@ CI (`.github/workflows/ci.yml`) path-filters per project and runs: Ruff + Ty + P
 
 ## Architecture
 
-**Campaign-scoped resource model.** Nearly everything in the API hangs off a `Campaign` (`api/src/api/models/campaign.py`): characters, items, chronicle entries, and memberships are all children of a campaign, addressed by campaign slug in the URL (`/api/v1/campaigns/{slug}/...`). Route access control is layered through FastAPI dependencies in `api/src/api/routers/campaigns/dependencies.py` — `get_campaign_or_404` → `require_campaign_member` / `require_campaign_owner` — and sub-resource routers (`characters.py`, `items.py`, `chronicle.py`, `members.py`, `invites.py`) depend on these rather than re-implementing access checks.
+**Campaign-scoped resource model.** Nearly everything in the API hangs off a `Campaign` (`api/src/api/models/campaign.py`): characters, items, chronicle entries, locations, and memberships are all children of a campaign, addressed by campaign slug in the URL (`/api/v1/campaigns/{slug}/...`). Route access control is layered through FastAPI dependencies in `api/src/api/routers/campaigns/dependencies.py` — `get_campaign_or_404` → `require_campaign_member` / `require_campaign_owner` — and sub-resource routers (`characters.py`, `items.py`, `chronicle.py`, `locations.py`, `members.py`, `invites.py`) depend on these rather than re-implementing access checks.
+
+**Campaign lore entities are campaign-scoped only.** Characters, items, chronicle entries, locations, and any future campaign lore must live in a single table with a `campaign_id` foreign key. Do not model standalone library entities, user-owned canonical rows, or junction tables that link reusable records into campaigns. Slugs are unique per campaign; `DELETE` removes the row. See `api/src/api/models/CLAUDE.md` for model-level rules and `item.py` as the reference shape.
 
 **Frontend routing is file-based and generated.** Routes live in `frontend/src/routes/` following TanStack Router's flat file-naming convention (e.g. `campaigns.$slug.chronicle.$entrySlug.tsx`); `routeTree.gen.ts` is generated from these files and must not be hand-edited. Route files themselves stay routing-only (`beforeLoad`/`loader`/`validateSearch`/`component`); actual page JSX lives in `src/pages/`, read via `getRouteApi(path)` rather than importing the route's `Route` export directly (see `frontend/CLAUDE.md` for the full pattern).
 

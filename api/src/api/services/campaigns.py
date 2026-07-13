@@ -15,6 +15,7 @@ from tenacity import retry, retry_if_exception, stop_after_attempt
 from api.models import Campaign, CampaignMember, MemberRole, User
 from api.services import characters as character_service
 from api.services import items as item_service
+from api.services import locations as location_service
 from api.storage import ImageStorage
 
 _SLUG_ID_ALPHABET = string.ascii_lowercase + string.digits
@@ -122,7 +123,8 @@ async def update_campaign(
 async def _collect_campaign_image_keys(db: AsyncSession, campaign_id: uuid.UUID) -> list[str]:
     character_keys = await character_service.list_character_image_keys(db, campaign_id)
     item_keys = await item_service.list_item_image_keys(db, campaign_id)
-    return [*character_keys, *item_keys]
+    location_keys = await location_service.list_location_image_keys(db, campaign_id)
+    return [*character_keys, *item_keys, *location_keys]
 
 
 async def delete_campaign(db: AsyncSession, campaign: Campaign, image_storage: ImageStorage) -> None:

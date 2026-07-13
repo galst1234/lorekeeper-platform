@@ -11,6 +11,7 @@ from api.models import (
     CharacterType,
     ChronicleEntry,
     Item,
+    Location,
     MemberRole,
     User,
     UserAuthMethod,
@@ -138,6 +139,29 @@ async def make_chronicle_entry(
     return entry
 
 
+async def make_location(
+    db: AsyncSession,
+    *,
+    campaign_id: uuid.UUID,
+    name: str = "Tavern",
+    slug: str | None = None,
+    description: str | None = None,
+    restricted: bool = False,
+) -> Location:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    location = Location(
+        campaign_id=campaign_id,
+        slug=slug,
+        name=name,
+        description=description,
+        restricted=restricted,
+    )
+    db.add(location)
+    await db.flush()
+    return location
+
+
 async def make_member(
     db: AsyncSession,
     *,
@@ -240,6 +264,31 @@ def build_item(
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     now = datetime.now(UTC)
     return Item(
+        id=uuid.uuid4(),
+        campaign_id=campaign_id or uuid.uuid4(),
+        slug=slug,
+        name=name,
+        description=description,
+        restricted=restricted,
+        image_key=image_key,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def build_location(
+    *,
+    campaign_id: uuid.UUID | None = None,
+    name: str = "Test Location",
+    slug: str | None = None,
+    description: str | None = None,
+    restricted: bool = False,
+    image_key: str | None = None,
+) -> Location:
+    if slug is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    now = datetime.now(UTC)
+    return Location(
         id=uuid.uuid4(),
         campaign_id=campaign_id or uuid.uuid4(),
         slug=slug,
