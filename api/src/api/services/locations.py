@@ -41,6 +41,7 @@ async def create_location(
     name: str,
     description: str | None,
     restricted: bool = False,
+    tags: list[str] | None = None,
 ) -> Location:
     location = Location(
         campaign_id=campaign_id,
@@ -48,6 +49,7 @@ async def create_location(
         name=name,
         description=description,
         restricted=restricted,
+        tags=tags if tags is not None else [],
     )
     try:
         db.add(location)
@@ -83,6 +85,7 @@ async def update_location(
     name: str | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
     restricted: bool | MISSING = MISSING,
+    tags: list[str] | MISSING = MISSING,
 ) -> Location:
     if name is not MISSING:
         location.name = name
@@ -90,6 +93,8 @@ async def update_location(
         location.description = description
     if restricted is not MISSING:
         location.restricted = restricted
+    if tags is not MISSING:
+        location.tags = tags
     await db.commit()
     await db.refresh(location)
     return location
