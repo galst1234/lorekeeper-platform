@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ItemResponse } from "@/api/generated";
 import { deleteItemMutation, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,6 +46,8 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
           </Button>
         </div>
       </div>
+
+      <TagRow tags={item.tags} className="mt-3" />
 
       <div className="mt-4">
         {item.description ? (

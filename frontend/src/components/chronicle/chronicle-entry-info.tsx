@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ChronicleEntryDetailResponse } from "@/api/generated";
 import { deleteChronicleEntryMutation, listChronicleEntriesQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,6 +63,8 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
           </Button>
         </div>
       </div>
+
+      <TagRow tags={entry.tags} className="mt-3" />
 
       <div className="mt-6">
         {entry.body ? (

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { CharacterResponse } from "@/api/generated";
 import { deleteCharacterMutation, listCharactersQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +50,8 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
           </Button>
         </div>
       </div>
+
+      <TagRow tags={character.tags} className="mt-3" />
 
       <div className="mt-4">
         {character.description ? (

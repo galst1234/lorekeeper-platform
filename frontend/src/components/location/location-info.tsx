@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { LocationResponse } from "@/api/generated";
 import { deleteLocationMutation, listLocationsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -48,6 +49,8 @@ export function LocationInfo({ location, campaignSlug }: LocationInfoProps) {
           </Button>
         </div>
       </div>
+
+      <TagRow tags={location.tags} className="mt-3" />
 
       <div className="mt-4">
         {location.description ? (
