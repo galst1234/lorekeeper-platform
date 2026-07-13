@@ -7,7 +7,12 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { ItemResponse } from "@/api/generated";
 import { createItem, deleteItemImage, patchItem, uploadItemImage } from "@/api/generated";
-import { getCampaignOptions, getItemQueryKey, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
+import {
+  getCampaignOptions,
+  getItemQueryKey,
+  listCampaignTagsOptions,
+  listItemsQueryKey,
+} from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
 import { PageContainer } from "@/components/layout/page-container";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
@@ -17,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import { cn, getErrorMessage } from "@/lib/utils";
 
 type ItemPageEditorProps =
@@ -40,12 +46,13 @@ const editorSchema = z.object({
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
   access: z.enum(["everyone", "gm_only"]),
+  tags: z.array(z.string()),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "", access: "everyone" };
+  return { name: "", slug: "", description: "", access: "everyone", tags: [] };
 }
 
 function editDefaultValues(item: ItemResponse): EditorFormValues {
@@ -54,6 +61,7 @@ function editDefaultValues(item: ItemResponse): EditorFormValues {
     slug: item.slug,
     description: item.description ?? "",
     access: item.restricted ? "gm_only" : "everyone",
+    tags: item.tags,
   };
 }
 
@@ -66,6 +74,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
   const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const { data: campaignTags } = useSuspenseQuery(listCampaignTagsOptions({ path: { slug: campaignSlug } }));
   const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (item ? editDefaultValues(item) : createDefaultValues()), [item]);
@@ -93,6 +102,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                 name: values.name.trim(),
                 description: values.description.trim() || null,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -105,6 +115,7 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                 slug: values.slug.trim(),
                 description: values.description.trim() || undefined,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -251,6 +262,26 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                         campaignSlug={campaignSlug}
                         className="flex min-h-0 flex-1 flex-col"
                         textareaClassName="min-h-[16rem] flex-1 leading-7"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <FormControl>
+                      <TagInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={campaignTags.tags}
+                        placeholder="Add a tag…"
+                        aria-label="Tags"
                       />
                     </FormControl>
                     <FormMessage />
