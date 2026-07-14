@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 from fastapi import FastAPI
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
@@ -23,4 +25,4 @@ async def test_list_campaign_tags_returns_sorted_union(
 
     assert response.status_code == 200
     assert response.json() == {"tags": ["magic", "relic", "villain"]}
-    mock_list.assert_awaited_once()
+    mock_list.assert_awaited_once_with(ANY, campaign.id, MemberRole.GM)
