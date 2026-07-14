@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.config import settings
 from api.database import get_db
 from api.models import CampaignMember, Character, CharacterType, MemberRole
-from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
+from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -116,7 +116,7 @@ async def list_characters(
     return [_to_response(character, image_storage) for character in characters]
 
 
-@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT | UNPROCESSABLE)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_character(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     body: CreateCharacterRequest,
@@ -156,7 +156,7 @@ async def get_character(
     return _to_response(character, image_storage)
 
 
-@router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | UNPROCESSABLE)
+@router.patch("/{character_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_character(
     character_slug: str,
     member: Annotated[CampaignMember, Depends(require_campaign_member)],

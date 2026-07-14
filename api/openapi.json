@@ -619,7 +619,14 @@
             "description": "Conflict"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -740,7 +747,14 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       },
@@ -1025,7 +1039,14 @@
             "description": "Conflict"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -1146,7 +1167,14 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       },
@@ -1431,7 +1459,14 @@
             "description": "Conflict"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -1552,7 +1587,14 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       },
@@ -1837,7 +1879,14 @@
             "description": "Conflict"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -1958,7 +2007,14 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Validation failed"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       },

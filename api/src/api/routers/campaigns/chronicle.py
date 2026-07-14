@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth import get_current_user
 from api.database import get_db
 from api.models import CampaignMember, ChronicleEntry, MemberRole, User
-from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
+from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
 from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
@@ -166,7 +166,7 @@ async def list_chronicle_entries(
     return [_to_response(entry) for entry in entries]
 
 
-@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT | UNPROCESSABLE)
+@router.post("", status_code=201, responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | CONFLICT)
 async def create_chronicle_entry(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     user: Annotated[User, Depends(get_current_user)],
@@ -206,7 +206,7 @@ async def get_chronicle_entry(
     return _to_detail_response(entry)
 
 
-@router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND | UNPROCESSABLE)
+@router.patch("/{entry_slug}", responses=UNAUTHENTICATED | FORBIDDEN | NOT_FOUND)
 async def patch_chronicle_entry(
     entry_slug: str,
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
