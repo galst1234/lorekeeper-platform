@@ -41,8 +41,12 @@ export function ChronicleEntryInfo({ entry, campaignSlug }: ChronicleEntryInfoPr
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold leading-none">{entry.title}</h1>
-            {entry.restricted && <Badge variant="outline">Restricted</Badge>}
+            <h1 className="text-3xl font-bold">{entry.title}</h1>
+            {entry.restricted && (
+              <Badge variant="outline" className="translate-y-1">
+                Restricted
+              </Badge>
+            )}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatOccurredAt(entry.occurred_at)} - by {entry.author?.display_name ?? "Unknown"}

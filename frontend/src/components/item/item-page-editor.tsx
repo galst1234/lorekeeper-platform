@@ -225,29 +225,50 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                 )}
               </div>
 
-              {isGm && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="access"
+                  name="tags"
                   render={({ field }) => (
-                    <FormItem className="md:w-1/3">
-                      <FormLabel>Access</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="everyone">Everyone</SelectItem>
-                          <SelectItem value="gm_only">GM Only</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <FormItem>
+                      <FormLabel>Tags</FormLabel>
+                      <FormControl>
+                        <TagInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={campaignTags.tags}
+                          placeholder="Add a tag…"
+                          aria-label="Tags"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
+                {isGm && (
+                  <FormField
+                    control={form.control}
+                    name="access"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Access</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="everyone">Everyone</SelectItem>
+                            <SelectItem value="gm_only">GM Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
 
               <FormField
                 control={form.control}
@@ -262,26 +283,6 @@ export function ItemPageEditor(props: ItemPageEditorProps) {
                         campaignSlug={campaignSlug}
                         className="flex min-h-0 flex-1 flex-col"
                         textareaClassName="min-h-[16rem] flex-1 leading-7"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags</FormLabel>
-                    <FormControl>
-                      <TagInput
-                        value={field.value}
-                        onChange={field.onChange}
-                        suggestions={campaignTags.tags}
-                        placeholder="Add a tag…"
-                        aria-label="Tags"
                       />
                     </FormControl>
                     <FormMessage />

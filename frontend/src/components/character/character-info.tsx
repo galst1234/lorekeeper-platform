@@ -32,9 +32,15 @@ export function CharacterInfo({ character, campaignSlug }: CharacterInfoProps) {
     <div>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold leading-none">{character.name}</h1>
-          <Badge variant="secondary">{character.character_type.toUpperCase()}</Badge>
-          {character.restricted && <Badge variant="outline">Restricted</Badge>}
+          <h1 className="text-3xl font-bold">{character.name}</h1>
+          <Badge variant="secondary" className="translate-y-1">
+            {character.character_type.toUpperCase()}
+          </Badge>
+          {character.restricted && (
+            <Badge variant="outline" className="translate-y-1">
+              Restricted
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" asChild aria-label="Edit character">
