@@ -12,22 +12,15 @@ from api.database import get_db
 from api.models import CampaignMember, Location, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
+from api.routers._tags import normalize_tags_or_422
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import locations as location_service
-from api.services.common.tags import TagValidationError, normalize_tags
 from api.services.locations import LocationSlugConflictError
 from api.storage import ALLOWED_IMAGE_CONTENT_TYPES, ImageStorage, get_image_storage
 
 router = APIRouter(prefix="/locations", tags=["Locations"])
 
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-
-
-def _normalize_tags_or_422(raw: list[str]) -> list[str]:
-    try:
-        return normalize_tags(raw)
-    except TagValidationError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 class LocationResponse(BaseModel):
@@ -126,7 +119,7 @@ async def create_location(
 ) -> LocationResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted location")
-    normalized_tags = _normalize_tags_or_422(body.tags)
+    normalized_tags = normalize_tags_or_422(body.tags)
     try:
         location = await location_service.create_location(
             db,
@@ -171,7 +164,7 @@ async def patch_location(
     if body.tags is MISSING:
         tags_update: list[str] | MISSING = MISSING
     else:
-        tags_update = _normalize_tags_or_422(body.tags)
+        tags_update = normalize_tags_or_422(body.tags)
     location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
