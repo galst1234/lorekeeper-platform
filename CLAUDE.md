@@ -53,3 +53,10 @@ CI (`.github/workflows/ci.yml`) path-filters per project and runs: Ruff + Ty + P
 ## Review guidelines
 
 - Skip reviewing lock files (`package-lock.json`, `uv.lock`) and the generated OpenAPI schema (`api/openapi.json`) — they're machine-generated; focus on handwritten source changes.
+
+# Development guidelines
+
+- When creating a new branch use the `gh issue develop` command to create a branch that is linked to the issue.
+- When naming branches use a prefix that indicates the type of work being done. For example, use `feature/` for new features, `bugfix/` for bug fixes, and `hotfix/` for urgent fixes.
+- When naming a new branch use the following format: `type/issue-number-short-description`. For example, `feature/123-add-new-login-page`.
+- When creating a pull request, use the branch name as the title of the pull request, as is.
