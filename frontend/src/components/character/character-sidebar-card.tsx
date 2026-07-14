@@ -1,6 +1,5 @@
 import { User } from "lucide-react";
 import type { CharacterResponse } from "@/api/generated";
-import { TagRow } from "@/components/tags/tag-row";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface CharacterSidebarCardProps {
@@ -33,13 +32,6 @@ export function CharacterSidebarCard({ character }: CharacterSidebarCardProps) {
           <p className="text-xs text-muted-foreground">Last updated</p>
           <p className="text-xs text-muted-foreground">{formatRelativeDate(character.updated_at)}</p>
         </div>
-        {/* TEMP A/B (#23): tags shown both here and under the title on characters; delete the loser after review. */}
-        {character.tags.length > 0 && (
-          <div>
-            <p className="text-xs text-muted-foreground">Tags</p>
-            <TagRow tags={character.tags} className="mt-1" />
-          </div>
-        )}
       </CardContent>
     </Card>
   );
