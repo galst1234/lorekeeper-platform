@@ -45,6 +45,7 @@ async def create_entry(
     body: str | None,
     author_id: uuid.UUID,
     restricted: bool = False,
+    tags: list[str] | None = None,
 ) -> ChronicleEntry:
     entry = ChronicleEntry(
         campaign_id=campaign_id,
@@ -54,6 +55,7 @@ async def create_entry(
         body=body,
         author_id=author_id,
         restricted=restricted,
+        tags=tags if tags is not None else [],
     )
     try:
         db.add(entry)
@@ -95,6 +97,7 @@ async def update_entry(
     occurred_at: datetime | MISSING = MISSING,
     body: str | None | MISSING = MISSING,
     restricted: bool | MISSING = MISSING,
+    tags: list[str] | MISSING = MISSING,
 ) -> ChronicleEntry:
     if title is not MISSING:
         entry.title = title
@@ -104,6 +107,8 @@ async def update_entry(
         entry.body = body
     if restricted is not MISSING:
         entry.restricted = restricted
+    if tags is not MISSING:
+        entry.tags = tags
     await db.commit()
     await db.refresh(entry)
     return entry

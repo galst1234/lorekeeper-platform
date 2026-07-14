@@ -233,6 +233,7 @@ def build_character(
     description: str | None = None,
     restricted: bool = False,
     image_key: str | None = None,
+    tags: list[str] | None = None,
 ) -> Character:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -246,6 +247,7 @@ def build_character(
         description=description,
         restricted=restricted,
         image_key=image_key,
+        tags=tags if tags is not None else [],
         created_at=now,
         updated_at=now,
     )
@@ -259,6 +261,7 @@ def build_item(
     description: str | None = None,
     restricted: bool = False,
     image_key: str | None = None,
+    tags: list[str] | None = None,
 ) -> Item:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -271,6 +274,7 @@ def build_item(
         description=description,
         restricted=restricted,
         image_key=image_key,
+        tags=tags if tags is not None else [],
         created_at=now,
         updated_at=now,
     )
@@ -284,6 +288,7 @@ def build_location(
     description: str | None = None,
     restricted: bool = False,
     image_key: str | None = None,
+    tags: list[str] | None = None,
 ) -> Location:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -296,6 +301,7 @@ def build_location(
         description=description,
         restricted=restricted,
         image_key=image_key,
+        tags=tags if tags is not None else [],
         created_at=now,
         updated_at=now,
     )
@@ -311,6 +317,7 @@ def build_chronicle_entry(
     author_id: uuid.UUID | None = None,
     author: User | None = None,
     restricted: bool = False,
+    tags: list[str] | None = None,
 ) -> ChronicleEntry:
     if slug is None:
         slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
@@ -327,6 +334,7 @@ def build_chronicle_entry(
         author_id=author_id,
         author=author,
         restricted=restricted,
+        tags=tags if tags is not None else [],
         created_at=now,
         updated_at=now,
     )

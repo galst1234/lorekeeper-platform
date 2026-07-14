@@ -12,6 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, Character, CharacterType, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
@@ -32,6 +33,7 @@ class CharacterResponse(BaseModel):
                 "character_type": "pc",
                 "description": "A wise elven druid from the Emerald Enclave.",
                 "restricted": False,
+                "tags": ["ally", "spellcaster"],
                 "image_url": "/media/3f9c1e2a-3b7e-4a2e-9b1a-9d6a2b0e5c11.jpg",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -45,12 +47,13 @@ class CharacterResponse(BaseModel):
     character_type: CharacterType
     description: str | None
     restricted: bool
+    tags: list[str]
     image_url: str | None
     created_at: datetime
     updated_at: datetime
 
 
-class CreateCharacterRequest(NonReservedSlugModel):
+class CreateCharacterRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -58,6 +61,7 @@ class CreateCharacterRequest(NonReservedSlugModel):
                 "name": "Elara Moonwhisper",
                 "character_type": "pc",
                 "description": "A wise elven druid from the Emerald Enclave.",
+                "tags": ["ally", "spellcaster"],
             }
         }
     )
@@ -68,13 +72,14 @@ class CreateCharacterRequest(NonReservedSlugModel):
     restricted: bool = False
 
 
-class PatchCharacterRequest(BaseModel):
+class PatchCharacterRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "name": "Elara of the Enclave",
                 "character_type": "pc",
                 "description": "Updated description.",
+                "tags": ["ally", "spellcaster"],
             }
         }
     )
@@ -93,6 +98,7 @@ def _to_response(character: Character, image_storage: ImageStorage) -> Character
         character_type=character.character_type,
         description=character.description,
         restricted=character.restricted,
+        tags=character.tags,
         image_url=image_storage.url_for(character.image_key) if character.image_key else None,
         created_at=character.created_at,
         updated_at=character.updated_at,
@@ -128,6 +134,7 @@ async def create_character(
             character_type=body.character_type,
             description=body.description,
             restricted=body.restricted,
+            tags=body.tags,
         )
     except CharacterSlugConflictError:
         raise HTTPException(
@@ -169,6 +176,7 @@ async def patch_character(
         character_type=body.character_type,
         description=body.description,
         restricted=body.restricted,
+        tags=body.tags,
     )
     return _to_response(updated, image_storage)
 

@@ -12,6 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, Item, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import items as item_service
 from api.services.items import ItemSlugConflictError
@@ -31,6 +32,7 @@ class ItemResponse(BaseModel):
                 "name": "Sunblade",
                 "description": "A radiant longsword that glows in the presence of undead.",
                 "restricted": False,
+                "tags": ["magic", "relic", "weapon"],
                 "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -43,18 +45,20 @@ class ItemResponse(BaseModel):
     name: str
     description: str | None
     restricted: bool
+    tags: list[str]
     image_url: str | None
     created_at: datetime
     updated_at: datetime
 
 
-class CreateItemRequest(NonReservedSlugModel):
+class CreateItemRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "slug": "sunblade",
                 "name": "Sunblade",
                 "description": "A radiant longsword that glows in the presence of undead.",
+                "tags": ["magic", "relic"],
             }
         }
     )
@@ -64,12 +68,13 @@ class CreateItemRequest(NonReservedSlugModel):
     restricted: bool = False
 
 
-class PatchItemRequest(BaseModel):
+class PatchItemRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "name": "Sunblade, Reforged",
                 "description": "Updated description.",
+                "tags": ["magic", "relic"],
             }
         }
     )
@@ -86,6 +91,7 @@ def _to_response(item: Item, image_storage: ImageStorage) -> ItemResponse:
         name=item.name,
         description=item.description,
         restricted=item.restricted,
+        tags=item.tags,
         image_url=image_storage.url_for(item.image_key) if item.image_key else None,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -119,6 +125,7 @@ async def create_item(
             name=body.name,
             description=body.description,
             restricted=body.restricted,
+            tags=body.tags,
         )
     except ItemSlugConflictError:
         raise HTTPException(status_code=409, detail="An item with that slug already exists in this campaign") from None
@@ -152,7 +159,7 @@ async def patch_item(
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     updated = await item_service.update_item(
-        db, item, name=body.name, description=body.description, restricted=body.restricted
+        db, item, name=body.name, description=body.description, restricted=body.restricted, tags=body.tags
     )
     return _to_response(updated, image_storage)
 

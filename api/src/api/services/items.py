@@ -41,6 +41,7 @@ async def create_item(
     name: str,
     description: str | None,
     restricted: bool = False,
+    tags: list[str] | None = None,
 ) -> Item:
     item = Item(
         campaign_id=campaign_id,
@@ -48,6 +49,7 @@ async def create_item(
         name=name,
         description=description,
         restricted=restricted,
+        tags=tags if tags is not None else [],
     )
     try:
         db.add(item)
@@ -83,6 +85,7 @@ async def update_item(
     name: str | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
     restricted: bool | MISSING = MISSING,
+    tags: list[str] | MISSING = MISSING,
 ) -> Item:
     if name is not MISSING:
         item.name = name
@@ -90,6 +93,8 @@ async def update_item(
         item.description = description
     if restricted is not MISSING:
         item.restricted = restricted
+    if tags is not MISSING:
+        item.tags = tags
     await db.commit()
     await db.refresh(item)
     return item

@@ -9,6 +9,7 @@ import { createChronicleEntry, patchChronicleEntry } from "@/api/generated";
 import {
   getCampaignOptions,
   getChronicleEntryQueryKey,
+  listCampaignTagsOptions,
   listChronicleEntriesQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { PageContainer } from "@/components/layout/page-container";
@@ -18,6 +19,7 @@ import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import { datetimeLocalToIso, toDatetimeLocalValue } from "@/lib/datetime";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -50,12 +52,20 @@ const editorSchema = z.object({
   occurredAt: z.string().min(1, "Session date is required"),
   body: z.string(),
   access: z.enum(["everyone", "gm_only"]),
+  tags: z.array(z.string()),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { title: "", slug: "", occurredAt: toDatetimeLocalValue(new Date()), body: "", access: "everyone" };
+  return {
+    title: "",
+    slug: "",
+    occurredAt: toDatetimeLocalValue(new Date()),
+    body: "",
+    access: "everyone",
+    tags: [],
+  };
 }
 
 function editDefaultValues(entry: ChronicleEntryDetailResponse): EditorFormValues {
@@ -65,6 +75,7 @@ function editDefaultValues(entry: ChronicleEntryDetailResponse): EditorFormValue
     occurredAt: toDatetimeLocalValue(new Date(entry.occurred_at)),
     body: entry.body ?? "",
     access: entry.restricted ? "gm_only" : "everyone",
+    tags: entry.tags,
   };
 }
 
@@ -75,6 +86,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
   const queryClient = useQueryClient();
   const [slugEdited, setSlugEdited] = useState(false);
   const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const { data: campaignTags } = useSuspenseQuery(listCampaignTagsOptions({ path: { slug: campaignSlug } }));
   const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (entry ? editDefaultValues(entry) : createDefaultValues()), [entry]);
@@ -102,6 +114,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
             occurred_at: datetimeLocalToIso(values.occurredAt),
             body: values.body.trim() || null,
             restricted: values.access === "gm_only",
+            tags: values.tags,
           },
           throwOnError: true,
         });
@@ -116,6 +129,7 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
           occurred_at: datetimeLocalToIso(values.occurredAt),
           body: values.body.trim() || undefined,
           restricted: values.access === "gm_only",
+          tags: values.tags,
         },
         throwOnError: true,
       });
@@ -195,29 +209,50 @@ export function ChronicleEntryPageEditor(props: ChronicleEntryPageEditorProps) {
             />
           </div>
 
-          {isGm && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
-              name="access"
+              name="tags"
               render={({ field }) => (
-                <FormItem className="md:w-1/3">
-                  <FormLabel>Access</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="everyone">Everyone</SelectItem>
-                      <SelectItem value="gm_only">GM Only</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <FormControl>
+                    <TagInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={campaignTags.tags}
+                      placeholder="Add a tag…"
+                      aria-label="Tags"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          )}
+            {isGm && (
+              <FormField
+                control={form.control}
+                name="access"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Access</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="everyone">Everyone</SelectItem>
+                        <SelectItem value="gm_only">GM Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
 
           {!isEditing && (
             <FormField

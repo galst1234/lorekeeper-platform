@@ -10,6 +10,7 @@ import { createCharacter, deleteCharacterImage, patchCharacter, uploadCharacterI
 import {
   getCampaignOptions,
   getCharacterQueryKey,
+  listCampaignTagsOptions,
   listCharactersQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
@@ -21,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import { cn, getErrorMessage } from "@/lib/utils";
 
 type CharacterPageEditorProps =
@@ -45,12 +47,13 @@ const editorSchema = z.object({
   character_type: z.enum(["pc", "npc"]),
   description: z.string(),
   access: z.enum(["everyone", "gm_only"]),
+  tags: z.array(z.string()),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", character_type: "npc", description: "", access: "everyone" };
+  return { name: "", slug: "", character_type: "npc", description: "", access: "everyone", tags: [] };
 }
 
 function editDefaultValues(character: CharacterResponse): EditorFormValues {
@@ -60,6 +63,7 @@ function editDefaultValues(character: CharacterResponse): EditorFormValues {
     character_type: character.character_type,
     description: character.description ?? "",
     access: character.restricted ? "gm_only" : "everyone",
+    tags: character.tags,
   };
 }
 
@@ -72,6 +76,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
   const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const { data: campaignTags } = useSuspenseQuery(listCampaignTagsOptions({ path: { slug: campaignSlug } }));
   const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (character ? editDefaultValues(character) : createDefaultValues()), [character]);
@@ -100,6 +105,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 character_type: values.character_type,
                 description: values.description.trim() || null,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -113,6 +119,7 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                 character_type: values.character_type,
                 description: values.description.trim() || undefined,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -238,6 +245,25 @@ export function CharacterPageEditor(props: CharacterPageEditorProps) {
                           <SelectItem value="npc">NPC</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags</FormLabel>
+                      <FormControl>
+                        <TagInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={campaignTags.tags}
+                          placeholder="Add a tag…"
+                          aria-label="Tags"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

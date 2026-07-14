@@ -49,6 +49,7 @@ async def create_character(
     character_type: CharacterType,
     description: str | None,
     restricted: bool = False,
+    tags: list[str] | None = None,
 ) -> Character:
     character = Character(
         campaign_id=campaign_id,
@@ -57,6 +58,7 @@ async def create_character(
         character_type=character_type,
         description=description,
         restricted=restricted,
+        tags=tags if tags is not None else [],
     )
     try:
         db.add(character)
@@ -93,6 +95,7 @@ async def update_character(
     character_type: CharacterType | MISSING = MISSING,
     description: str | None | MISSING = MISSING,
     restricted: bool | MISSING = MISSING,
+    tags: list[str] | MISSING = MISSING,
 ) -> Character:
     if name is not MISSING:
         character.name = name
@@ -102,6 +105,8 @@ async def update_character(
         character.description = description
     if restricted is not MISSING:
         character.restricted = restricted
+    if tags is not MISSING:
+        character.tags = tags
     await db.commit()
     await db.refresh(character)
     return character

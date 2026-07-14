@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { LocationResponse } from "@/api/generated";
 import { deleteLocationMutation, listLocationsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,7 +33,11 @@ export function LocationInfo({ location, campaignSlug }: LocationInfoProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2 min-w-0">
           <h1 className="text-3xl font-bold">{location.name}</h1>
-          {location.restricted && <Badge variant="outline">Restricted</Badge>}
+          {location.restricted && (
+            <Badge variant="outline" className="translate-y-1">
+              Restricted
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" asChild aria-label="Edit location">
@@ -48,6 +53,8 @@ export function LocationInfo({ location, campaignSlug }: LocationInfoProps) {
           </Button>
         </div>
       </div>
+
+      <TagRow tags={location.tags} className="mt-3" />
 
       <div className="mt-4">
         {location.description ? (

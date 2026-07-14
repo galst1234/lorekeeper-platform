@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ItemResponse } from "@/api/generated";
 import { deleteItemMutation, listItemsQueryKey } from "@/api/generated/@tanstack/react-query.gen";
 import { MarkdownContent } from "@/components/markdown/markdown-content";
+import { TagRow } from "@/components/tags/tag-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,7 +33,11 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-3xl font-bold">{item.name}</h1>
-          {item.restricted && <Badge variant="outline">Restricted</Badge>}
+          {item.restricted && (
+            <Badge variant="outline" className="translate-y-1">
+              Restricted
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button variant="ghost" size="icon" asChild aria-label="Edit item">
@@ -45,6 +50,8 @@ export function ItemInfo({ item, campaignSlug }: ItemInfoProps) {
           </Button>
         </div>
       </div>
+
+      <TagRow tags={item.tags} className="mt-3" />
 
       <div className="mt-4">
         {item.description ? (

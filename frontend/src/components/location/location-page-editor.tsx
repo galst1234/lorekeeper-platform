@@ -10,6 +10,7 @@ import { createLocation, deleteLocationImage, patchLocation, uploadLocationImage
 import {
   getCampaignOptions,
   getLocationQueryKey,
+  listCampaignTagsOptions,
   listLocationsQueryKey,
 } from "@/api/generated/@tanstack/react-query.gen";
 import { EntityImageField } from "@/components/image/entity-image-field";
@@ -21,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import { cn, getErrorDetail, getErrorMessage } from "@/lib/utils";
 
 type LocationPageEditorProps =
@@ -45,12 +47,13 @@ const editorSchema = z.object({
     .refine((value) => value !== "new", '"new" is a reserved slug'),
   description: z.string(),
   access: z.enum(["everyone", "gm_only"]),
+  tags: z.array(z.string()),
 });
 
 type EditorFormValues = z.infer<typeof editorSchema>;
 
 function createDefaultValues(): EditorFormValues {
-  return { name: "", slug: "", description: "", access: "everyone" };
+  return { name: "", slug: "", description: "", access: "everyone", tags: [] };
 }
 
 function isSlugConflictError(error: unknown): boolean {
@@ -64,6 +67,7 @@ function editDefaultValues(location: LocationResponse): EditorFormValues {
     slug: location.slug,
     description: location.description ?? "",
     access: location.restricted ? "gm_only" : "everyone",
+    tags: location.tags,
   };
 }
 
@@ -76,6 +80,7 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [imageRemoved, setImageRemoved] = useState(false);
   const { data: campaign } = useSuspenseQuery(getCampaignOptions({ path: { slug: campaignSlug } }));
+  const { data: campaignTags } = useSuspenseQuery(listCampaignTagsOptions({ path: { slug: campaignSlug } }));
   const isGm = campaign.role === "gm";
 
   const defaultValues = useMemo(() => (location ? editDefaultValues(location) : createDefaultValues()), [location]);
@@ -103,6 +108,7 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
                 name: values.name.trim(),
                 description: values.description.trim() || null,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -115,6 +121,7 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
                 slug: values.slug.trim(),
                 description: values.description.trim() || undefined,
                 restricted: values.access === "gm_only",
+                tags: values.tags,
               },
               throwOnError: true,
             })
@@ -235,29 +242,50 @@ export function LocationPageEditor(props: LocationPageEditorProps) {
                 )}
               </div>
 
-              {isGm && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
-                  name="access"
+                  name="tags"
                   render={({ field }) => (
-                    <FormItem className="md:w-1/3">
-                      <FormLabel>Access</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="everyone">Everyone</SelectItem>
-                          <SelectItem value="gm_only">GM Only</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <FormItem>
+                      <FormLabel>Tags</FormLabel>
+                      <FormControl>
+                        <TagInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={campaignTags.tags}
+                          placeholder="Add a tag…"
+                          aria-label="Tags"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
+                {isGm && (
+                  <FormField
+                    control={form.control}
+                    name="access"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Access</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="everyone">Everyone</SelectItem>
+                            <SelectItem value="gm_only">GM Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
 
               <FormField
                 control={form.control}

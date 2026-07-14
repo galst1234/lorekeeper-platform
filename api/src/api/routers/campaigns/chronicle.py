@@ -12,6 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, ChronicleEntry, MemberRole, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import chronicle as chronicle_service
 from api.services.chronicle import EntrySlugConflictError
@@ -45,6 +46,7 @@ class ChronicleEntryResponse(BaseModel):
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
                 "restricted": False,
+                "tags": ["battle", "turning-point"],
                 "created_at": "2024-01-16T02:30:00Z",
                 "updated_at": "2024-01-16T02:30:00Z",
             }
@@ -57,6 +59,7 @@ class ChronicleEntryResponse(BaseModel):
     occurred_at: datetime
     body: str | None
     restricted: bool
+    tags: list[str]
     created_at: datetime
     updated_at: datetime
 
@@ -71,6 +74,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
                 "restricted": False,
+                "tags": ["battle", "turning-point"],
                 "created_at": "2024-01-16T02:30:00Z",
                 "updated_at": "2024-01-16T02:30:00Z",
                 "author": {
@@ -84,7 +88,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
     author: AuthorResponse | None
 
 
-class CreateChronicleEntryRequest(NonReservedSlugModel):
+class CreateChronicleEntryRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -92,6 +96,7 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
                 "title": "The Fall of Blackspire",
                 "occurred_at": "2024-01-15T19:00:00Z",
                 "body": "The party stormed the keep at dusk.",
+                "tags": ["battle", "victory"],
             }
         }
     )
@@ -102,12 +107,13 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
     restricted: bool = False
 
 
-class PatchChronicleEntryRequest(BaseModel):
+class PatchChronicleEntryRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "title": "The Fall of Blackspire, Revised",
                 "body": "Updated write-up.",
+                "tags": ["battle", "turning-point"],
             }
         }
     )
@@ -126,6 +132,7 @@ def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
         occurred_at=entry.occurred_at,
         body=entry.body,
         restricted=entry.restricted,
+        tags=entry.tags,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
     )
@@ -143,6 +150,7 @@ def _to_detail_response(entry: ChronicleEntry) -> ChronicleEntryDetailResponse:
         occurred_at=entry.occurred_at,
         body=entry.body,
         restricted=entry.restricted,
+        tags=entry.tags,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
         author=author,
@@ -177,6 +185,7 @@ async def create_chronicle_entry(
             body=body.body,
             author_id=user.id,
             restricted=body.restricted,
+            tags=body.tags,
         )
     except EntrySlugConflictError:
         raise HTTPException(
@@ -216,6 +225,7 @@ async def patch_chronicle_entry(
         occurred_at=body.occurred_at,
         body=body.body,
         restricted=body.restricted,
+        tags=body.tags,
     )
     return _to_response(updated)
 

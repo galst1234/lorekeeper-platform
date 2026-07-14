@@ -12,6 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, Location, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
 from api.routers._slugs import NonReservedSlugModel
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import locations as location_service
 from api.services.locations import LocationSlugConflictError
@@ -31,6 +32,7 @@ class LocationResponse(BaseModel):
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
                 "restricted": False,
+                "tags": ["tavern", "safe-haven"],
                 "image_url": "/media/6b1f0c2d-2c8f-4d3a-8a1e-1a2b3c4d5e6f.png",
                 "created_at": "2024-01-15T10:00:00Z",
                 "updated_at": "2024-01-15T10:00:00Z",
@@ -43,18 +45,20 @@ class LocationResponse(BaseModel):
     name: str
     description: str | None
     restricted: bool
+    tags: list[str]
     image_url: str | None
     created_at: datetime
     updated_at: datetime
 
 
-class CreateLocationRequest(NonReservedSlugModel):
+class CreateLocationRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "slug": "moonlit-tavern",
                 "name": "Moonlit Tavern",
                 "description": "A cozy inn on the edge of the Whisperwood.",
+                "tags": ["tavern", "safe-haven"],
             }
         }
     )
@@ -64,12 +68,13 @@ class CreateLocationRequest(NonReservedSlugModel):
     restricted: bool = False
 
 
-class PatchLocationRequest(BaseModel):
+class PatchLocationRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "name": "Moonlit Tavern, Rebuilt",
                 "description": "Rebuilt after the fire.",
+                "tags": ["tavern", "safe-haven"],
             }
         }
     )
@@ -86,6 +91,7 @@ def _to_response(location: Location, image_storage: ImageStorage) -> LocationRes
         name=location.name,
         description=location.description,
         restricted=location.restricted,
+        tags=location.tags,
         image_url=image_storage.url_for(location.image_key) if location.image_key else None,
         created_at=location.created_at,
         updated_at=location.updated_at,
@@ -119,6 +125,7 @@ async def create_location(
             name=body.name,
             description=body.description,
             restricted=body.restricted,
+            tags=body.tags,
         )
     except LocationSlugConflictError:
         raise HTTPException(
@@ -160,6 +167,7 @@ async def patch_location(
         name=body.name,
         description=body.description,
         restricted=body.restricted,
+        tags=body.tags,
     )
     return _to_response(updated, image_storage)
 

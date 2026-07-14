@@ -26,6 +26,7 @@ app = FastAPI(
         {"name": "Chronicle", "description": "Chronicle entries — the campaign's session-by-session narrative record."},
         {"name": "Members", "description": "Campaign membership — list who is in a campaign."},
         {"name": "Invites", "description": "Invite links — generate, revoke, preview, and join via invite."},
+        {"name": "Tags", "description": "Campaign-wide tag vocabulary"},
     ],
 )
 FastAPIInstrumentor.instrument_app(app)
