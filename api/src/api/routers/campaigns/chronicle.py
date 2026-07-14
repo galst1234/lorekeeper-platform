@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, ChronicleEntry, MemberRole, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
-from api.routers._tags import normalize_tags_or_422
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import chronicle as chronicle_service
 from api.services.chronicle import EntrySlugConflictError
@@ -88,7 +88,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
     author: AuthorResponse | None
 
 
-class CreateChronicleEntryRequest(NonReservedSlugModel):
+class CreateChronicleEntryRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -105,10 +105,9 @@ class CreateChronicleEntryRequest(NonReservedSlugModel):
     occurred_at: AwareDatetime
     body: str | None = None
     restricted: bool = False
-    tags: list[str] = Field(default_factory=list)
 
 
-class PatchChronicleEntryRequest(BaseModel):
+class PatchChronicleEntryRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -123,7 +122,6 @@ class PatchChronicleEntryRequest(BaseModel):
     occurred_at: AwareDatetime | MISSING = MISSING
     body: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
-    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:
@@ -177,7 +175,6 @@ async def create_chronicle_entry(
 ) -> ChronicleEntryResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted chronicle entry")
-    normalized_tags = normalize_tags_or_422(body.tags)
     try:
         entry = await chronicle_service.create_entry(
             db,
@@ -188,7 +185,7 @@ async def create_chronicle_entry(
             body=body.body,
             author_id=user.id,
             restricted=body.restricted,
-            tags=normalized_tags,
+            tags=body.tags,
         )
     except EntrySlugConflictError:
         raise HTTPException(
@@ -218,10 +215,6 @@ async def patch_chronicle_entry(
 ) -> ChronicleEntryResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a chronicle entry as restricted")
-    if body.tags is MISSING:
-        tags_update: list[str] | MISSING = MISSING
-    else:
-        tags_update = normalize_tags_or_422(body.tags)
     entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
@@ -232,7 +225,7 @@ async def patch_chronicle_entry(
         occurred_at=body.occurred_at,
         body=body.body,
         restricted=body.restricted,
-        tags=tags_update,
+        tags=body.tags,
     )
     return _to_response(updated)
 

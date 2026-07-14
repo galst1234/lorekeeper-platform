@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, Character, CharacterType, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
-from api.routers._tags import normalize_tags_or_422
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import characters as character_service
 from api.services.characters import CharacterSlugConflictError
@@ -53,7 +53,7 @@ class CharacterResponse(BaseModel):
     updated_at: datetime
 
 
-class CreateCharacterRequest(NonReservedSlugModel):
+class CreateCharacterRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -70,10 +70,9 @@ class CreateCharacterRequest(NonReservedSlugModel):
     character_type: CharacterType
     description: str | None = None
     restricted: bool = False
-    tags: list[str] = Field(default_factory=list)
 
 
-class PatchCharacterRequest(BaseModel):
+class PatchCharacterRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -89,7 +88,6 @@ class PatchCharacterRequest(BaseModel):
     character_type: CharacterType | MISSING = MISSING
     description: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
-    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(character: Character, image_storage: ImageStorage) -> CharacterResponse:
@@ -127,7 +125,6 @@ async def create_character(
 ) -> CharacterResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted character")
-    normalized_tags = normalize_tags_or_422(body.tags)
     try:
         character = await character_service.create_character(
             db,
@@ -137,7 +134,7 @@ async def create_character(
             character_type=body.character_type,
             description=body.description,
             restricted=body.restricted,
-            tags=normalized_tags,
+            tags=body.tags,
         )
     except CharacterSlugConflictError:
         raise HTTPException(
@@ -169,10 +166,6 @@ async def patch_character(
 ) -> CharacterResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a character as restricted")
-    if body.tags is MISSING:
-        tags_update: list[str] | MISSING = MISSING
-    else:
-        tags_update = normalize_tags_or_422(body.tags)
     character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
@@ -183,7 +176,7 @@ async def patch_character(
         character_type=body.character_type,
         description=body.description,
         restricted=body.restricted,
-        tags=tags_update,
+        tags=body.tags,
     )
     return _to_response(updated, image_storage)
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,7 @@ from api.database import get_db
 from api.models import CampaignMember, Location, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED, UNPROCESSABLE
 from api.routers._slugs import NonReservedSlugModel
-from api.routers._tags import normalize_tags_or_422
+from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
 from api.services import locations as location_service
 from api.services.locations import LocationSlugConflictError
@@ -51,7 +51,7 @@ class LocationResponse(BaseModel):
     updated_at: datetime
 
 
-class CreateLocationRequest(NonReservedSlugModel):
+class CreateLocationRequest(NonReservedSlugModel, TagsCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -66,10 +66,9 @@ class CreateLocationRequest(NonReservedSlugModel):
     name: _NonEmptyStr
     description: str | None = None
     restricted: bool = False
-    tags: list[str] = Field(default_factory=list)
 
 
-class PatchLocationRequest(BaseModel):
+class PatchLocationRequest(TagsPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -83,7 +82,6 @@ class PatchLocationRequest(BaseModel):
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
     restricted: bool | MISSING = MISSING
-    tags: list[str] | MISSING = MISSING
 
 
 def _to_response(location: Location, image_storage: ImageStorage) -> LocationResponse:
@@ -119,7 +117,6 @@ async def create_location(
 ) -> LocationResponse:
     if body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can create a restricted location")
-    normalized_tags = normalize_tags_or_422(body.tags)
     try:
         location = await location_service.create_location(
             db,
@@ -128,7 +125,7 @@ async def create_location(
             name=body.name,
             description=body.description,
             restricted=body.restricted,
-            tags=normalized_tags,
+            tags=body.tags,
         )
     except LocationSlugConflictError:
         raise HTTPException(
@@ -161,10 +158,6 @@ async def patch_location(
 ) -> LocationResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a location as restricted")
-    if body.tags is MISSING:
-        tags_update: list[str] | MISSING = MISSING
-    else:
-        tags_update = normalize_tags_or_422(body.tags)
     location = await location_service.get_location_by_slug(db, member.campaign_id, location_slug, member.role)
     if location is None:
         raise HTTPException(status_code=404, detail="Location not found")
@@ -174,7 +167,7 @@ async def patch_location(
         name=body.name,
         description=body.description,
         restricted=body.restricted,
-        tags=tags_update,
+        tags=body.tags,
     )
     return _to_response(updated, image_storage)
 

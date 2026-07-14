@@ -2602,6 +2602,13 @@
       },
       "CreateCharacterRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "slug": {
             "type": "string",
             "maxLength": 100,
@@ -2632,13 +2639,6 @@
             "type": "boolean",
             "title": "Restricted",
             "default": false
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -2661,6 +2661,13 @@
       },
       "CreateChronicleEntryRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "slug": {
             "type": "string",
             "maxLength": 100,
@@ -2693,13 +2700,6 @@
             "type": "boolean",
             "title": "Restricted",
             "default": false
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -2722,6 +2722,13 @@
       },
       "CreateItemRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "slug": {
             "type": "string",
             "maxLength": 100,
@@ -2749,13 +2756,6 @@
             "type": "boolean",
             "title": "Restricted",
             "default": false
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -2776,6 +2776,13 @@
       },
       "CreateLocationRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "slug": {
             "type": "string",
             "maxLength": 100,
@@ -2803,13 +2810,6 @@
             "type": "boolean",
             "title": "Restricted",
             "default": false
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -3182,6 +3182,13 @@
       },
       "PatchCharacterRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3205,13 +3212,6 @@
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -3228,6 +3228,13 @@
       },
       "PatchChronicleEntryRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "title": {
             "type": "string",
             "minLength": 1,
@@ -3252,13 +3259,6 @@
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -3274,6 +3274,13 @@
       },
       "PatchItemRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3293,13 +3300,6 @@
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
@@ -3315,6 +3315,13 @@
       },
       "PatchLocationRequest": {
         "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3334,13 +3341,6 @@
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
           }
         },
         "type": "object",
