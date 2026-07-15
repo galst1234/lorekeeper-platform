@@ -75,6 +75,7 @@ testpaths = ["tests"]
 "api.models.campaign".msg = "Import models from 'api.models' instead of submodules."
 "api.models.character".msg = "Import models from 'api.models' instead of submodules."
 "api.models.chronicle_entry".msg = "Import models from 'api.models' instead of submodules."
+"api.models.common.campaign_entity".msg = "Import models from 'api.models' instead of submodules."
 "api.models.item".msg = "Import models from 'api.models' instead of submodules."
 "api.models.location".msg = "Import models from 'api.models' instead of submodules."
 "api.models.membership".msg = "Import models from 'api.models' instead of submodules."

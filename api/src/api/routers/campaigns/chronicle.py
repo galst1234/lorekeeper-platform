@@ -11,9 +11,12 @@ from api.auth import get_current_user
 from api.database import get_db
 from api.models import CampaignMember, ChronicleEntry, MemberRole, User
 from api.routers._openapi import CONFLICT, FORBIDDEN, NOT_FOUND, UNAUTHENTICATED
-from api.routers._slugs import NonReservedSlugModel
-from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
+from api.routers.common.campaign_entity import (
+    CampaignEntityCreateModel,
+    CampaignEntityPatchModel,
+    CampaignEntityResponse,
+)
 from api.services import chronicle as chronicle_service
 from api.services.chronicle import EntrySlugConflictError
 
@@ -36,7 +39,7 @@ class AuthorResponse(BaseModel):
     display_name: str
 
 
-class ChronicleEntryResponse(BaseModel):
+class ChronicleEntryResponse(CampaignEntityResponse):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -53,15 +56,9 @@ class ChronicleEntryResponse(BaseModel):
         }
     )
 
-    id: uuid.UUID
-    slug: str
     title: str
     occurred_at: datetime
     body: str | None
-    restricted: bool
-    tags: list[str]
-    created_at: datetime
-    updated_at: datetime
 
 
 class ChronicleEntryDetailResponse(ChronicleEntryResponse):
@@ -88,7 +85,7 @@ class ChronicleEntryDetailResponse(ChronicleEntryResponse):
     author: AuthorResponse | None
 
 
-class CreateChronicleEntryRequest(NonReservedSlugModel, TagsCreateModel):
+class CreateChronicleEntryRequest(CampaignEntityCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -104,10 +101,9 @@ class CreateChronicleEntryRequest(NonReservedSlugModel, TagsCreateModel):
     title: _NonEmptyStr
     occurred_at: AwareDatetime
     body: str | None = None
-    restricted: bool = False
 
 
-class PatchChronicleEntryRequest(TagsPatchModel):
+class PatchChronicleEntryRequest(CampaignEntityPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -121,7 +117,6 @@ class PatchChronicleEntryRequest(TagsPatchModel):
     title: _NonEmptyStr | MISSING = MISSING
     occurred_at: AwareDatetime | MISSING = MISSING
     body: str | None | MISSING = MISSING
-    restricted: bool | MISSING = MISSING
 
 
 def _to_response(entry: ChronicleEntry) -> ChronicleEntryResponse:

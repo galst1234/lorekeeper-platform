@@ -2352,6 +2352,27 @@
             "type": "string",
             "title": "Slug"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -2370,17 +2391,6 @@
             ],
             "title": "Description"
           },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
-          },
           "image_url": {
             "anyOf": [
               {
@@ -2391,30 +2401,20 @@
               }
             ],
             "title": "Image Url"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
           }
         },
         "type": "object",
         "required": [
           "id",
           "slug",
+          "restricted",
+          "tags",
+          "created_at",
+          "updated_at",
           "name",
           "character_type",
           "description",
-          "restricted",
-          "tags",
-          "image_url",
-          "created_at",
-          "updated_at"
+          "image_url"
         ],
         "title": "CharacterResponse",
         "example": {
@@ -2452,26 +2452,6 @@
             "type": "string",
             "title": "Slug"
           },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "occurred_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Occurred At"
-          },
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
@@ -2493,6 +2473,26 @@
             "format": "date-time",
             "title": "Updated At"
           },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
           "author": {
             "anyOf": [
               {
@@ -2508,13 +2508,13 @@
         "required": [
           "id",
           "slug",
-          "title",
-          "occurred_at",
-          "body",
           "restricted",
           "tags",
           "created_at",
           "updated_at",
+          "title",
+          "occurred_at",
+          "body",
           "author"
         ],
         "title": "ChronicleEntryDetailResponse",
@@ -2548,26 +2548,6 @@
             "type": "string",
             "title": "Slug"
           },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "occurred_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Occurred At"
-          },
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
           "restricted": {
             "type": "boolean",
             "title": "Restricted"
@@ -2588,19 +2568,39 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
           }
         },
         "type": "object",
         "required": [
           "id",
           "slug",
-          "title",
-          "occurred_at",
-          "body",
           "restricted",
           "tags",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "title",
+          "occurred_at",
+          "body"
         ],
         "title": "ChronicleEntryResponse",
         "example": {
@@ -2658,6 +2658,13 @@
       },
       "CreateCharacterRequest": {
         "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug"
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -2665,12 +2672,10 @@
             "type": "array",
             "title": "Tags"
           },
-          "slug": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
-            "title": "Slug"
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           },
           "name": {
             "type": "string",
@@ -2690,11 +2695,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted",
-            "default": false
           }
         },
         "type": "object",
@@ -2717,6 +2717,13 @@
       },
       "CreateChronicleEntryRequest": {
         "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug"
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -2724,12 +2731,10 @@
             "type": "array",
             "title": "Tags"
           },
-          "slug": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
-            "title": "Slug"
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           },
           "title": {
             "type": "string",
@@ -2751,11 +2756,6 @@
               }
             ],
             "title": "Body"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted",
-            "default": false
           }
         },
         "type": "object",
@@ -2778,6 +2778,13 @@
       },
       "CreateItemRequest": {
         "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug"
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -2785,12 +2792,10 @@
             "type": "array",
             "title": "Tags"
           },
-          "slug": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
-            "title": "Slug"
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           },
           "name": {
             "type": "string",
@@ -2807,11 +2812,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted",
-            "default": false
           }
         },
         "type": "object",
@@ -2832,6 +2832,13 @@
       },
       "CreateLocationRequest": {
         "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug"
+          },
           "tags": {
             "items": {
               "type": "string"
@@ -2839,12 +2846,10 @@
             "type": "array",
             "title": "Tags"
           },
-          "slug": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
-            "title": "Slug"
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted",
+            "default": false
           },
           "name": {
             "type": "string",
@@ -2861,11 +2866,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted",
-            "default": false
           }
         },
         "type": "object",
@@ -2930,6 +2930,27 @@
             "type": "string",
             "title": "Slug"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -2945,17 +2966,6 @@
             ],
             "title": "Description"
           },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
-          },
           "image_url": {
             "anyOf": [
               {
@@ -2966,29 +2976,19 @@
               }
             ],
             "title": "Image Url"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
           }
         },
         "type": "object",
         "required": [
           "id",
           "slug",
-          "name",
-          "description",
           "restricted",
           "tags",
-          "image_url",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "name",
+          "description",
+          "image_url"
         ],
         "title": "ItemResponse",
         "example": {
@@ -3040,6 +3040,27 @@
             "type": "string",
             "title": "Slug"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -3055,17 +3076,6 @@
             ],
             "title": "Description"
           },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
-          },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Tags"
-          },
           "image_url": {
             "anyOf": [
               {
@@ -3076,29 +3086,19 @@
               }
             ],
             "title": "Image Url"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
           }
         },
         "type": "object",
         "required": [
           "id",
           "slug",
-          "name",
-          "description",
           "restricted",
           "tags",
-          "image_url",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "name",
+          "description",
+          "image_url"
         ],
         "title": "LocationResponse",
         "example": {
@@ -3245,6 +3245,10 @@
             "type": "array",
             "title": "Tags"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3264,10 +3268,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
           }
         },
         "type": "object",
@@ -3291,6 +3291,10 @@
             "type": "array",
             "title": "Tags"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "title": {
             "type": "string",
             "minLength": 1,
@@ -3311,10 +3315,6 @@
               }
             ],
             "title": "Body"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
           }
         },
         "type": "object",
@@ -3337,6 +3337,10 @@
             "type": "array",
             "title": "Tags"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3352,10 +3356,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
           }
         },
         "type": "object",
@@ -3378,6 +3378,10 @@
             "type": "array",
             "title": "Tags"
           },
+          "restricted": {
+            "type": "boolean",
+            "title": "Restricted"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -3393,10 +3397,6 @@
               }
             ],
             "title": "Description"
-          },
-          "restricted": {
-            "type": "boolean",
-            "title": "Restricted"
           }
         },
         "type": "object",
@@ -3465,6 +3465,95 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "CampaignEntityResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "restricted": {
+            "title": "Restricted",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "restricted",
+          "tags",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CampaignEntityResponse",
+        "type": "object"
+      },
+      "CampaignEntityCreateModel": {
+        "properties": {
+          "slug": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*\\z",
+            "title": "Slug",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "restricted": {
+            "default": false,
+            "title": "Restricted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "CampaignEntityCreateModel",
+        "type": "object"
+      },
+      "CampaignEntityPatchModel": {
+        "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "restricted": {
+            "title": "Restricted",
+            "type": "boolean"
+          }
+        },
+        "title": "CampaignEntityPatchModel",
+        "type": "object"
       }
     }
   },

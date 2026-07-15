@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import type { CampaignEntityResponse } from "@/api/generated";
 import {
   listCharactersOptions,
   listChronicleEntriesOptions,
   listItemsOptions,
   listLocationsOptions,
 } from "@/api/generated/@tanstack/react-query.gen";
-
-export type EntityDirectiveType = "character" | "item" | "entry" | "location";
+import type { EntityDirectiveType } from "@/components/markdown/entity-registry";
 
 export interface ResolvedEntity {
   type: EntityDirectiveType;
@@ -19,6 +19,14 @@ export interface EntityResolver {
   entities: ResolvedEntity[];
 }
 
+function toResolvedEntities<T extends CampaignEntityResponse>(
+  type: EntityDirectiveType,
+  items: T[] | undefined,
+  getName: (item: T) => string
+): ResolvedEntity[] {
+  return (items ?? []).map((item) => ({ type, slug: item.slug, name: getName(item) }));
+}
+
 export function useEntityResolver(campaignSlug: string | undefined): EntityResolver {
   const enabled = Boolean(campaignSlug);
   const slug = campaignSlug ?? "";
@@ -29,18 +37,10 @@ export function useEntityResolver(campaignSlug: string | undefined): EntityResol
   const { data: locations } = useQuery({ ...listLocationsOptions({ path: { slug } }), enabled });
 
   const entities: ResolvedEntity[] = [
-    ...(characters ?? []).map((character) => ({
-      type: "character" as const,
-      slug: character.slug,
-      name: character.name,
-    })),
-    ...(items ?? []).map((item) => ({ type: "item" as const, slug: item.slug, name: item.name })),
-    ...(entries ?? []).map((entry) => ({ type: "entry" as const, slug: entry.slug, name: entry.title })),
-    ...(locations ?? []).map((location) => ({
-      type: "location" as const,
-      slug: location.slug,
-      name: location.name,
-    })),
+    ...toResolvedEntities("character", characters, (character) => character.name),
+    ...toResolvedEntities("item", items, (item) => item.name),
+    ...toResolvedEntities("entry", entries, (entry) => entry.title),
+    ...toResolvedEntities("location", locations, (location) => location.name),
   ];
 
   function resolve(type: string, targetSlug: string): ResolvedEntity | null {

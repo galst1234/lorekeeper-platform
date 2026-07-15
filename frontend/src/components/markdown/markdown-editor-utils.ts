@@ -1,3 +1,5 @@
+import type { EntityDirectiveType } from "@/components/markdown/entity-registry";
+
 export interface Selection {
   start: number;
   end: number;
@@ -77,11 +79,7 @@ export function buildLinkMarkdown(selectedText: string): string {
   return `[${label}](url)`;
 }
 
-export function buildEntityDirective(
-  entityType: "character" | "item" | "entry" | "location",
-  slug: string,
-  selectedText: string
-): string {
+export function buildEntityDirective(entityType: EntityDirectiveType, slug: string, selectedText: string): string {
   if (!selectedText) return `:${entityType}[${slug}]`;
   const label = sanitizeLabel(selectedText);
   return `:${entityType}[${slug}]{label="${label}"}`;
