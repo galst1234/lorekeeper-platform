@@ -1,9 +1,7 @@
-import uuid
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, StringConstraints
+from pydantic import ConfigDict, StringConstraints
 from pydantic.experimental.missing_sentinel import MISSING
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,9 +9,12 @@ from api.config import settings
 from api.database import get_db
 from api.models import CampaignMember, Location, MemberRole
 from api.routers._openapi import CONFLICT, FORBIDDEN, INVALID_IMAGE, NOT_FOUND, UNAUTHENTICATED
-from api.routers._slugs import NonReservedSlugModel
-from api.routers._tags import TagsCreateModel, TagsPatchModel
 from api.routers.campaigns.dependencies import require_campaign_member
+from api.routers.common.campaign_entity import (
+    CampaignEntityCreateModel,
+    CampaignEntityPatchModel,
+    CampaignEntityResponse,
+)
 from api.services import locations as location_service
 from api.services.locations import LocationSlugConflictError
 from api.storage import ALLOWED_IMAGE_CONTENT_TYPES, ImageStorage, get_image_storage
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/locations", tags=["Locations"])
 _NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
-class LocationResponse(BaseModel):
+class LocationResponse(CampaignEntityResponse):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -40,18 +41,12 @@ class LocationResponse(BaseModel):
         }
     )
 
-    id: uuid.UUID
-    slug: str
     name: str
     description: str | None
-    restricted: bool
-    tags: list[str]
     image_url: str | None
-    created_at: datetime
-    updated_at: datetime
 
 
-class CreateLocationRequest(NonReservedSlugModel, TagsCreateModel):
+class CreateLocationRequest(CampaignEntityCreateModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -65,10 +60,9 @@ class CreateLocationRequest(NonReservedSlugModel, TagsCreateModel):
 
     name: _NonEmptyStr
     description: str | None = None
-    restricted: bool = False
 
 
-class PatchLocationRequest(TagsPatchModel):
+class PatchLocationRequest(CampaignEntityPatchModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -81,7 +75,6 @@ class PatchLocationRequest(TagsPatchModel):
 
     name: _NonEmptyStr | MISSING = MISSING
     description: str | None | MISSING = MISSING
-    restricted: bool | MISSING = MISSING
 
 
 def _to_response(location: Location, image_storage: ImageStorage) -> LocationResponse:

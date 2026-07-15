@@ -1,7 +1,6 @@
 import { visit } from "unist-util-visit";
 import { readDirectiveNode } from "@/components/markdown/directive-node";
-
-const ENTITY_DIRECTIVE_NAMES = new Set(["character", "item", "entry", "location"]);
+import { ENTITY_DIRECTIVE_NAMES } from "@/components/markdown/entity-registry";
 
 export function remarkEntityDirectives() {
   // biome-ignore lint/suspicious/noExplicitAny: mdast tree shape comes from remark-directive, which has no exported node type

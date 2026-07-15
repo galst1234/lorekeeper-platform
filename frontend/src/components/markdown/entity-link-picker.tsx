@@ -1,4 +1,5 @@
-import type { EntityDirectiveType, EntityResolver, ResolvedEntity } from "@/components/markdown/use-entity-resolver";
+import { ENTITY_KINDS } from "@/components/markdown/entity-registry";
+import type { EntityResolver, ResolvedEntity } from "@/components/markdown/use-entity-resolver";
 
 import {
   CommandDialog,
@@ -16,15 +17,6 @@ interface EntityLinkPickerProps {
   onSelect: (entity: ResolvedEntity) => void;
 }
 
-const GROUP_LABELS: Record<EntityDirectiveType, string> = {
-  character: "Characters",
-  item: "Items",
-  entry: "Chronicle Entries",
-  location: "Locations",
-};
-
-const GROUP_ORDER: EntityDirectiveType[] = ["character", "item", "entry", "location"];
-
 export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: EntityLinkPickerProps) {
   return (
     <CommandDialog
@@ -36,11 +28,11 @@ export function EntityLinkPicker({ open, onOpenChange, resolver, onSelect }: Ent
       <CommandInput placeholder="Search characters, items, chronicle entries, etc." />
       <CommandList>
         <CommandEmpty>No entities found.</CommandEmpty>
-        {GROUP_ORDER.map((type) => {
+        {ENTITY_KINDS.map(({ type, label }) => {
           const entitiesOfType = resolver.entities.filter((entity) => entity.type === type);
           if (entitiesOfType.length === 0) return null;
           return (
-            <CommandGroup key={type} heading={GROUP_LABELS[type]}>
+            <CommandGroup key={type} heading={label}>
               {entitiesOfType.map((entity) => (
                 <CommandItem
                   key={`${entity.type}-${entity.slug}`}
