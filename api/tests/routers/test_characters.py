@@ -424,7 +424,7 @@ async def test_patch_character_returns_200(
 
     assert response.status_code == 200
     assert response.json()["name"] == "New"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-char", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-char", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, character, name="New", character_type=MISSING, description=MISSING, restricted=MISSING, tags=MISSING
     )
@@ -466,7 +466,7 @@ async def test_patch_character_returns_404_not_found(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM, for_update=True)
     mock_update.assert_not_called()
 
 
@@ -533,7 +533,7 @@ async def test_patch_character_player_can_update_non_restricted_fields(
 
     assert response.status_code == 200
     assert response.json()["name"] == "Aria Renamed"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY,
         character,
@@ -562,7 +562,7 @@ async def test_delete_character_returns_204(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/aria")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.GM, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, character, ANY)
 
 
@@ -596,7 +596,7 @@ async def test_delete_character_returns_404_not_found(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/nonexistent-character")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-character", MemberRole.GM, for_update=True)
     mock_delete.assert_not_called()
 
 
@@ -614,7 +614,7 @@ async def test_delete_character_player_member_can_delete(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/characters/aria")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "aria", MemberRole.PLAYER, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, character, ANY)
 
 

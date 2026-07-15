@@ -545,7 +545,7 @@ async def test_patch_chronicle_entry_returns_200(
 
     assert response.status_code == 200
     assert response.json()["title"] == "New"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-entry", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-entry", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
     )
@@ -571,7 +571,7 @@ async def test_patch_chronicle_entry_ignores_slug_and_author_id(
     assert response.status_code == 200
     assert response.json()["slug"] == "original-slug"
     assert response.json()["title"] == "Updated Title"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "original-slug", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "original-slug", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, entry, title="Updated Title", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
     )
@@ -633,7 +633,7 @@ async def test_patch_chronicle_entry_returns_404_not_found(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM, for_update=True)
     mock_update.assert_not_called()
 
 
@@ -676,7 +676,7 @@ async def test_patch_chronicle_entry_gm_can_set_restricted_true(
 
     assert response.status_code == 200
     assert response.json()["restricted"] is True
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, entry, title=MISSING, occurred_at=MISSING, body=MISSING, restricted=True, tags=MISSING
     )
@@ -701,7 +701,7 @@ async def test_patch_chronicle_entry_player_can_update_non_restricted_fields(
 
     assert response.status_code == 200
     assert response.json()["title"] == "New"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "session-one", MemberRole.PLAYER, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, entry, title="New", occurred_at=MISSING, body=MISSING, restricted=MISSING, tags=MISSING
     )
@@ -724,7 +724,7 @@ async def test_delete_chronicle_entry_returns_204(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.GM, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, entry)
 
 
@@ -758,7 +758,7 @@ async def test_delete_chronicle_entry_returns_404_not_found(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/nonexistent-entry")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-entry", MemberRole.GM, for_update=True)
     mock_delete.assert_not_called()
 
 
@@ -776,5 +776,5 @@ async def test_delete_chronicle_entry_player_member_can_delete(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/chronicle/entries/{entry.slug}")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, entry.slug, MemberRole.PLAYER, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, entry)

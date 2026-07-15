@@ -75,6 +75,8 @@ async def get_entry_by_slug(
     campaign_id: uuid.UUID,
     entry_slug: str,
     requester_role: MemberRole,
+    *,
+    for_update: bool = False,
 ) -> ChronicleEntry | None:
     query = (
         select(ChronicleEntry)
@@ -86,6 +88,8 @@ async def get_entry_by_slug(
         .execution_options(populate_existing=True)
     )
     query = apply_visibility_filter(query, ChronicleEntry, requester_role)
+    if for_update:
+        query = query.with_for_update()
     return await db.scalar(query)
 
 

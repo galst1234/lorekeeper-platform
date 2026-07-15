@@ -155,7 +155,7 @@ async def patch_item(
 ) -> ItemResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark an item as restricted")
-    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role, for_update=True)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     updated = await item_service.update_item(
@@ -171,7 +171,7 @@ async def delete_item(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role, for_update=True)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     await item_service.delete_item(db, item, image_storage)
@@ -185,7 +185,7 @@ async def upload_item_image(
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
     file: Annotated[UploadFile, File()],
 ) -> ItemResponse:
-    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role, for_update=True)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
@@ -209,7 +209,7 @@ async def delete_item_image(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role)
+    item = await item_service.get_item_by_slug(db, member.campaign_id, item_slug, member.role, for_update=True)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     await item_service.clear_item_image(db, item, image_storage)

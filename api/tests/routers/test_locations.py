@@ -389,7 +389,7 @@ async def test_patch_location_returns_200(
     data = response.json()
     assert data["name"] == "Rebuilt Tavern"
     assert data["description"] == "Updated description"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, location, name="Rebuilt Tavern", description="Updated description", restricted=MISSING, tags=MISSING
     )
@@ -431,7 +431,7 @@ async def test_patch_location_returns_404_not_found(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM, for_update=True)
     mock_update.assert_not_called()
 
 
@@ -451,7 +451,7 @@ async def test_patch_location_returns_404_for_wrong_campaign(
     )
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM, for_update=True)
     mock_update.assert_not_called()
 
 
@@ -474,7 +474,7 @@ async def test_patch_location_player_member_can_patch(
 
     assert response.status_code == 200
     assert response.json()["description"] == "Player update"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, location, name=MISSING, description="Player update", restricted=MISSING, tags=MISSING
     )
@@ -520,7 +520,7 @@ async def test_patch_location_gm_can_set_restricted_true(
 
     assert response.status_code == 200
     assert response.json()["restricted"] is True
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, location, name=MISSING, description=MISSING, restricted=True, tags=MISSING
     )
@@ -543,7 +543,7 @@ async def test_delete_location_returns_204(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, location, ANY)
 
 
@@ -577,7 +577,7 @@ async def test_delete_location_returns_404_not_found(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/nonexistent-location")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-location", MemberRole.GM, for_update=True)
     mock_delete.assert_not_called()
 
 
@@ -594,7 +594,7 @@ async def test_delete_location_returns_404_for_wrong_campaign(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.GM, for_update=True)
     mock_delete.assert_not_called()
 
 
@@ -612,7 +612,7 @@ async def test_delete_location_player_member_can_delete(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/locations/tavern")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "tavern", MemberRole.PLAYER, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, location, ANY)
 
 

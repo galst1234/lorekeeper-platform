@@ -69,12 +69,16 @@ async def get_location_by_slug(
     campaign_id: uuid.UUID,
     location_slug: str,
     requester_role: MemberRole,
+    *,
+    for_update: bool = False,
 ) -> Location | None:
     query = select(Location).where(
         Location.campaign_id == campaign_id,
         Location.slug == location_slug,
     )
     query = apply_visibility_filter(query, Location, requester_role)
+    if for_update:
+        query = query.with_for_update()
     return await db.scalar(query)
 
 

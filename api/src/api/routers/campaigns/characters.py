@@ -166,7 +166,9 @@ async def patch_character(
 ) -> CharacterResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a character as restricted")
-    character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
+    character = await character_service.get_character_by_slug(
+        db, member.campaign_id, character_slug, member.role, for_update=True
+    )
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     updated = await character_service.update_character(
@@ -188,7 +190,9 @@ async def delete_character(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
+    character = await character_service.get_character_by_slug(
+        db, member.campaign_id, character_slug, member.role, for_update=True
+    )
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     await character_service.delete_character(db, character, image_storage)
@@ -202,7 +206,9 @@ async def upload_character_image(
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
     file: Annotated[UploadFile, File()],
 ) -> CharacterResponse:
-    character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
+    character = await character_service.get_character_by_slug(
+        db, member.campaign_id, character_slug, member.role, for_update=True
+    )
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     if file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
@@ -226,7 +232,9 @@ async def delete_character_image(
     db: Annotated[AsyncSession, Depends(get_db)],
     image_storage: Annotated[ImageStorage, Depends(get_image_storage)],
 ) -> None:
-    character = await character_service.get_character_by_slug(db, member.campaign_id, character_slug, member.role)
+    character = await character_service.get_character_by_slug(
+        db, member.campaign_id, character_slug, member.role, for_update=True
+    )
     if character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     await character_service.clear_character_image(db, character, image_storage)

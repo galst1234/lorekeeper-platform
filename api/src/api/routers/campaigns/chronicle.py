@@ -215,7 +215,7 @@ async def patch_chronicle_entry(
 ) -> ChronicleEntryResponse:
     if body.restricted is not MISSING and body.restricted and member.role != MemberRole.GM:
         raise HTTPException(status_code=403, detail="Only the GM can mark a chronicle entry as restricted")
-    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role, for_update=True)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     updated = await chronicle_service.update_entry(
@@ -236,7 +236,7 @@ async def delete_chronicle_entry(
     member: Annotated[CampaignMember, Depends(require_campaign_member)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role)
+    entry = await chronicle_service.get_entry_by_slug(db, member.campaign_id, entry_slug, member.role, for_update=True)
     if entry is None:
         raise HTTPException(status_code=404, detail="Chronicle entry not found")
     await chronicle_service.delete_entry(db, entry)

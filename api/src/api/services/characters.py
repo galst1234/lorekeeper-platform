@@ -78,12 +78,16 @@ async def get_character_by_slug(
     campaign_id: uuid.UUID,
     character_slug: str,
     requester_role: MemberRole,
+    *,
+    for_update: bool = False,
 ) -> Character | None:
     query = select(Character).where(
         Character.campaign_id == campaign_id,
         Character.slug == character_slug,
     )
     query = apply_visibility_filter(query, Character, requester_role)
+    if for_update:
+        query = query.with_for_update()
     return await db.scalar(query)
 
 

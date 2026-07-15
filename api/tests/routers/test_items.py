@@ -363,7 +363,7 @@ async def test_patch_item_returns_200(
 
     assert response.status_code == 200
     assert response.json()["name"] == "New"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-item", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "old-item", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(ANY, item, name="New", description=MISSING, restricted=MISSING, tags=MISSING)
 
 
@@ -397,7 +397,7 @@ async def test_patch_item_returns_404_not_found(
     response = await ac.patch(f"/api/v1/campaigns/{campaign.slug}/items/nonexistent-item", json={"name": "New"})
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-item", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-item", MemberRole.GM, for_update=True)
     mock_update.assert_not_called()
 
 
@@ -434,7 +434,7 @@ async def test_patch_item_gm_can_set_restricted_true(
 
     assert response.status_code == 200
     assert response.json()["restricted"] is True
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM, for_update=True)
     mock_update.assert_awaited_once_with(ANY, item, name=MISSING, description=MISSING, restricted=True, tags=MISSING)
 
 
@@ -454,7 +454,7 @@ async def test_patch_item_player_can_update_non_restricted_fields(
 
     assert response.status_code == 200
     assert response.json()["name"] == "Sword Renamed"
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.PLAYER, for_update=True)
     mock_update.assert_awaited_once_with(
         ANY, item, name="Sword Renamed", description=MISSING, restricted=MISSING, tags=MISSING
     )
@@ -477,7 +477,7 @@ async def test_delete_item_returns_204(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/sword")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.GM, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, item, ANY)
 
 
@@ -511,7 +511,7 @@ async def test_delete_item_returns_404_not_found(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/nonexistent-item")
 
     assert response.status_code == 404
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-item", MemberRole.GM)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "nonexistent-item", MemberRole.GM, for_update=True)
     mock_delete.assert_not_called()
 
 
@@ -529,7 +529,7 @@ async def test_delete_item_player_member_can_delete(
     response = await ac.delete(f"/api/v1/campaigns/{campaign.slug}/items/sword")
 
     assert response.status_code == 204
-    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.PLAYER)
+    mock_get.assert_awaited_once_with(ANY, campaign.id, "sword", MemberRole.PLAYER, for_update=True)
     mock_delete.assert_awaited_once_with(ANY, item, ANY)
 
 

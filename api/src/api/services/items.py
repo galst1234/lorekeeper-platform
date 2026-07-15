@@ -69,12 +69,16 @@ async def get_item_by_slug(
     campaign_id: uuid.UUID,
     item_slug: str,
     requester_role: MemberRole,
+    *,
+    for_update: bool = False,
 ) -> Item | None:
     query = select(Item).where(
         Item.campaign_id == campaign_id,
         Item.slug == item_slug,
     )
     query = apply_visibility_filter(query, Item, requester_role)
+    if for_update:
+        query = query.with_for_update()
     return await db.scalar(query)
 
 
